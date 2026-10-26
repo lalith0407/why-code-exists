@@ -1,0 +1,34 @@
+{
+ "overlooked_assumption": "The agent assumed that adding `StaticWebAssetFrameworkPattern` to a ClassLibrary project would automatically mark all .js files as framework assets and materialize them under the `fx/` directory for a consuming Blazor WebAssembly app, without realizing that the pattern also needs to be present in the consuming app's project to trigger the materialization pipeline.",
+ "why_it_breaks": "The test only adds the `FrameworkPattern` to the ClassLibrary project, but the materialization logic that copies framework assets to the `fx/` directory and updates endpoint routes runs in the consuming project (the Razor app). Without the `StaticWebAssetFrameworkPattern` in the consumer's project file, the assets are not materialized under `fx/`, so the browser cannot find `_framework/blazor.webassembly.<fingerprint>.js`. The agent overlooked that the pattern must also be present (or the materialization step must be invoked) in the consuming project to actually move the files and generate the correct paths.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 111,
+   "quote": "var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n                .WithProjectChanges((path, document) =>\n                {\n                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n                    {\n                        // Add FrameworkPattern to mark all .js files as framework assets\n                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;",
+   "verified": false,
+   "reason": "cited line does not exist"
+  },
+  {
+   "kind": "code",
+   "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+   "line": 111,
+   "quote": "var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n                .WithProjectChanges((path, document) =>\n                {\n                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n                    {\n                        // Add FrameworkPattern to mark all .js files as framework assets\n                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+   "line": 118,
+   "quote": "propertyGroup.Add(\n                            new XElement(\"StaticWebAssetFrameworkPattern\", \"**/*.js\"));",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

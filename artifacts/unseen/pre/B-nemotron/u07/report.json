@@ -1,0 +1,487 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u07",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+   "line": 111
+  },
+  "asked": {
+   "text": "(PR-derived transcript: the original request is not public.)",
+   "citation": "u07.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 60
+  },
+  "understood": {
+   "text": "Clear `AssetGroups` on framework assets at P2P project boundaries\n\n- [x] New task `ApplyStaticWebAssetFrameworkPattern` that applies glob patterns to update matching `SourceType=Discovered` assets to `SourceType=Framework`\n- [x] Register task and invoke it in `ResolveProjectStaticWebAssets` after `DefineStaticWebAssets` when `StaticWebAssetFrameworkPattern` is set\n- [x] New target `MaterializeProjectReferenceFrameworkAssets` to materialize P2P framework assets at build time\n- [x] New test asset `FrameworkAssetsP2PConsumer` for integration testing\n- [x] Integration tests covering P2P materialization, base path rebasing, endpoint generation, and incremental builds (27 tests pass)\n- [x] Unit tests for `ApplyStaticWebAssetFrameworkPattern` (9 tests pass)\n- [x] All 684 unit tests pass\n- [x] Fix skipped test to use `Skip` parameter instead of commented-out code",
+   "citation": "u07.jsonl#L2 (assistant, 109 words, 9 line(s) before the edit at L11)",
+   "valid": true,
+   "full_length": 867
+  },
+  "happened": {
+   "text": "Bug report: a Blazor WebAssembly app built with the .NET 11 Preview 6 SDK fails to boot. The browser requests _framework/blazor.webassembly.<fingerprint>.js and gets HTTP 404, so Blazor never starts. dotnet.<fingerprint>.js is served fine; only blazor.webassembly.js returns 404.\n\n  at ? (test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs:111)\n  111: var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n\nWritten by transcript edit L11 (apply_patch):\n+                }\n+            }\n+        }\n+\n+        private string BuildConsumerWithFrameworkPattern()\n+        {\n+            var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n+                .WithProjectChanges((path, document) =>\n+                {\n+                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n+                    {\n+                        // Add FrameworkPattern to mark all .js files as framework assets\n+                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;",
+   "citation": "error u07 frame test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs:111; u07.jsonl#L11",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 111,
+    "quote": "var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n                .WithProjectChanges((path, document) =>\n                {\n                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n                    {\n                        // Add FrameworkPattern to mark all .js files as framework assets\n                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;",
+    "reason": "cited line does not exist"
+   },
+   {
+    "kind": "code",
+    "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+    "line": 111,
+    "quote": "var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n                .WithProjectChanges((path, document) =>\n                {\n                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n                    {\n                        // Add FrameworkPattern to mark all .js files as framework assets\n                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;",
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+    "line": 118,
+    "quote": "propertyGroup.Add(\n                            new XElement(\"StaticWebAssetFrameworkPattern\", \"**/*.js\"));",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Bug report: a Blazor WebAssembly app built with the .NET 11 Preview 6 SDK fails to boot. The browser requests _framework/blazor.webassembly.<fingerprint>.js and gets HTTP 404, so Blazor never starts. dotnet.<fingerprint>.js is served fine; only blazor.webassembly.js returns 404.\n",
+  "terms": [
+   "bug report",
+   "blazor webassembly app built",
+   "sdk fails to boot",
+   "the browser requests",
+   "blazor never starts",
+   "11",
+   "6",
+   "404",
+   "web",
+   "assembly",
+   "framework",
+   "blazor",
+   "webassembly",
+   "js",
+   "report",
+   "built",
+   "preview",
+   "fails",
+   "boot",
+   "browser",
+   "requests",
+   "fingerprint",
+   "gets",
+   "http",
+   "never",
+   "starts",
+   "dotnet",
+   "served",
+   "fine",
+   "returns"
+  ],
+  "layer1": {
+   "symbols_indexed": 308,
+   "edited_hunks_indexed": 27,
+   "candidates": [
+    {
+     "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+     "line": 111,
+     "end_line": 135,
+     "text": "            var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")",
+     "score": 9.1132,
+     "matched_terms": [
+      "app",
+      "sdk",
+      "web",
+      "framework",
+      "js"
+     ],
+     "edit_line": 11,
+     "tool": "apply_patch",
+     "hunk_id": "L11#23",
+     "snippet": "1: // Licensed to the .NET Foundation under one or more agreements.\n2: // The .NET Foundation licenses this file to you under the MIT license.\n3: \n4: #nullable disable\n5: \n6: using System.Xml.Linq;\n7: using Microsoft.AspNetCore.StaticWebAssets.Tasks;\n8: \n9: namespace Microsoft.NET.Sdk.StaticWebAssets.Tests\n10: {",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs",
+     "line": 485,
+     "end_line": 527,
+     "text": "        var sourceFile = Path.Combine(sourceDir, \"app.js\");",
+     "score": 7.0506,
+     "matched_terms": [
+      "app",
+      "web",
+      "framework",
+      "js"
+     ],
+     "edit_line": 13,
+     "tool": "apply_patch",
+     "hunk_id": "L13#25",
+     "snippet": "257: \n258:     [Fact]\n259:     public void Execute_MaterializesFrameworkAssetsFromP2PReferences()\n260:     {\n261:         // Arrange\n262:         var errorMessages = new List<string>();\n263:         var buildEngine = new Mock<IBuildEngine>();\n264:         buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))\n265:             .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));\n266: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs",
+     "line": 353,
+     "end_line": 433,
+     "text": "                    CreateCandidate(Path.Combine(\"wwwroot\", \"framework.js\"), \"MyPackage\", \"Discovered\", \"framework.js\", \"All\", \"All\"),",
+     "score": 6.0428,
+     "matched_terms": [
+      "app",
+      "web",
+      "framework",
+      "js"
+     ],
+     "edit_line": 12,
+     "tool": "apply_patch",
+     "hunk_id": "L12#24",
+     "snippet": "339:         [Fact]\n340:         public void AppliesFrameworkPatternToDiscoveredAssets()\n341:         {\n342:             var errorMessages = new List<string>();\n343:             var buildEngine = new Mock<IBuildEngine>();\n344:             buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))\n345:                 .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));\n346: \n347:             var task = new ComputeReferenceStaticWebAssetItems\n348:             {",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs",
+     "line": 647,
+     "end_line": 714,
+     "text": "        var sourceFile = CreateTempFile(\"source\", \"framework.js\", \"content\");",
+     "score": 5.6809,
+     "matched_terms": [
+      "app",
+      "web",
+      "framework",
+      "js"
+     ],
+     "edit_line": 14,
+     "tool": "apply_patch",
+     "hunk_id": "L14#26",
+     "snippet": "626: \n627:     private ITaskItem CreateEndpoint(string route, string assetFile, string label = null)\n628:     {\n629:         var properties = label != null\n630:             ? $$\"\"\"[{\"Name\":\"label\",\"Value\":\"{{label}}\"}]\"\"\"\n631:             : \"[]\";\n632: \n633:         return new TaskItem(route, new Dictionary<string, string>\n634:         {\n635:             [\"Route\"] = route,",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+     "line": 32,
+     "end_line": 37,
+     "text": "    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).",
+     "score": 3.1411,
+     "matched_terms": [
+      "framework",
+      "js"
+     ],
+     "edit_line": 6,
+     "tool": "apply_patch",
+     "hunk_id": "L6#5",
+     "snippet": "31:     /// <summary>\n32:     /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n33:     /// Assets whose <c>RelativePath</c> matches any pattern will have their\n34:     /// <c>SourceType</c> set to <c>Framework</c>.\n35:     /// </summary>\n36:     public string FrameworkPattern { get; set; }\n37: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs",
+     "line": 1144,
+     "end_line": 1195,
+     "text": "    /// Returns the old identity and old base path so callers can remap endpoints and related assets.",
+     "score": 2.966,
+     "matched_terms": [
+      "web",
+      "framework",
+      "returns"
+     ],
+     "edit_line": 7,
+     "tool": "apply_patch",
+     "hunk_id": "L7#11",
+     "snippet": "1140:     /// <summary>\n1141:     /// Materializes a framework asset by copying it to the consuming project's intermediate directory\n1142:     /// and updating its metadata (Identity, ContentRoot, SourceId, BasePath, SourceType, AssetMode).\n1143:     /// Used by both the P2P and NuGet package paths.\n1144:     /// Returns the old identity and old base path so callers can remap endpoints and related assets.\n1145:     /// </summary>\n1146:     public static (StaticWebAsset Asset, string OldIdentity, string OldBasePath) MaterializeFrameworkAsset(\n1147:         StaticWebAsset asset,\n1148:         string intermediateOutputPath,\n1149:         string projectPackageId,",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+     "line": 139,
+     "end_line": 185,
+     "text": "    private StaticWebAssetGlobMatcher CreateFrameworkMatcher()",
+     "score": 1.5253,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 6,
+     "tool": "apply_patch",
+     "hunk_id": "L6#9",
+     "snippet": "139:     private StaticWebAssetGlobMatcher CreateFrameworkMatcher()\n140:     {\n141:         if (string.IsNullOrEmpty(FrameworkPattern))\n142:         {\n143:             return null;\n144:         }\n145: \n146:         var patterns = FrameworkPattern\n147:             .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)\n148:             .Select(s => s.Trim())",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets",
+     "line": 190,
+     "end_line": 190,
+     "text": "        FrameworkPattern=\"$(StaticWebAssetFrameworkPattern)\"",
+     "score": 1.3664,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#2",
+     "snippet": "190:         FrameworkPattern=\"$(StaticWebAssetFrameworkPattern)\"",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+     "line": 54,
+     "end_line": 55,
+     "text": "            var matchContext = frameworkMatcher != null ? StaticWebAssetGlobMatcher.CreateMatchContext() : default;",
+     "score": 1.3255,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 6,
+     "tool": "apply_patch",
+     "hunk_id": "L6#6",
+     "snippet": "52: \n53:             var frameworkMatcher = CreateFrameworkMatcher();\n54:             var matchContext = frameworkMatcher != null ? StaticWebAssetGlobMatcher.CreateMatchContext() : default;\n55: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets",
+     "line": 862,
+     "end_line": 862,
+     "text": "      <StaticWebAssetEndpoint Remove=\"@(_OriginalFrameworkEndpoints)\" />",
+     "score": 1.2969,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 5,
+     "tool": "apply_patch",
+     "hunk_id": "L5#4",
+     "snippet": "861:       <!-- Remove original framework endpoints (with old routes) and add remapped ones (with new routes) -->\n862:       <StaticWebAssetEndpoint Remove=\"@(_OriginalFrameworkEndpoints)\" />",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+   "line": 111,
+   "end_line": 135,
+   "text": "            var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")",
+   "score": 9.1132,
+   "matched_terms": [
+    "app",
+    "sdk",
+    "web",
+    "framework",
+    "js"
+   ],
+   "edit_line": 11,
+   "tool": "apply_patch",
+   "hunk_id": "L11#23",
+   "snippet": "1: // Licensed to the .NET Foundation under one or more agreements.\n2: // The .NET Foundation licenses this file to you under the MIT license.\n3: \n4: #nullable disable\n5: \n6: using System.Xml.Linq;\n7: using Microsoft.AspNetCore.StaticWebAssets.Tasks;\n8: \n9: namespace Microsoft.NET.Sdk.StaticWebAssets.Tests\n10: {",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "nemotron",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "blazor\\.webassembly\\.js|blazor\\.wasm|framework.*js|_framework"
+     },
+     "result": "src/Dotnet.Watch/Web.Middleware/BlazorHotReload.js:9: const response = await fetch('/_framework/blazor-hotreload');\nsrc/Dotnet.Watch/Web.Middleware/WebSocketScriptInjection.js:67: await fetch('/_framework/clear-browser-cache');\nsrc/Dotnet.Watch/Web.Middleware/WebSocketScriptInjection.js:190: await fetch('/_framework/blazor-hotreload', { method: 'post', headers: { 'content-type': 'application/json' }, body: body });"
+    },
+    {
+     "step": 2,
+     "action": "grep",
+     "args": {
+      "pattern": "blazor\\.webassembly\\.js|blazor\\.wasm|framework.*js|_framework"
+     },
+     "result": "src/Dotnet.Watch/Web.Middleware/BlazorHotReload.js:9: const response = await fetch('/_framework/blazor-hotreload');\nsrc/Dotnet.Watch/Web.Middleware/WebSocketScriptInjection.js:67: await fetch('/_framework/clear-browser-cache');\nsrc/Dotnet.Watch/Web.Middleware/WebSocketScriptInjection.js:190: await fetch('/_framework/blazor-hotreload', { method: 'post', headers: { 'content-type': 'application/json' }, body: body });"
+    },
+    {
+     "step": 3,
+     "action": "grep",
+     "args": {
+      "pattern": "blazor\\.webassembly\\.js|blazor\\.wasm|framework.*js|_framework\\.js"
+     },
+     "result": "src/Dotnet.Watch/Web.Middleware/WebSocketScriptInjection.js:190: await fetch('/_framework/blazor-hotreload', { method: 'post', headers: { 'content-type': 'application/json' }, body: body });"
+    },
+    {
+     "step": 4,
+     "action": "grep",
+     "args": {
+      "pattern": "blazor\\.webassembly\\.js|blazor\\.wasm|framework\\.js|_framework\\.js"
+     },
+     "result": "no matches"
+    },
+    {
+     "step": 5,
+     "action": "grep",
+     "args": {
+      "pattern": "blazor\\.webassembly\\.js|blazor\\.wasm|framework\\.js|_framework\\.js"
+     },
+     "result": "no matches"
+    },
+    {
+     "step": 6,
+     "action": "list_edits",
+     "args": {},
+     "result": "src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Publish.targets:173-175 (edit at L3, apply_patch)\n  173:       IntermediateOutputPath=\"$(_StaticWebAssetsIntermediateOutputPath)\"\n  174:       ProjectPackageId=\"$(PackageId)\"\n  175:       ProjectBasePath=\"$(StaticWebAssetBasePath)\"\n\nsrc/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets:136-138 (edit at L4, apply_patch)\n  136:         IntermediateOutputPath=\"$(_StaticWebAssetsIntermediateOutputPath)\"\n  137:         ProjectPackageId=\"$(PackageId)\"\n  138:         ProjectBasePath=\"$(StaticWebAssetBasePath)\"\n\nsrc/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets:190-190 (edit at L4, apply_patch)\n  190:         FrameworkPattern=\"$(StaticWebAssetFrameworkPattern)\"\n\nsrc/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets:843-843 (edit at L5, apply_patch)\n  843:       <Output TaskParameter=\"OriginalFrameworkEndpoints\" ItemName=\"_OriginalFrameworkEndpoints\" />\n\nsrc/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets:861-862 (edit at L5, apply_patch)\n  861:       <!-- Remove original framework endpoints (with old routes) and add remapped ones (with new routes) -->\n  862:       <StaticWebAssetEndpoint Remove=\"@(_OriginalFrameworkEndpoints)\" />\n\nsrc/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:31-37 (edit at L6, apply_patch)\n  31:     /// <summary>\n  32:     /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n  33:     /// Assets whose <c>RelativePath</c> matches any pattern will have their\n  34:     /// <c>SourceType</c> set to <c>Framework</c>.\n\nsrc/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:52-55 (edit at L6, apply_patch)\n  52: \n  53:             var frameworkMatcher = CreateFrameworkMatcher();\n  54:             var matchContext = frameworkMatcher != null ? StaticWebAssetGlobMatcher.CreateMatchContext() : default;\n  55: \n\nsrc/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:69-69 (edit at L6, apply_patch)\n  69:                                 ApplyFrameworkPattern(groupedAsset, frameworkMatcher, ref matchContext);\n\nsrc/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:93-93 (edit at L6, apply_patch)\n  93:                     ApplyFrameworkPattern(selected, frameworkMatcher, ref matchContext);\n\nsrc/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:139-185 (edit at L6, apply_patch)\n  139:     private StaticWebAssetGlobMatcher CreateFrameworkMatcher()\n  140:     {\n  141:         if (string.IsNullOrEmpty(FrameworkPattern))\n  142:         {\n\nsrc/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs:12-12 (edit at L7, apply_patch)\n  12: using Microsoft.Build.Utilities;\n\nsrc/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs:1140-1195 (edit at L7, apply_patch)\n  1140:     /// <summary>\n  1141:     /// Materializes a framework asset by copying it to the consuming project's intermediate directory\n  1142:     /// and updating its metadata (Identity, ContentRoot, SourceId, BasePath, SourceType, AssetMode).\n  1143:     /// Used by both the P2P and NuGet package paths.\n\nsrc/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs:608-671 (edit at L8, apply_patch)\n  608: \n  609:     /// <summary>\n  610:     /// Remaps the Route (and label endpoint property) on an endpoint by stripping the old base path\n  611:     /// prefix and prepending the new base path. Used when materializing framework assets to update\n\nsrc/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs:18-19 (edit at L9, apply_patch)\n  18: // Additionally, this task handles incoming framework assets from P2P references by materializing them\n  19: // (copying files to an intermediate directory and updating metadata) so they become local to the consuming project.\n\nsrc/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs:32-37 (edit at L9, apply_patch)\n  32:     public string IntermediateOutputPath { get; set; }\n  33: \n  34:     public string ProjectPackageId { get; set; }\n  35: \n\nsrc/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs:47-49 (edit at L9, apply_patch)\n  47:     [Output]\n  48:     public ITaskItem[] OriginalFrameworkAssets { get; set; }\n  49: \n\nsrc/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs:61-95 (edit at L9, apply_patch)\n  61:         // Filter by group FIRST so that framework assets tagged with groups that the consuming\n  62:         // project doesn't accept are excluded before materialization.\n  63:         var (filteredAssets, excludedAssetFiles) = StaticWebAsset.FilterByGroup(assets, groupLookup, skipDeferred: true);\n  64: \n\nsrc/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs:111-150 (edit at L9, apply_patch)\n  111:         // Remove alternative assets (e.g., compressed variants) whose primary was materialized as a\n  112:         // framework asset. These alternatives will be regenerated from the materialized primary by the\n  113:         // consuming project's compression step, so keeping the originals would cause conflicts.\n  114:         if (assetMapping.Count > 0)\n\nsrc/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs:31-33 (edit at L10, apply_patch)\n  31:     [Output]\n  32:     public ITaskItem[] OriginalFrameworkEndpoints { get; set; }\n  33: \n\nsrc/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs:42-42 (edit at L10, apply_patch)\n  42:             var assetMapping = new Dictionary<string, (string NewIdentity, string OldBasePath)>(OSPath.PathComparer);\n\nsrc/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs:57-63 (edit at L10, apply_patch)\n  57:                     var asset = StaticWebAsset.FromV1TaskItem(candidate);\n  58:                     var (transformed, oldPath, oldBasePath) = StaticWebAsset.MaterializeFrameworkAsset(\n  59:                         asset, IntermediateOutputPath, ProjectPackageId, ProjectBasePath, Log);\n  63:                         assetMapping[oldPath] = (transformed.Identity, oldBasePath);\n\nsrc/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs:84-111 (edit at L10, apply_patch)\n  84:     private void RemapEndpoints(Dictionary<string, (string NewIdentity, string OldBasePath)> assetMapping)\n  86:         var remappedEndpoints = new List<StaticWebAssetEndpoint>();\n  87:         var originalEndpointItems = new List<ITaskItem>();\n  88:         var parsedEndpoints = StaticWebAssetEndpoint.FromItemGroup(Endpoints);\n\nsrc/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs:120-141 (edit at L10, apply_patch)\n  120:                 foreach (var (endpoint, originalIndex) in group)\n  122:                     // Capture the original endpoint task item for removal.\n  123:                     originalEndpointItems.Add(Endpoints[originalIndex]);\n  124: \n\ntest/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs:1-135 (edit at L11, apply_patch)\n  1: // Licensed to the .NET Foundation under one or more agreements.\n  2: // The .NET Foundation licenses this file to you under the MIT license.\n  3: \n  4: #nullable disable\n\ntest/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs:339-433 (edit at L12, apply_patch)\n  339:         [Fact]\n  340:         public void AppliesFrameworkPatternToDiscoveredAssets()\n  341:         {\n  342:             var errorMessages = new List<string>();\n\ntest/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs:257-527 (edit at L13, apply_patch)\n  257: \n  258:     [Fact]\n  259:     public void Execute_MaterializesFrameworkAssetsFromP2PReferences()\n  260:     {\n\ntest/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs:626-714 (edit at L14, apply_patch)\n  626: \n  627:     private ITaskItem CreateEndpoint(string route, string assetFile, string label = null)\n  628:     {\n  629:         var properties = label != null"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 19837,
+   "truncated": false,
+   "dropped_sections": []
+  },
+  "prompt_user": {
+   "symptom": "Bug report: a Blazor WebAssembly app built with the .NET 11 Preview 6 SDK fails to boot. The browser requests _framework/blazor.webassembly.<fingerprint>.js and gets HTTP 404, so Blazor never starts. dotnet.<fingerprint>.js is served fine; only blazor.webassembly.js returns 404.",
+   "edit": {
+    "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+    "line": 111,
+    "hunk": "+                }\n+            }\n+        }\n+\n+        private string BuildConsumerWithFrameworkPattern()\n+        {\n+            var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n+                .WithProjectChanges((path, document) =>\n+                {\n+                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n+                    {\n+                        // Add FrameworkPattern to mark all .js files as framework assets\n+                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;"
+   },
+   "code_window": "91:             {\n92:                 var matchingEndpoints = manifest.Endpoints\n93:                     ?.Where(e => string.Equals(e.AssetFile, asset.Identity, StringComparison.OrdinalIgnoreCase))\n94:                     .ToList();\n95: \n96:                 matchingEndpoints.Should().NotBeNullOrEmpty(\n97:                     $\"materialized framework asset {asset.RelativePath} should have at least one endpoint\");\n98: \n99:                 // Endpoint routes should NOT contain the library's base path — they should\n100:                 // reflect the consumer's base path (which is \"/\" for a web app).\n101:                 foreach (var ep in matchingEndpoints)\n102:                 {\n103:                     ep.Route.Should().NotContain(\"_content/ClassLibrary\",\n104:                         \"endpoint route should not retain the library's base path after materialization\");\n105:                 }\n106:             }\n107:         }\n108: \n109:         private string BuildConsumerWithFrameworkPattern()\n110:         {\n111:             var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n112:                 .WithProjectChanges((path, document) =>\n113:                 {\n114:                     if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n115:                     {\n116:                         // Add FrameworkPattern to mark all .js files as framework assets\n117:                         var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;\n118:                         propertyGroup.Add(\n119:                             new XElement(\"StaticWebAssetFrameworkPattern\", \"**/*.js\"));\n120:                     }\n121:                 });\n122: \n123:             var build = CreateBuildCommand(projectDirectory, \"AppWithP2PReference\");\n124:             ExecuteCommand(build).Should().Pass();\n125: \n126:             return build.GetIntermediateDirectory(DefaultTfm, \"Debug\").ToString();\n127:         }\n128: \n129:         private static StaticWebAssetsManifest LoadBuildManifest(string intermediateOutputPath)\n130:         {\n131:             var path = Path.Combine(intermediateOutputPath, \"staticwebassets.build.json\");",
+   "related_files": [],
+   "three_piece": {
+    "asked": "(PR-derived transcript: the original request is not public.)",
+    "understood": "Clear `AssetGroups` on framework assets at P2P project boundaries\n\n- [x] New task `ApplyStaticWebAssetFrameworkPattern` that applies glob patterns to update matching `SourceType=Discovered` assets to `SourceType=Framework`\n- [x] Register task and invoke it in `ResolveProjectStaticWebAssets` after `DefineStaticWebAssets` when `StaticWebAssetFrameworkPattern` is set\n- [x] New target `MaterializeProjectReferenceFrameworkAssets` to materialize P2P framework assets at build time\n- [x] New test asset `FrameworkAssetsP2PConsumer` for integration testing\n- [x] Integration tests covering P2P materialization, base path rebasing, endpoint generation, and incremental builds (27 tests pass)\n- [x] Unit tests for `ApplyStaticWebAssetFrameworkPattern` (9 tests pass)\n- [x] All 684 unit tests pass\n- [x] Fix skipped test to use `Skip` parameter instead of commented-out code",
+    "happened": "Bug report: a Blazor WebAssembly app built with the .NET 11 Preview 6 SDK fails to boot. The browser requests _framework/blazor.webassembly.<fingerprint>.js and gets HTTP 404, so Blazor never starts. dotnet.<fingerprint>.js is served fine; only blazor.webassembly.js returns 404.\n\n  at ? (test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs:111)\n  111: var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n\nWritten by transcript edit L11 (apply_patch):\n+                }\n+            }\n+        }\n+\n+        private string BuildConsumerWithFrameworkPattern()\n+        {\n+            var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n+                .WithProjectChanges((path, document) =>\n+                {\n+                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n+                    {\n+                        // Add FrameworkPattern to mark all .js files as framework assets\n+                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L11)",
+     "text": "L8 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs\"}\nL8| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs\"}\nL8| --- a/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs\nL8| +++ b/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs\nL8| @@ -605,4 +605,68 @@ public static bool RouteHasPathPrefix(\nL8|  \nL8|          return true;\nL8|      }\nL8| +\nL8| +    /// <summary>\nL8| +    /// Remaps the Route (and label endpoint property) on an endpoint by stripping the old base path\nL8| +    /// prefix and prepending the new base path. Used when materializing framework assets to update\nL8| +    /// endpoint routes from the library's base path to the consuming project's base path.\nL8| +    /// </summary>\nL8| +    public static void RemapEndpointRoute(\nL8| +        StaticWebAssetEndpoint endpoint,\nL8| +        string oldBasePath,\nL8| +        string newBasePath,\nL8| +        List<PathTokenizer.Segment> routeSegments,\nL8| +        List<PathTokenizer.Segment> basePathSegments)\nL8| +    {\nL8| +        var normalizedOldBase = oldBasePath is null or \"/\" ? \"\" : StaticWebAsset.Normalize(oldBasePath);\nL8| +\nL8| +        if (!string.IsNullOrEmpty(normalizedOldBase) &&\nL8| +            RouteHasPathPrefix(endpoint.Route, normalizedOldBase, routeSegments, basePathSegments))\nL8| +        {\nL8| +            var remaining = endpoint.Route.Length > normalizedOldBase.Length\nL8| +                ? endpoint.Route.Substring(normalizedOldBase.Length).TrimStart('/')\nL8| +                : \"\";\nL8| +            endpoint.Route = StaticWebAsset.CombineNormalizedPaths(\"\", newBasePath, remaining, '/');\nL8| +\nL8| +            // Also remap the label endpoint\nL9 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs\"}\nL9| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs\"}\nL9| --- a/src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs\nL9| +++ b/src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs\nL9| @@ -15,6 +15,8 @@ namespace Microsoft.AspNetCore.StaticWebAssets.Tasks;\nL9|  // For example, the JavaScript Project Tools SDK integrates with the static web asset protocol for SPA applications\nL9|  // but it doesn't support integrity or fingerprinting, which causes issues when we reference the project and we try\nL9|  // to further process the assets.\nL9| +// Additionally, this task handles incoming framework assets from P2P references by materializing them\nL9| +// (copying files to an intermediate directory and updating metadata) so they become local to the consuming project.\nL9|  public class UpdateExternallyDefinedStaticWebAssets : Task\nL9|  {\nL9|      [Required]\nL9| @@ -27,6 +29,12 @@ public class UpdateExternallyDefinedStaticWebAssets : Task\nL9|  \nL9|      public ITaskItem[] StaticWebAssetGroups { get; set; }\nL9|  \nL9| +    public string IntermediateOutputPath { get; set; }\nL9| +\nL9| +    public string ProjectPackageId { get; set; }\nL9| +\nL9| +    public string ProjectBasePath { get; set; }\nL9| +\nL9|      [Output]\nL9|      public ITaskItem[] UpdatedAssets { get; set; }\nL9|  \nL9| @@ -36,6 +44,9 @@ public class UpdateExternallyDefinedStaticWebAssets : Task\nL9|      [Output]\nL9|      public ITaskItem[] AssetsWithoutEndpoints { get; set; }\nL9|  \nL9| +    [Output]\nL9| +    public ITaskItem[] OriginalFrameworkAssets { get; set; }\nL9| +\nL9|      public override\nL10 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs\"}\nL10| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs\"}\nL10| --- a/src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs\nL10| +++ b/src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs\nL10| @@ -5,7 +5,6 @@\nL10|  \nL10|  using Microsoft.AspNetCore.StaticWebAssets.Tasks.Utils;\nL10|  using Microsoft.Build.Framework;\nL10| -using Microsoft.Build.Utilities;\nL10|  \nL10|  namespace Microsoft.AspNetCore.StaticWebAssets.Tasks;\nL10|  \nL10| @@ -29,6 +28,9 @@ public class UpdatePackageStaticWebAssets : Task\nL10|      [Output]\nL10|      public ITaskItem[] RemappedEndpoints { get; set; }\nL10|  \nL10| +    [Output]\nL10| +    public ITaskItem[] OriginalFrameworkEndpoints { get; set; }\nL10| +\nL10|      public ITaskItem[] Endpoints { get; set; }\nL10|  \nL10|      public override bool Execute()\nL10| @@ -37,7 +39,7 @@ public override bool Execute()\nL10|          {\nL10|              var originalAssets = new List<ITaskItem>();\nL10|              var updatedAssets = new List<ITaskItem>();\nL10| -            var assetMapping = new Dictionary<string, string>(OSPath.PathComparer);\nL10| +            var assetMapping = new Dictionary<string, (string NewIdentity, string OldBasePath)>(OSPath.PathComparer);\nL10|  \nL10|              for (var i = 0; i < Assets.Length; i++)\nL10|              {\nL10| @@ -52,11 +54,13 @@ public override bool Execute()\nL10|                  else if (StaticWebAsset.SourceTypes.IsFramework(sourceType))\nL10|                  {\nL10|                      originalAssets.Add(candidate);\nL10| -                    var (transformed, oldPath) = MaterializeFrameworkAsset(candidate);\nL10| +                    var asset = StaticWebAsset.Fro\nL11 [tool] TOOL: apply_patch {\"path\":\"test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs\"}\nL11| CODE_WRITTEN: {\"path\":\"test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs\"}\nL11| --- a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs\nL11| +++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs\nL11| @@ -0,0 +1,135 @@\nL11| +// Licensed to the .NET Foundation under one or more agreements.\nL11| +// The .NET Foundation licenses this file to you under the MIT license.\nL11| +\nL11| +#nullable disable\nL11| +\nL11| +using System.Xml.Linq;\nL11| +using Microsoft.AspNetCore.StaticWebAssets.Tasks;\nL11| +\nL11| +namespace Microsoft.NET.Sdk.StaticWebAssets.Tests\nL11| +{\nL11| +    public class FrameworkAssetsP2PIntegrationTest(ITestOutputHelper log) : AspNetSdkTest(log)\nL11| +    {\nL11| +        [Fact]\nL11| +        public void Build_Consumer_MaterializesFrameworkAssetsFromProjectReference()\nL11| +        {\nL11| +            var intermediateOutputPath = BuildConsumerWithFrameworkPattern();\nL11| +            var manifest = LoadBuildManifest(intermediateOutputPath);\nL11| +\nL11| +            // The JS assets matching the FrameworkPattern should be materialized under fx/\nL11| +            var materializedAssets = manifest.Assets\nL11| +                .Where(a => a.RelativePath.Contains(\".js\")\nL11| +                    && a.Identity.Contains(Path.Combine(\"fx\", \"ClassLibrary\")))\nL11| +                .ToList();\nL11| +\nL11| +            materializedAssets.Should().NotBeEmpty(\nL11| +                \"JS assets matching FrameworkPattern should be materialized under the fx/ directory\");\nL11| +\nL11| +            foreach (var asset in materializedAssets)\nL11| +            {\nL11| +    \nL12 [tool] TOOL: apply_patch {\"path\":\"test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs\"}\nL12| CODE_WRITTEN: {\"path\":\"test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs\"}\nL12| --- a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs\nL12| +++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs\nL12| @@ -336,6 +336,101 @@ public void FiltersAssetsFromPackages()\nL12|              task.StaticWebAssets.Should().HaveCount(0);\nL12|          }\nL12|  \nL12| +        [Fact]\nL12| +        public void AppliesFrameworkPatternToDiscoveredAssets()\nL12| +        {\nL12| +            var errorMessages = new List<string>();\nL12| +            var buildEngine = new Mock<IBuildEngine>();\nL12| +            buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))\nL12| +                .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));\nL12| +\nL12| +            var task = new ComputeReferenceStaticWebAssetItems\nL12| +            {\nL12| +                BuildEngine = buildEngine.Object,\nL12| +                Source = \"MyPackage\",\nL12| +                Assets = new[]\nL12| +                {\nL12| +                    CreateCandidate(Path.Combine(\"wwwroot\", \"framework.js\"), \"MyPackage\", \"Discovered\", \"framework.js\", \"All\", \"All\"),\nL12| +                    CreateCandidate(Path.Combine(\"wwwroot\", \"app.css\"), \"MyPackage\", \"Discovered\", \"app.css\", \"All\", \"All\")\nL12| +                },\nL12| +                Patterns = new ITaskItem[] { },\nL12| +                AssetKind = \"Build\",\nL12| +                ProjectMode = \"Default\",\nL12| +                Framew\nL13 [tool] TOOL: apply_patch {\"path\":\"test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs\"}\nL13| CODE_WRITTEN: {\"path\":\"test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs\"}\nL13| --- a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs\nL13| +++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs\nL13| @@ -254,4 +254,275 @@ public void Execute_InfersFingerprint_ForMatchingAssets()\nL13|          task.UpdatedAssets[0].GetMetadata(\"Integrity\").Should().NotBeNullOrEmpty();\nL13|          task.UpdatedAssets[1].GetMetadata(\"Integrity\").Should().NotBeNullOrEmpty();\nL13|      }\nL13| +\nL13| +    [Fact]\nL13| +    public void Execute_MaterializesFrameworkAssetsFromP2PReferences()\nL13| +    {\nL13| +        // Arrange\nL13| +        var errorMessages = new List<string>();\nL13| +        var buildEngine = new Mock<IBuildEngine>();\nL13| +        buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))\nL13| +            .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));\nL13| +\nL13| +        var intermediateDir = Path.Combine(AppContext.BaseDirectory, \"obj\", \"fxtest\");\nL13| +        var sourceDir = Path.Combine(AppContext.BaseDirectory, \"fxsource\");\nL13| +        Directory.CreateDirectory(sourceDir);\nL13| +        var sourceFile = Path.Combine(sourceDir, \"framework.js\");\nL13| +        File.WriteAllText(sourceFile, \"// framework\");\nL13| +\nL13| +        var asset = new TaskItem(\nL13| +            sourceFile,\nL13| +            new Dictionary<string, string>\nL13| +            {\nL13| +                [\"RelativePath\"] = \"framework.js\",\nL13| +     \nL14 [tool] TOOL: apply_patch {\"path\":\"test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs\"}\nL14| CODE_WRITTEN: {\"path\":\"test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs\"}\nL14| --- a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs\nL14| +++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs\nL14| @@ -623,4 +623,93 @@ private ITaskItem CreateFrameworkAsset(string filePath, string sourceId, string\nL14|              [\"LastWriteTime\"] = new DateTimeOffset(new DateTime(1990, 11, 15, 0, 0, 0, 0, DateTimeKind.Utc)).ToString(StaticWebAsset.DateTimeAssetFormat),\nL14|          });\nL14|      }\nL14| +\nL14| +    private ITaskItem CreateEndpoint(string route, string assetFile, string label = null)\nL14| +    {\nL14| +        var properties = label != null\nL14| +            ? $$\"\"\"[{\"Name\":\"label\",\"Value\":\"{{label}}\"}]\"\"\"\nL14| +            : \"[]\";\nL14| +\nL14| +        return new TaskItem(route, new Dictionary<string, string>\nL14| +        {\nL14| +            [\"Route\"] = route,\nL14| +            [\"AssetFile\"] = assetFile,\nL14| +            [\"Selectors\"] = \"[]\",\nL14| +            [\"ResponseHeaders\"] = \"[]\",\nL14| +            [\"EndpointProperties\"] = properties,\nL14| +        });\nL14| +    }\nL14| +\nL14| +    [Fact]\nL14| +    public void Execute_FrameworkAssets_RemapsEndpointRoutes_StripOldBasePath()\nL14| +    {\nL14| +        // Arrange\nL14| +        var sourceFile = CreateTempFile(\"source\", \"framework.js\", \"content\");\nL14| +        var asset = CreateFrameworkAsset(sourceFile, \"FxLib\", \"_content/FxLib\", \"js/framework.js\");\nL14| +        var endpoint = CreateEndpoint(\"_content/FxLib/js/framework.js\", sourceFile, \""
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that adding `StaticWebAssetFrameworkPattern` to a ClassLibrary project would automatically mark all .js files as framework assets and materialize them under the `fx/` directory for a consuming Blazor WebAssembly app, without realizing that the pattern also needs to be present in the consuming app's project to trigger the materialization pipeline.",
+  "why_it_breaks": "The test only adds the `FrameworkPattern` to the ClassLibrary project, but the materialization logic that copies framework assets to the `fx/` directory and updates endpoint routes runs in the consuming project (the Razor app). Without the `StaticWebAssetFrameworkPattern` in the consumer's project file, the assets are not materialized under `fx/`, so the browser cannot find `_framework/blazor.webassembly.<fingerprint>.js`. The agent overlooked that the pattern must also be present (or the materialization step must be invoked) in the consuming project to actually move the files and generate the correct paths.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 111,
+    "quote": "var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n                .WithProjectChanges((path, document) =>\n                {\n                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n                    {\n                        // Add FrameworkPattern to mark all .js files as framework assets\n                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;",
+    "verified": false,
+    "reason": "cited line does not exist"
+   },
+   {
+    "kind": "code",
+    "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+    "line": 111,
+    "quote": "var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n                .WithProjectChanges((path, document) =>\n                {\n                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n                    {\n                        // Add FrameworkPattern to mark all .js files as framework assets\n                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+    "line": 118,
+    "quote": "propertyGroup.Add(\n                            new XElement(\"StaticWebAssetFrameworkPattern\", \"**/*.js\"));",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The code assumes that the first descendant of the TargetFramework element is a PropertyGroup element, but the XML structure may have other descendant types (e.g., ItemGroup) at that position, causing a crash or silent failure when trying to Add the FrameworkPattern element.",
+  "why_it_breaks": "The code retrieves the first descendant of any \"TargetFramework\" element and assumes its Parent is a PropertyGroup suitable for Add(). If the XML has a different structure (e.g., TargetFramework is nested directly inside an ItemGroup, or there are multiple TargetFramework elements), .First().Parent will not be a PropertyGroup, so the subsequent Add() call either throws an exception or does nothing, leaving the FrameworkPattern unregistered. This means the glob pattern **/*.js is never applied to discovered JS assets, so they remain with SourceType=Discovered instead of being upgraded to SourceType=Framework. Without the Framework source type, the assets are not included in the staticwebassets.build.json manifest served to the browser, causing the 404 for blazor.webassembly.js.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+    "line": 118,
+    "quote": "var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs",
+    "line": 119,
+    "quote": "propertyGroup.Add(\n        new XElement(\"StaticWebAssetFrameworkPattern\", \"**/*.js\"));",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "transcript",
+    "file": "L11",
+    "line": 111,
+    "quote": "var projectDirectory = CreateAspNetSdkTestAsset(\"RazorAppWithP2PReference\")\n                .WithProjectChanges((path, document) =>\n                {\n                    if (Path.GetFileName(path) == \"ClassLibrary.csproj\")\n                    {\n                        // Add FrameworkPattern to mark all .js files as framework assets\n                        var propertyGroup = document.Root.Descendants(\"TargetFramework\").First().Parent;",
+    "verified": false,
+    "reason": "cited line does not exist"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 0
+ }
+}

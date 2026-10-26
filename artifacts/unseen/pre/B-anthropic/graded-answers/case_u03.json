@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that adding a new test support file (forward_proxy.py) to tests/integration/_support/ would not affect production runtime imports, but the file was accidentally imported or made accessible to production code paths.",
+ "why_it_breaks": "The http.server module (containing ThreadingHTTPServer) is only available in Python's standard library for runtime environments, but the production deployment likely uses a minimal Python installation or restricted import environment where http.server is not available. When the guardrails UI endpoint tries to import or scan modules, it encounters the test support file which imports http.server, causing an ImportError that crashes the request with HTTP 500.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 43,
+   "quote": "from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/integration/_support/forward_proxy.py",
+   "line": 9,
+   "quote": "from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 43,
+   "quote": "TOOL: apply_patch {\"path\":\"tests/integration/_support/forward_proxy.py\"}",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 46,
+   "quote": "from integration._support.forward_proxy import ForwardProxy, tunnelling_forward_proxy",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 3
+}

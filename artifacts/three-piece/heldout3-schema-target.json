@@ -1,0 +1,13 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "br-schema-qualified-target",
+  "complete": false,
+  "notes": [
+    "frame line blast_radius/models.py:160 (\"def parse_action(sql: str) -> Action:\") was not written by any edit in this transcript"
+  ],
+  "frame": {
+    "file": "blast_radius/models.py",
+    "line": 160,
+    "function": "parse_action"
+  }
+}

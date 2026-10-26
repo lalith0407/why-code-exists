@@ -1,0 +1,29 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "ta-citation-leaf-substring",
+  "complete": true,
+  "notes": [],
+  "frame": {
+    "file": "src/ta/agents/loop.py",
+    "line": 230,
+    "function": "_keep_after_reopen"
+  },
+  "asked": {
+    "text": "Excellent Phase 1. Now build Phase 2 exactly as you recommended: harness calls screen.run each decision date with thesis candidates as extra tickers that must still pass; bull and bear agents arguing only over tool output; citation pass via verify.reopen_source and verify.match_quote on memo facts; thesis investigator running on anomaly events and scheduled topics (graph/industry/section tools only, no sizing or orders); reject uncited or post-as-of theses and log the rejection; implement news.fetch_events/classify_event (degrade gracefully without keys) and portfolio.rebalance. Wire real Claude Agent SDK runs behind `--llm anthropic` reading ANTHROPIC_API_KEY, and an Alpaca paper account-status check reading ALPACA_API_KEY/ALPACA_SECRET_KEY. If those env vars are present in your environment, run a short real-LLM replay (modest cost) and a read-only Alpaca paper status check; if not, skip and document exactly how to run them locally. Never log key values. Keep mock tests and offline demo green. Report results, what's stubbed, and what's needed to start the 2-week live paper-trading test (including where it should run continuously).",
+    "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L745 (user message, latest of 3 before the edit)",
+    "valid": true,
+    "full_length": 1149
+  },
+  "understood": {
+    "text": "Updating `loop.py` to implement the decision loop.\n\nReplacing imports and the decision loop body in `loop.py` to integrate Phase 2 agents, citation verification, and real-LLM replay.",
+    "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L1037 (assistant, 26 words, 4 line(s) before the edit at L1041)",
+    "valid": true,
+    "full_length": 182
+  },
+  "happened": {
+    "text": "Citation check kept a fact claim whose cited path does not exist: the claim cites weights.AAPL in a portfolio.size_position output whose weights are {\"MSFT\":0.05}, and the reopen-and-match step kept 1 of 1 claims.\n  at _keep_after_reopen (src/ta/agents/loop.py:230)\n  230: def _keep_after_reopen(gateway: Gateway, claims: list[Claim]) -> list[Claim]:\n\nWritten by transcript edit L1041 (search_replace):\n \n \n+def _leaf(path: str) -> str:\n+    return path.rsplit(\".\", 1)[-1]\n+\n+\n+def _keep_after_reopen(gateway: Gateway, claims: list[Claim]) -> list[Claim]:\n+    \"\"\"Re-read each fact. Drop it when the hash misses or the cited leaf is absent.\"\"\"\n+    kept: list[Claim] = []\n+    for claim in claims:\n+        if claim.kind != \"fact\" or not claim.fact_refs:\n+            kept.append(claim)\n+            continue",
+    "citation": "error ta-citation-leaf-substring frame src/ta/agents/loop.py:230; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L1041",
+    "valid": true,
+    "later_edits": []
+  }
+}

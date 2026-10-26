@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # M12 diagnosis: why patches are ineffective (read-only analysis of existing artifacts; labeled READ)
 Source: every `patch_ineffective` report in artifacts/m10-v16a, m10-v16b, m11-v17a and m11-v17b (23 cases across 4 runs). No engine changes were made before this was written.
 

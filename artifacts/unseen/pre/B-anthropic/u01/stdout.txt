@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16
+stage: ok
+provider: anthropic
+frame: litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16
+status: verified (code quotes 2, transcript quotes 2)
+overlooked_assumption: The agent assumed that wrapping a mutable default in Field(default=...) would prevent the deferred schema build from breaking attribute access on instances created by parent validators or model_construct.
+report: /workspace/open-agent/wt-pre/artifacts/unseen/pre/B-anthropic/u01/report.html

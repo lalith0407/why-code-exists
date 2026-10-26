@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> tests/test_litellm/proxy/auth/test_auth_checks.py:361
+stage: ok
+provider: nemotron
+frame: tests/test_litellm/proxy/auth/test_auth_checks.py:361
+status: unverified (code quotes 0, transcript quotes 2)
+overlooked_assumption: The agent assumed that the presence of `all-team-models` in a key's model list unconditionally meant the key should have unrestricted model access, without considering whether the key actually belongs to a team. It failed to add a `team_id is not None` guard before skipping the model check.
+report: /workspace/open-agent/wt-pre/artifacts/unseen/pre/B-nemotron/u04/report.html

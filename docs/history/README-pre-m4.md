@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 > HISTORY ONLY (superseded 2026-10-24). Describes an earlier engine that ran shimmed/hand-written code. Its scores, demo scripts (demo:*) and sponsor claims are not current results. See ../../README.md.
 
 # Why does this code exist?

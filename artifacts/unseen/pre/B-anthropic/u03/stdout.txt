@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> tests/integration/_support/forward_proxy.py:9
+stage: ok
+provider: anthropic
+frame: tests/integration/_support/forward_proxy.py:9
+status: verified (code quotes 1, transcript quotes 3)
+overlooked_assumption: The agent assumed that adding a new test support file (forward_proxy.py) to tests/integration/_support/ would not affect production runtime imports, but the file was accidentally imported or made accessible to production code paths.
+report: /workspace/open-agent/wt-pre/artifacts/unseen/pre/B-anthropic/u03/report.html

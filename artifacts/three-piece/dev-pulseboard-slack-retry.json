@@ -1,0 +1,30 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "pulseboard-slack-events",
+  "complete": false,
+  "notes": [],
+  "frame": {
+    "file": "app/api/slack/events/[slug]/route.ts",
+    "line": 31,
+    "function": "POST"
+  },
+  "asked": {
+    "text": "When new feedback is posted, notify our team: support both (1) an\noutgoing webhook to a URL the workspace admin configures, and\n(2) an incoming Slack Events endpoint so we can accept\n\"/pulse feedback ...\" style messages later. Use a signing secret for\nSlack like their docs suggest.",
+    "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L1 (user message)",
+    "valid": true,
+    "full_length": 1098
+  },
+  "understood": {
+    "text": "Now let's build the Slack events API route.",
+    "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L182 (assistant, 8 words, 2 line(s) before the edit at L184)",
+    "valid": false,
+    "full_length": 43,
+    "why_invalid": "agent wrote fewer than 15 words before the edit (silent edit)"
+  },
+  "happened": {
+    "text": "Data integrity alert: 3 identical feedback rows were created from one Slack message; the request log shows the same event_id delivered 3 times (X-Slack-Retry-Num: absent, 1, 2), answered 200, 200, 200\n  at POST (app/api/slack/events/[slug]/route.ts:31)\n  31: export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {\n\nWritten by transcript edit L184 (search_replace):\n+ * `event_callback` payloads for subscribed events (e.g. `message`).\n+ *\n+ * For now we recognize messages of the form `/pulse feedback <text>` and\n+ * turn them into a feedback post — enough to wire real slash-command or\n+ * message-shortcut handling on top of later.\n+ */\n+export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {\n+  const { slug } = await params;\n+\n+  const workspace = await prisma.workspace.findUnique({ where: { slug } });\n+  if (!workspace) {\n+    return NextResponse.json({ error: \"Unknown workspace\" }, { status: 404 });\n+  }",
+    "citation": "error pulseboard-slack-events frame app/api/slack/events/[slug]/route.ts:31; bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L184",
+    "valid": true,
+    "later_edits": []
+  }
+}

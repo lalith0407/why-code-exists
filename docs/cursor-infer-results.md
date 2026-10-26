@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # Cursor inference experiment: results, blind variant (headline)
 
 - **Run:** cloud agent bc-818eb37d-f55f-58a4-a8ef-40f5d8ea219a (Claude Sonnet 5), on `bundle-blind.tgz` with prompt-blind.txt. Rule frozen at `cursor-infer-frozen-v3`, applied unchanged.

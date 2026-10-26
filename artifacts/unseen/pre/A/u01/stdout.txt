@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16
+stage: ok
+provider: nemotron
+frame: litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that replacing `workers: list[WorkerRegistryEntry] = []` with `Field(default=[])` would preserve the same mutable default behavior while enabling `defer_build`, but missed that `Field(default=[])` creates a shared mutable default that is evaluated once at class definition time, and that `LiteLLMBaseModel`'s `defer_build` mechanism delays schema construction until first instance access, which can leave attribute access broken under concurrent load before the build completes.
+report: /workspace/open-agent/wt-pre/artifacts/unseen/pre/A/u01/report.html

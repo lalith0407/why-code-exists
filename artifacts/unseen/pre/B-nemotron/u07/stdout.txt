@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs:111
+stage: ok
+provider: nemotron
+frame: test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs:111
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that adding `StaticWebAssetFrameworkPattern` to a ClassLibrary project would automatically mark all .js files as framework assets and materialize them under the `fx/` directory for a consuming Blazor WebAssembly app, without realizing that the pattern also needs to be present in the consuming app's project to trigger the materialization pipeline.
+report: /workspace/open-agent/wt-pre/artifacts/unseen/pre/B-nemotron/u07/report.html

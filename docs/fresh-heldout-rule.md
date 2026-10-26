@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # Fresh held-out test: rule, frozen BEFORE any candidate is looked at (2026-10-25 PDT)
 
 Frozen by tag `fresh-heldout-frozen`. Engine = the code at that tag; no code changes in `src/` until results are written.

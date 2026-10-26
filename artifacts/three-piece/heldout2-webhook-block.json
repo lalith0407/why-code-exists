@@ -1,0 +1,29 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "pulseboard-webhook-blocks-submit",
+  "complete": true,
+  "notes": [],
+  "frame": {
+    "file": "lib/actions/feedback.ts",
+    "line": 15,
+    "function": "createFeedbackAction"
+  },
+  "asked": {
+    "text": "I run a B2B SaaS. Each of my customer companies should get their own\nworkspace with a feedback board. People in a workspace can submit\nfeedback, upvote, and leave comments. Teammates join via email invite.\nSome users are admins for their workspace and can edit workspace\nsettings (name, slug, webhook URL).",
+    "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L1 (user message)",
+    "valid": true,
+    "full_length": 1098
+  },
+  "understood": {
+    "text": "I'm now planning the feedback actions file with functions for creating feedback, toggling votes, and adding comments, each needing workspace context passed through binding the slug as the first argument from the client component.\n\nFor toggleVoteAction, since it's a button click rather than a form submission, I'm calling the server action directly within startTransition for optimistic updates, which works since server actions are just callable functions.\n\nFor createFeedbackAction, I'm working through the flow: validate the schema, check membership, fetch a URL preview with a timeout to keep things fast, create the record, then fire off a webhook notification—though I need to consider whether serverless execution terminates before that completes.\n\nSince Vercel functions can get cut off after the response returns, I should await the webhook send too rather than fire-and-forget, accepting the extra latency as a reasonable tradeoff. After creation, I'll revalidate the path for the board and return success state.\n\nThen I need toggleVoteAction, which checks for an existing vote by user+feedback and either deletes (un-vote) or creates it, with membership authorization checked against the feedback's workspace before revalidating. For addCommentAction, I'll validate the body, confirm workspace membership, create the comment, and revalidate the path. Time to write the file.",
+    "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L121 (assistant, 201 words, 2 line(s) before the edit at L123)",
+    "valid": true,
+    "full_length": 1385
+  },
+  "happened": {
+    "text": "Users report 'Submit feedback' spins for ~5 seconds whenever the workspace's webhook receiver is slow. Measured createFeedbackAction latency: 5036 ms (result {\"success\":true}) with a webhook endpoint that answers after 8s.\n  at createFeedbackAction (lib/actions/feedback.ts:15)\n  15: export async function createFeedbackAction(\n\nWritten by transcript edit L123 (search_replace):\n+import { sendFeedbackWebhook } from \"@/lib/webhooks\";\n+import { feedbackSchema, commentSchema } from \"@/lib/validations\";\n+import type { ActionState } from \"@/lib/actions/auth\";\n+\n+/** Creates a new feedback post, scraping a link preview and firing the\n+ * workspace's outgoing webhook (if configured) once it's saved. */\n+export async function createFeedbackAction(\n+  workspaceSlug: string,\n+  _prevState: ActionState,\n+  formData: FormData\n+): Promise<ActionState> {\n+  const user = await requireUser();\n+",
+    "citation": "error pulseboard-webhook-blocks-submit frame lib/actions/feedback.ts:15; bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L123",
+    "valid": true,
+    "later_edits": []
+  }
+}

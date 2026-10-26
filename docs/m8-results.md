@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # M8 results (branch generalize, Sun Oct 25 2026; restore tag pre-m8-2026-10-25 at ea97116, tarball snapshots/pre-m8-2026-10-25.tar.gz)
 
 PROMPT_VERSION: `gen-v13-rival-cause`. Criteria and every design amendment, each written before the run it governs: docs/m8-criteria.md.

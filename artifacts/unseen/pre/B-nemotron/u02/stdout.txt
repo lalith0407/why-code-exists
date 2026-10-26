@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/main.py:1123
+stage: ok
+provider: nemotron
+frame: litellm/main.py:1127
+status: verified (code quotes 2, transcript quotes 1)
+overlooked_assumption: The agent assumed that gpt-5.5 with function tools and no explicit reasoning_effort would route to Chat Completions, but the code at main.py:1127-1131 still contains the old conditional logic that routes gpt-5.4+ with explicit reasoning_effort to Responses, and the new gpt-5.4/5.5 default-to-none logic only applies when reasoning_effort is unset or 'none'. When a user explicitly sets reasoning_effort: low on gpt-5.5, the old bridge condition still fires and routes to Responses, triggering the 400 error.
+report: /workspace/open-agent/wt-pre/artifacts/unseen/pre/B-nemotron/u02/report.html

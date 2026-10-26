@@ -1,0 +1,306 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u05",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+   "line": 373
+  },
+  "asked": {
+   "text": "(PR-derived transcript: the original request is not public.)",
+   "citation": "u05.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 60
+  },
+  "understood": {
+   "text": "Avoid false circular dependency edges for unchanged unique index values during update batching\n\nThe reported failure is a false circular-dependency detection when saving multiple entities that use a unique, store-generated clustering key alongside a composite key. In this shape, update command ordering treated unchanged unique-index values as conflicting dependencies and produced a cycle.\n\n- **Update pipeline: narrow unique-index edge creation**\n  - In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.\n  - This preserves ordering for real unique-value transitions while removing synthetic cycles from placeholder/store-generated values.\n\n- **Regression coverage for composite key + generated unique index**\n  - Added a targeted test in `CommandBatchPreparerTest` that models:\n    - composite PK (`TestId`, enum category),\n    - store-generated unique clustering key,\n    - multiple modified rows where clustering key remains unchanged.\n  - The scenario now batches without triggering circular dependency detection.\n\n- **Illustrative change**\n  ```csharp\n  // Before adding unique-index dependency edges for Modified commands:\n  var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n  var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n\n  if (Equals(originalValue, currentValue))\n  {\n      continue; // unchanged unique index value: no ordering edge\n  }\n  ```",
+   "citation": "u05.jsonl#L2 (assistant, 187 words, 2 line(s) before the edit at L4)",
+   "valid": true,
+   "full_length": 1583
+  },
+  "happened": {
+   "text": "Bug report: reassigning a 1:1 relationship that has a unique index (foreign key on the dependent side, shadow property) to an entity that is already attached, then calling DbContext.SaveChangesAsync(), throws a unique constraint violation: duplicate key value violates unique constraint \"IX_...\". It works in EF Core 9, EF Core 10 and 11.0.0-preview.6, and fails in 11.0.0-preview.7. Seen on PostgreSQL (Npgsql), SQL Server and SQLite.\n\n  at ? (test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs:373)\n  373: var configuration = CreateContextServices(model);\n\nWritten by transcript edit L4 (apply_patch):\n     }\n \n+    [Fact]\n+    public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\n+    {\n+        var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\n+        var configuration = CreateContextServices(model);\n+        var stateManager = configuration.GetRequiredService<IStateManager>();\n+\n+        var testId = Guid.NewGuid();\n+\n+        var modifiedBasic = stateManager.GetOrCreateEntry(\n+            new CompositeKeyEntity",
+   "citation": "error u05 frame test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs:373; u05.jsonl#L4",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "code",
+    "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1145,
+    "quote": "if (command.EntityState == EntityState.Modified) { var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command); if (Equals(value, currentValue)) { continue; } }",
+    "reason": "file \"EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\" not in context"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Bug report: reassigning a 1:1 relationship that has a unique index (foreign key on the dependent side, shadow property) to an entity that is already attached, then calling DbContext.SaveChangesAsync(), throws a unique constraint violation: duplicate key value violates unique constraint \"IX_...\". It works in EF Core 9, EF Core 10 and 11.0.0-preview.6, and fails in 11.0.0-preview.7. Seen on PostgreSQL (Npgsql), SQL Server and SQLite.\n",
+  "terms": [
+   "ix_...",
+   "bug report",
+   "it works in ef",
+   "ef core",
+   "seen on postgresql",
+   "sql server and sqlite",
+   "1",
+   "9",
+   "10",
+   "11.0",
+   "0",
+   "6",
+   "7",
+   "db",
+   "context",
+   "save",
+   "changes",
+   "async",
+   "postgre",
+   "sql",
+   "report",
+   "reassigning",
+   "relationship",
+   "unique",
+   "index",
+   "foreign",
+   "dependent",
+   "side",
+   "shadow",
+   "property",
+   "entity",
+   "already",
+   "attached",
+   "calling",
+   "throws",
+   "constraint",
+   "violation",
+   "duplicate",
+   "value",
+   "violates",
+   "works",
+   "core",
+   "preview",
+   "fails",
+   "seen",
+   "npgsql",
+   "server",
+   "lite"
+  ],
+  "layer1": {
+   "symbols_indexed": 124,
+   "edited_hunks_indexed": 5,
+   "candidates": [
+    {
+     "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+     "line": 565,
+     "end_line": 601,
+     "text": "        var configuration = CreateContextServices(model);",
+     "score": 4.0282,
+     "matched_terms": [
+      "context",
+      "unique",
+      "index",
+      "property",
+      "entity",
+      "value"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#2",
+     "snippet": "561:     [Fact]\n562:     public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\n563:     {\n564:         var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\n565:         var configuration = CreateContextServices(model);\n566:         var stateManager = configuration.GetRequiredService<IStateManager>();\n567: \n568:         var testId = Guid.NewGuid();\n569: \n570:         var modifiedBasic = stateManager.GetOrCreateEntry(",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+     "line": 1202,
+     "end_line": 1216,
+     "text": "    private static IModel CreateCompositeKeyModelWithGeneratedUniqueIndex()",
+     "score": 3.8145,
+     "matched_terms": [
+      "unique",
+      "index",
+      "property",
+      "entity",
+      "value"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#3",
+     "snippet": "1202:     private static IModel CreateCompositeKeyModelWithGeneratedUniqueIndex()\n1203:     {\n1204:         var modelBuilder = FakeRelationalTestHelpers.Instance.CreateConventionBuilder();\n1205: \n1206:         modelBuilder.Entity<CompositeKeyEntity>(b =>\n1207:         {\n1208:             b.HasKey(e => new { e.TestId, e.Category });\n1209:             b.Property(e => e.ClusteringKey).ValueGeneratedOnAdd();\n1210:             b.Property(e => e.Payload);\n1211:             b.HasIndex(e => e.ClusteringKey).IsUnique();",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+     "line": 1236,
+     "end_line": 1246,
+     "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();",
+     "score": 1.4275,
+     "matched_terms": [
+      "index",
+      "entity",
+      "value"
+     ],
+     "edit_line": 3,
+     "tool": "apply_patch",
+     "hunk_id": "L3#1",
+     "snippet": "1236:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1237:                     var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1238: \n1239:                     if (command.EntityState == EntityState.Modified)\n1240:                     {\n1241:                         var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1242:                         if (Equals(originalValue, value))\n1243:                         {\n1244:                             continue;\n1245:                         }",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+     "line": 1144,
+     "end_line": 1155,
+     "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();",
+     "score": 1.4265,
+     "matched_terms": [
+      "index",
+      "entity",
+      "value"
+     ],
+     "edit_line": 3,
+     "tool": "apply_patch",
+     "hunk_id": "L3#0",
+     "snippet": "1144:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1145:                     var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1146: \n1147:                     if (command.EntityState == EntityState.Modified)\n1148:                     {\n1149:                         var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1150:                         if (Equals(value, currentValue))\n1151:                         {\n1152:                             continue;\n1153:                         }",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+     "line": 1236,
+     "end_line": 1250,
+     "text": "    private class CompositeKeyEntity",
+     "score": 0.1162,
+     "matched_terms": [
+      "entity"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#4",
+     "snippet": "1236:     private class CompositeKeyEntity\n1237:     {\n1238:         public Guid TestId { get; set; }\n1239:         public CompositeCategory Category { get; set; }\n1240:         public int ClusteringKey { get; set; }\n1241:         public string Payload { get; set; }\n1242:     }\n1243: \n1244:     private enum CompositeCategory\n1245:     {",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+   "line": 565,
+   "end_line": 601,
+   "text": "        var configuration = CreateContextServices(model);",
+   "score": 4.0282,
+   "matched_terms": [
+    "context",
+    "unique",
+    "index",
+    "property",
+    "entity",
+    "value"
+   ],
+   "edit_line": 4,
+   "tool": "apply_patch",
+   "hunk_id": "L4#2",
+   "snippet": "561:     [Fact]\n562:     public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\n563:     {\n564:         var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\n565:         var configuration = CreateContextServices(model);\n566:         var stateManager = configuration.GetRequiredService<IStateManager>();\n567: \n568:         var testId = Guid.NewGuid();\n569: \n570:         var modifiedBasic = stateManager.GetOrCreateEntry(",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 12652,
+   "truncated": false,
+   "dropped_sections": []
+  },
+  "prompt_user": {
+   "symptom": "Bug report: reassigning a 1:1 relationship that has a unique index (foreign key on the dependent side, shadow property) to an entity that is already attached, then calling DbContext.SaveChangesAsync(), throws a unique constraint violation: duplicate key value violates unique constraint \"IX_...\". It works in EF Core 9, EF Core 10 and 11.0.0-preview.6, and fails in 11.0.0-preview.7. Seen on PostgreSQL (Npgsql), SQL Server and SQLite.",
+   "edit": {
+    "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+    "line": 373,
+    "hunk": "     }\n \n+    [Fact]\n+    public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\n+    {\n+        var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\n+        var configuration = CreateContextServices(model);\n+        var stateManager = configuration.GetRequiredService<IStateManager>();\n+\n+        var testId = Guid.NewGuid();\n+\n+        var modifiedBasic = stateManager.GetOrCreateEntry(\n+            new CompositeKeyEntity"
+   },
+   "code_window": "353:         relatedEntry.SetEntityState(EntityState.Added);\n354: \n355:         var factory = (TestModificationCommandBatchFactory)configuration.GetService<IModificationCommandBatchFactory>()!;\n356: \n357:         var batches = CreateCommandBatchPreparer(factory).BatchCommands([relatedEntry, entry], new UpdateAdapter(stateManager));\n358: \n359:         using var commandBatchesEnumerator = batches.GetEnumerator();\n360:         Assert.True(commandBatchesEnumerator.MoveNext());\n361: \n362:         Assert.Equal(1, factory.CreateCount);\n363: \n364:         Assert.True(commandBatchesEnumerator.MoveNext());\n365: \n366:         Assert.Equal(2, factory.CreateCount);\n367:     }\n368: \n369:     [Fact]\n370:     public void Batch_command_does_not_order_non_unique_index_values()\n371:     {\n372:         var model = CreateCyclicFKModel();\n373:         var configuration = CreateContextServices(model);\n374:         var stateManager = configuration.GetRequiredService<IStateManager>();\n375: \n376:         var fakeEntry = stateManager.GetOrCreateEntry(\n377:             new FakeEntity { Id = 42, Value = \"Test\" });\n378:         fakeEntry.SetEntityState(EntityState.Added);\n379: \n380:         var relatedFakeEntry = stateManager.GetOrCreateEntry(\n381:             new RelatedFakeEntity { Id = 1, RelatedId = 42 });\n382:         relatedFakeEntry.SetEntityState(EntityState.Added);\n383: \n384:         var fakeEntry2 = stateManager.GetOrCreateEntry(\n385:             new FakeEntity\n386:             {\n387:                 Id = 2,\n388:                 RelatedId = 1,\n389:                 Value = \"Test2\"\n390:             });\n391:         fakeEntry2.SetEntityState(EntityState.Modified);\n392:         fakeEntry2.SetOriginalValue(fakeEntry2.EntityType.FindProperty(nameof(FakeEntity.Value))!, \"Test\");\n393: ",
+   "related_files": [],
+   "three_piece": {
+    "asked": "(PR-derived transcript: the original request is not public.)",
+    "understood": "Avoid false circular dependency edges for unchanged unique index values during update batching\n\nThe reported failure is a false circular-dependency detection when saving multiple entities that use a unique, store-generated clustering key alongside a composite key. In this shape, update command ordering treated unchanged unique-index values as conflicting dependencies and produced a cycle.\n\n- **Update pipeline: narrow unique-index edge creation**\n  - In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.\n  - This preserves ordering for real unique-value transitions while removing synthetic cycles from placeholder/store-generated values.\n\n- **Regression coverage for composite key + generated unique index**\n  - Added a targeted test in `CommandBatchPreparerTest` that models:\n    - composite PK (`TestId`, enum category),\n    - store-generated unique clustering key,\n    - multiple modified rows where clustering key remains unchanged.\n  - The scenario now batches without triggering circular dependency detection.\n\n- **Illustrative change**\n  ```csharp\n  // Before adding unique-index dependency edges for Modified commands:\n  var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n  var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n\n  if (Equals(originalValue, currentValue))\n  {\n      continue; // unchanged unique index value: no ordering edge\n  }\n  ```",
+    "happened": "Bug report: reassigning a 1:1 relationship that has a unique index (foreign key on the dependent side, shadow property) to an entity that is already attached, then calling DbContext.SaveChangesAsync(), throws a unique constraint violation: duplicate key value violates unique constraint \"IX_...\". It works in EF Core 9, EF Core 10 and 11.0.0-preview.6, and fails in 11.0.0-preview.7. Seen on PostgreSQL (Npgsql), SQL Server and SQLite.\n\n  at ? (test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs:373)\n  373: var configuration = CreateContextServices(model);\n\nWritten by transcript edit L4 (apply_patch):\n     }\n \n+    [Fact]\n+    public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\n+    {\n+        var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\n+        var configuration = CreateContextServices(model);\n+        var stateManager = configuration.GetRequiredService<IStateManager>();\n+\n+        var testId = Guid.NewGuid();\n+\n+        var modifiedBasic = stateManager.GetOrCreateEntry(\n+            new CompositeKeyEntity"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L4)",
+     "text": "L1 [user] (PR-derived transcript: the original request is not public.)\nL2 [assistant] Avoid false circular dependency edges for unchanged unique index values during update batching\nL2| \nL2| The reported failure is a false circular-dependency detection when saving multiple entities that use a unique, store-generated clustering key alongside a composite key. In this shape, update command ordering treated unchanged unique-index values as conflicting dependencies and produced a cycle.\nL2| \nL2| - **Update pipeline: narrow unique-index edge creation**\nL2|   - In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.\nL2|   - This preserves ordering for real unique-value transitions while removing synthetic cycles from placeholder/store-generated values.\nL2| \nL2| - **Regression coverage for composite key + generated unique index**\nL2|   - Added a targeted test in `CommandBatchPreparerTest` that models:\nL2|     - composite PK (`TestId`, enum category),\nL2|     - store-generated unique clustering key,\nL2|     - multiple modified rows where clustering key remains unchanged.\nL2|   - The scenario now batches without triggering circular dependency detection.\nL2| \nL2| - **Illustrative change**\nL2|   ```csharp\nL2|   // Before adding unique-index dependency edges for Modified commands:\nL2|   var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\nL2|   var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\nL2| \nL2|   if (Equals(originalValue, currentValue))\nL2|   {\nL2|       continue; // unchanged unique index value: no ordering edge\nL2|   }\nL2|   ```\nL3 [tool] TOOL: apply_patch {\"path\":\"src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\"}\nL3| CODE_WRITTEN: {\"path\":\"src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\"}\nL3| --- a/src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\nL3| +++ b/src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\nL3| @@ -1141,8 +1141,18 @@ private void AddUniqueValueEdges()\nL3|                          continue;\nL3|                      }\nL3|  \nL3| -                    var (value, _) = ((TableIndex)index).GetRowIndexValueFactory()\nL3| -                        .CreateEquatableIndexValue(command, fromOriginalValues: true);\nL3| +                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\nL3| +                    var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\nL3| +\nL3| +                    if (command.EntityState == EntityState.Modified)\nL3| +                    {\nL3| +                        var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\nL3| +                        if (Equals(value, currentValue))\nL3| +                        {\nL3| +                            continue;\nL3| +                        }\nL3| +                    }\nL3| +\nL3|                      if (value != null)\nL3|                      {\nL3|                          indexPredecessorsMap ??= new Dictionary<object, List<IReadOnlyModificationCommand>>();\nL3| @@ -1223,8 +1233,17 @@ private void AddUniqueValueEdges()\nL3|                          continue;\nL3|                      }\nL3|  \nL3| -                    var (value, hasNullValue) = ((TableIndex)index).GetRowIndexValueFactory()\nL3| -                   \nL4 [tool] TOOL: apply_patch {\"path\":\"test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs\"}\nL4| CODE_WRITTEN: {\"path\":\"test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs\"}\nL4| --- a/test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs\nL4| +++ b/test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs\nL4| @@ -558,6 +558,47 @@ public void BatchCommands_works_with_duplicate_values_for_unique_indexes()\nL4|              e => Assert.Equal(EntityState.Modified, e.EntityState));\nL4|      }\nL4|  \nL4| +    [Fact]\nL4| +    public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\nL4| +    {\nL4| +        var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\nL4| +        var configuration = CreateContextServices(model);\nL4| +        var stateManager = configuration.GetRequiredService<IStateManager>();\nL4| +\nL4| +        var testId = Guid.NewGuid();\nL4| +\nL4| +        var modifiedBasic = stateManager.GetOrCreateEntry(\nL4| +            new CompositeKeyEntity\nL4| +            {\nL4| +                TestId = testId,\nL4| +                Category = CompositeCategory.Basic,\nL4| +                Payload = \"new-basic\"\nL4| +            });\nL4| +        modifiedBasic.SetEntityState(EntityState.Modified);\nL4| +        modifiedBasic.SetOriginalValue(modifiedBasic.EntityType.FindProperty(nameof(CompositeKeyEntity.Payload)), \"old-basic\");\nL4| +\nL4| +        var modifiedPro = stateManager.GetOrCreateEntry(\nL4| +            new CompositeKeyEntity\nL4| +            {\nL4| +                TestId = testId,\nL4| +                Category = CompositeCategory.Pro,\nL4| +                Payload = \"new-pro\"\nL4| +            });\nL4| +        modifiedPro.SetEntityState(EntityState.Mo"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that unchanged unique-index values on Modified commands would always be safe to skip, without considering that reassigning a 1:1 relationship with a unique index to an already-attached entity could cause the unchanged value to be a placeholder that later conflicts when the dependent's foreign key is updated.",
+  "why_it_breaks": "The fix skips creating unique-index predecessor edges for Modified commands when the index value hasn't changed between original and current values. However, this overlooks the case where a 1:1 relationship is reassigned to an already-attached entity: the dependent's shadow foreign key may retain its original unchanged unique-index value while the relationship target changes, causing SaveChanges to emit an INSERT/UPDATE that violates the unique constraint on the new target. The agent assumed unchanged values are always benign, but here the unchanged value is a stale reference that becomes invalid after the relationship reassignment.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 2,
+    "quote": "The reported failure is a false circular-dependency detection when saving multiple entities that use a unique, store-generated clustering key alongside a composite key. In this shape, update command ordering treated unchanged unique-index values as conflicting dependencies and produced a cycle.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1145,
+    "quote": "if (command.EntityState == EntityState.Modified) { var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command); if (Equals(value, currentValue)) { continue; } }",
+    "verified": false,
+    "reason": "file \"EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\" not in context"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 1
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that skipping unique-index edges for Modified commands when the index value is unchanged would prevent circular dependencies, but overlooked that this also skips edges for unchanged store-generated values that legitimately need ordering constraints, causing the unique constraint violation when reassigning a 1:1 relationship with a shadow foreign key.",
+  "why_it_breaks": "The code now skips creating unique-index predecessor edges for any Modified command where the current index value equals the original value. This includes store-generated shadow properties that are unchanged because the database retains the same generated value. When a 1:1 relationship with a unique index (shadow foreign key) is reassigned to an already-attached entity, the unchanged generated key value causes the edge to be skipped, removing the necessary ordering constraint. Subsequent commands execute in an order that violates the unique constraint, producing the duplicate key error.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1145,
+    "quote": "if (command.EntityState == EntityState.Modified) { var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command); if (Equals(value, currentValue)) { continue; } }",
+    "verified": false,
+    "reason": "file \"EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\" not in context"
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 2,
+    "quote": "In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 1
+ }
+}

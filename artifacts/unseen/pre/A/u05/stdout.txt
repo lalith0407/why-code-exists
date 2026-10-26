@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs:565
+stage: ok
+provider: nemotron
+frame: test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs:373
+status: unverified (code quotes 0, transcript quotes 1)
+overlooked_assumption: The agent assumed that unchanged unique-index values on Modified commands would always be safe to skip, without considering that reassigning a 1:1 relationship with a unique index to an already-attached entity could cause the unchanged value to be a placeholder that later conflicts when the dependent's foreign key is updated.
+report: /workspace/open-agent/wt-pre/artifacts/unseen/pre/A/u05/report.html

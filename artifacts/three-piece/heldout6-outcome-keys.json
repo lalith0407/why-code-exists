@@ -1,0 +1,29 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "portfolio-selected-work-duplicate-keys",
+  "complete": true,
+  "notes": [],
+  "frame": {
+    "file": "src/components/selected-work.tsx",
+    "line": 8,
+    "function": "SelectedWork"
+  },
+  "asked": {
+    "text": "## Site structure (required sections)\n1. **Nav** — name/mark, links: Work, About, Contact (or Hire). Optional Resume link as `#` placeholder.\n2. **Hero** — headline for founding AI eng, 1–2 sentence pitch, primary CTA (Get in touch / Hire me), secondary (View work). Placeholder name: Lalith Vardhan. Placeholder role line: Founding AI Engineer · open to founding / early-stage roles. Include a small proof-chip row (e.g. YC W24, Founding AI Eng, [Metric], [Domain]) as clearly marked placeholders.\n3. **Selected work** — exactly **3 case study cards**. Each card: title, one-line problem, 2–3 outcome bullets with `[metric]` placeholders, role tag, “Read case study” (can be anchor or expand). Placeholder titles like “Case study 01 — [Product / system]”.\n4. **Proof / credibility strip** — chips or compact stats: years, YC, domains, stack highlights — all placeholders.\n5. **About** — short founding-builder narrative (2–3 paragraphs of placeholder/lorem that sounds like a founding AI eng, not generic “passionate developer”).\n6. **Hire / contact CTA** — email placeholder `hello@example.com`, optional LinkedIn/GitHub `#` links, clear open-to-roles line.\n7. **Footer** — minimal.",
+    "citation": "bc-cfc1fe44-a598-5ad2-9c23-b2ad05242a85.jsonl#L1 (user message)",
+    "valid": true,
+    "full_length": 3213
+  },
+  "understood": {
+    "text": "Math.random() was used for keys in the why hire terminal. This breaks server-side rendering hydration.\n\nReplacing Math.random() with array indices in hero.tsx and selected-work to fix SSR hydration. Continuing with remaining components.",
+    "citation": "bc-cfc1fe44-a598-5ad2-9c23-b2ad05242a85.jsonl#L106 (assistant, 32 words, 4 line(s) before the edit at L110)",
+    "valid": true,
+    "full_length": 236
+  },
+  "happened": {
+    "text": "Rendering the Selected work section (SelectedWork, which the home page rendered earlier in the build) in a browser dev build logs 6 React errors: Encountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is u\n  at SelectedWork (src/components/selected-work.tsx:8)\n  8: export function SelectedWork() {\n\nWritten by transcript edit L110 (search_replace):\n+import { ArrowUpRight } from \"lucide-react\";\n+import { Container, SectionLabel } from \"@/components/container\";\n+import { PlaceholderLabel, Token } from \"@/components/placeholder\";\n+import { Badge } from \"@/components/ui/badge\";\n+import { caseStudies, type CaseStudy } from \"@/lib/site\";\n+\n+export function SelectedWork() {\n+  return (\n+    <section id=\"work\" className=\"scroll-mt-20 py-8 sm:py-12\">\n+      <Container>\n+        <SectionLabel index=\"/ 03\">Selected work</SectionLabel>\n+        <div className=\"mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between\">\n+          <h2 className=\"max-w-xl text-2xl font-medium tracking-tight sm:text-3xl\">",
+    "citation": "error portfolio-selected-work-duplicate-keys frame src/components/selected-work.tsx:8; bc-cfc1fe44-a598-5ad2-9c23-b2ad05242a85.jsonl#L110",
+    "valid": true,
+    "later_edits": []
+  }
+}

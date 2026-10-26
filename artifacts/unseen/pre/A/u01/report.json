@@ -1,0 +1,399 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u01",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py",
+   "line": 16,
+   "function": "UiDiscoveryEndpoints"
+  },
+  "asked": {
+   "text": "(PR-derived transcript: the original request is not public.)",
+   "citation": "u01.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 60
+  },
+  "understood": {
+   "text": "perf(types): defer pydantic schema builds via shared LiteLLMBaseModel\n\n## TLDR\n\nProblem this solves:\n\n- Every LiteLLM pydantic model builds its schema at import time\n- Proxy import pays for ~1,380 schema builds, most never used\n\nHow it solves it:\n\n- New shared base `LiteLLMBaseModel` sets `defer_build` from `DEFER_PYDANTIC_BUILD`\n- `DEFER_PYDANTIC_BUILD` defaults to true; `\"true\"`, `\"1\"`, `\"on\"` enable it\n- All direct `BaseModel` subclasses in `litellm/` and `enterprise/` now inherit it\n- Trace codegen passes `--base-class` so regenerated models stay on it\n\n```python\n# litellm/constants.py\nDEFER_PYDANTIC_BUILD: Final = os.getenv(\"DEFER_PYDANTIC_BUILD\", \"true\") in (\"true\", \"1\", \"on\")\n\n# litellm/types/llms/base.py\nclass LiteLLMBaseModel(BaseModel):\n    model_config = ConfigDict(defer_build=DEFER_PYDANTIC_BUILD)\n\nclass LiteLLMPydanticObjectBase(LiteLLMBaseModel): ...      # keeps its dict-returning .json()\nclass BaseLiteLLMOpenAIResponseObject(LiteLLMBaseModel): ...\n```\n\nThe parsing matches the OpenAI and Anthropic SDKs, which already read this same variable, so `DEFER_PYDANTIC_BUILD=false` turns eager builds back on everywhere at once. `LiteLLMPydanticObjectBase` was not used as the universal base because its `.json()` returns a dict, which would change behavior for ~1,300 classes\n\nInstances that a parent model's validator creates, or that come from `model_construct`, never run their own class's first-use build, so the class keeps pydantic's `MockValSer` and a later `serialize_as_any` or `Any`-typed dump of that instance fails. `LiteLLMBaseModel.model_post_init` rebuilds an incomplete class the first time any instance of it appears, which is a single attribute check once the class is built. This is open upstream as https://github.com/pydantic/pydantic/issues/13647, so the hook carries a TODO to drop it once pydantic ships the fix\n\nThe lens worker image copies a handful of `litellm/proxy/lens/` modules into a standalone package without `litellm` installed, so `models.py`, `worker.py` and `agent_context.py` stay on plain `pydantic.BaseModel`\n\nPydantic merges `model_config` from parents, so subclasses that set their own `model_config` keep `defer_build` unless they override that key. Moving mutable defaults on migrated models to `Field(default=...)` / `PrivateAttr(default=...)` and dict `model_config` to `ConfigDict(...)` keeps the strict ruff `RUF012` budget flat; pydantic already copied those defaults per instance, so behavior is unchanged\n\n## User Flow\n\nBefore: an operator starting the proxy waits on ~1,380 pydantic schema builds before it can serve\n\n1. They run `litellm --config config.yaml`\n2. The proxy module import takes ~9.9s and ~534 MB RSS before the server starts\n3. Requests to POST http://localhost:4000/v1/chat/completions succeed once it is up\n\nAfter: the same proxy starts faster with less memory and serves the same responses\n\n1. They run `litellm --config config.yaml` with no new settings\n2. The proxy module import takes ~8.9s and ~510 MB RSS before the server starts\n3. Requests to POST http://localhost:4000/v1/chat/completions succeed exactly as before\n4. Setting `DEFER_PYDANTIC_BUILD=false` restores eager builds if they ever need it\n\n## Pre-Submission checklist\n\n- [x] I have added meaningful tests\n- [x] The handful of test files covering my change pass locally, e.g. `uv run pytest tests/unit/<your_test_file>.py -v`\n- [ ] My PR passes all required CI/CD checks (e.g., lint, schema.d.ts sync check, etc.)\n- [x] My PR's scope is as isolated as possible; it only solves 1 specific problem\n- [ ] I have received a Greptile **Confidence Score of at least 4/5** before requesting a maintainer review\n\n## Screenshots / Proof of Fix\n\nShared setup: `litellm/proxy/dev_config.yaml` on port 4000 with a real Anthropic key, same `.venv` for both sides, with `PYTHONPATH=<checkout>:<checkout>/enterprise` so both `litellm` and `litellm_enterprise` come from the checkout under test. Import numbers are warm runs of `import litellm` / `import litellm.proxy.proxy_server` in a fresh interpreter, RSS read from `/proc/self/status`\n\n### Before (65b0557f80)\n\n#### Import cost\n\n1. `import litellm`: 2.16s / 2.20s / 2.29s, RSS 193 MB\n2. `import litellm.proxy.proxy_server`: 9.97s / 9.87s, RSS 534 MB\n3. LiteLLM pydantic classes with a built schema after proxy import: 1379 of 1423\n\n#### Live proxy\n\n1. `GET /health/liveliness` -> 200\n2. `POST /key/generate` with the master key -> key returned for `[\"anthropic-haiku-4-5\"]`\n3. `POST /v1/chat/completions` model `anthropic-haiku-4-5`, \"Reply with exactly: deferred build ok\" -> `deferred build ok`, 22 tokens\n4. Same request with `\"stream\": true` -> 4 SSE `data:` lines ending in `[DONE]`\n5. `POST /v1/messages` -> `type: message`, `stop_reason: end_turn`\n6. `GET /openapi.json` -> 200, 978 component schemas, 716 paths\n\n### After (3ac44a99f2, plus ccdda7e5cd for the nested-instance fix)\n\n#### Import cost\n\n1. `import litellm`: 1.84s / 1.78s / 1.91s, RSS 172 MB\n2. `import litellm.proxy.proxy_server`: 8.82s / 9.04s, RSS 510 MB\n3. LiteLLM pydantic classes with a built schema after proxy import: 48 of 1424\n4. With `DEFER_PYDANTIC_BUILD=false`: `import litellm` 2.8s / 196 MB, proxy import 12.2s / 531 MB, confirming the switch\n\n#### Live proxy\n\n1. `GET /health/liveliness` -> 200\n2. `POST /key/generate` with the master key -> key returned for `[\"anthropic-haiku-4-5\"]`\n3. `POST /v1/chat/completions` model `anthropic-haiku-4-5`, \"Reply with exactly: deferred build ok\" -> `deferred build ok`, 22 tokens\n4. Same request with `\"stream\": true` -> 4 SSE `data:` lines ending in `[DONE]`\n5. `POST /v1/messages` -> `type: message`, `stop_reason: end_turn`\n6. `GET /openapi.json` -> 200, JSON identical to Before (978 component schemas, 716 paths)\n\n`tests/unit/types/llms/test_types_llms_base.py` checks in a subprocess that a `LiteLLMBaseModel` subclass stays unbuilt until first use for unset/`true`/`1`/`on`, and builds at class creation for `false`/`0`/`off`, plus that instances created by a parent validator or `model_construct` still serialize as Any. A full `tests/unit` run at the tip compared file by file against main showed no new failing tests (remaining failures are missing optional deps such as `semantic_router`, `vertexai`, `detect_secrets`, identical on main). `make check` passes\n\n## Type\n\n🚄 Infrastructure\n\n## Caveats (if any)\n\n### Low\n\n- Schema errors in a model now surface on first use, not at import\n- Docs for the env var are in BerriAI/litellm-docs#2095; the `documentation` and `code-quality` env-key checks read litellm-docs main, so they pass once that PR lands\n\n## Final Attestation\n\n- [x] The tests check the right things, including the edge cases, and regressions in the respective real-world customer use-cases are not possible after this PR\n\nLink to Devin session: https://app.devin.ai/sessions/5059434c95344d4a9eccdf2113067020\nOpen in Devin Desktop: https://app.devin.ai/desktop/session/5059434c95344d4a9eccdf2113067020?variant=devin\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> **Low Risk**\n> Performance and import-time behavior change with an env toggle; runtime validation semantics should match once models are used, with schema errors possibly surfacing on first use instead of import.\n> \n> **Overview**\n> Introduces **`LiteLLMBaseModel`**, a shared Pydantic base that sets **`defer_build`** from the new **`DEFER_PYDANTIC_BUILD`** env var (defaults to on). The change replaces direct **`BaseModel`** subclasses across **`litellm/`** and **`enterprise/`** with this base so most schemas are built on first use instead of at import—aimed at faster proxy startup and lower import-time memory.\n> \n> **`LiteLLMBaseModel.model_post_init`** rebuilds a class when an instance was created via a parent validator or **`model_construct`**, avoiding incomplete serializers on deferred builds. Related cleanups on migrated models use **`Field(default=...)`** for mutable defaults and **`ConfigDict(...)`** where configs were plain dicts.\n> \n> Set **`DEFER_PYDANTIC_BUILD=false`** (or **`0`** / **`off`**) to restore eager schema builds at import.\n> \n> <sup>Reviewed by [Cursor Bugbot](https://cursor.com/bugbot) for commit ddfdb6053a912ea002a62513b3a2f32dacf90feb. Bugbot is set up for automated code reviews on this repo. Configure [here](https://www.cursor.com/dashboard/bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+   "citation": "u01.jsonl#L2 (assistant, 1137 words, 268 line(s) before the edit at L270)",
+   "valid": true,
+   "full_length": 8337
+  },
+  "happened": {
+   "text": "Production report: right after we restarted our two-worker LiteLLM gateway, the first burst of concurrent chat completion requests got one or two HTTP 400 responses. The error body names a LiteLLM internal: \"'CredentialLiteLLMParams' object has no attribute 'use_litellm_proxy'\". No fallback was tried. Later requests on the same workers succeed. It only shows up on a fresh worker under concurrent load.\n\n  at UiDiscoveryEndpoints (litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16)\n  16: workers: list[WorkerRegistryEntry] = Field(default=[])\n\nWritten by transcript edit L270 (apply_patch):\n     hide_default_credentials_hint: bool = False\n     is_control_plane: bool = False\n     mcp_stdio_enabled: bool = False\n-    workers: list[WorkerRegistryEntry] = []\n+    workers: list[WorkerRegistryEntry] = Field(default=[])",
+   "citation": "error u01 frame litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16; u01.jsonl#L270",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 268,
+    "quote": "-class WorkerRegistryEntry(BaseModel):\n+class WorkerRegistryEntry(LiteLLMBaseModel):",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Production report: right after we restarted our two-worker LiteLLM gateway, the first burst of concurrent chat completion requests got one or two HTTP 400 responses. The error body names a LiteLLM internal: \"'CredentialLiteLLMParams' object has no attribute 'use_litellm_proxy'\". No fallback was tried. Later requests on the same workers succeed. It only shows up on a fresh worker under concurrent load.\n",
+  "terms": [
+   "credentiallitellmparams",
+   "use_litellm_proxy",
+   "production report",
+   "litellm gateway",
+   "the error body names",
+   "litellm internal",
+   "no fallback was tried",
+   "later requests on the",
+   "it only shows up",
+   "400",
+   "lite",
+   "llm",
+   "credential",
+   "params",
+   "use",
+   "litellm",
+   "proxy",
+   "production",
+   "report",
+   "right",
+   "restarted",
+   "worker",
+   "gateway",
+   "first",
+   "burst",
+   "concurrent",
+   "chat",
+   "completion",
+   "requests",
+   "http",
+   "responses",
+   "error",
+   "body",
+   "names",
+   "internal",
+   "object",
+   "attribute",
+   "fallback",
+   "tried",
+   "later",
+   "same",
+   "workers",
+   "succeed",
+   "shows",
+   "fresh",
+   "load"
+  ],
+  "layer1": {
+   "symbols_indexed": 444772,
+   "edited_hunks_indexed": 1201,
+   "candidates": [
+    {
+     "file": "litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py",
+     "line": 16,
+     "end_line": 16,
+     "text": "    workers: list[WorkerRegistryEntry] = Field(default=[])",
+     "function": "UiDiscoveryEndpoints",
+     "score": 15.9255,
+     "matched_terms": [
+      "worker",
+      "workers"
+     ],
+     "edit_line": 270,
+     "tool": "apply_patch",
+     "hunk_id": "L270#959",
+     "snippet": "16:     workers: list[WorkerRegistryEntry] = Field(default=[])",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/types/router.py",
+     "line": 340,
+     "end_line": 340,
+     "text": "class CredentialLiteLLMParams(LiteLLMBaseModel):",
+     "function": "CredentialLiteLLMParams",
+     "score": 13.7561,
+     "matched_terms": [
+      "lite",
+      "llm",
+      "credential",
+      "params",
+      "credentiallitellmparams"
+     ],
+     "edit_line": 316,
+     "tool": "apply_patch",
+     "hunk_id": "L316#1158",
+     "snippet": "340: class CredentialLiteLLMParams(LiteLLMBaseModel):",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/proxy/_experimental/mcp_server/gateway_dcr_flow.py",
+     "line": 176,
+     "end_line": 176,
+     "text": "class MintedProxyCredential(LiteLLMBaseModel):",
+     "score": 13.3612,
+     "matched_terms": [
+      "proxy",
+      "lite",
+      "llm",
+      "credential"
+     ],
+     "edit_line": 83,
+     "tool": "apply_patch",
+     "hunk_id": "L83#234",
+     "snippet": "176: class MintedProxyCredential(LiteLLMBaseModel):",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/llms/sap/chat/models.py",
+     "line": 72,
+     "end_line": 72,
+     "text": "class ChatCompletionTool(LiteLLMBaseModel):",
+     "function": "FunctionTool",
+     "score": 11.6284,
+     "matched_terms": [
+      "lite",
+      "llm",
+      "chat",
+      "completion"
+     ],
+     "edit_line": 69,
+     "tool": "apply_patch",
+     "hunk_id": "L69#172",
+     "snippet": "72: class ChatCompletionTool(LiteLLMBaseModel):",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/types/completion.py",
+     "line": 179,
+     "end_line": 179,
+     "text": "    messages: list[ChatCompletionMessageParam] = Field(default=[])",
+     "function": "CompletionRequest",
+     "score": 11.1386,
+     "matched_terms": [
+      "lite",
+      "llm",
+      "chat",
+      "completion"
+     ],
+     "edit_line": 220,
+     "tool": "apply_patch",
+     "hunk_id": "L220#729",
+     "snippet": "177: class CompletionRequest(LiteLLMBaseModel):\n179:     messages: list[ChatCompletionMessageParam] = Field(default=[])",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/llms/base_llm/auth/identity_source.py",
+     "line": 28,
+     "end_line": 28,
+     "text": "class InternalIssuerSource(LiteLLMBaseModel):",
+     "function": "InternalIssuerSource",
+     "score": 8.3575,
+     "matched_terms": [
+      "internal",
+      "lite",
+      "llm"
+     ],
+     "edit_line": 39,
+     "tool": "apply_patch",
+     "hunk_id": "L39#97",
+     "snippet": "28: class InternalIssuerSource(LiteLLMBaseModel):",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/types/videos/main.py",
+     "line": 116,
+     "end_line": 116,
+     "text": "    _hidden_params: dict[str, builtins.object] = PrivateAttr(default={})",
+     "function": "DecodedVideoId",
+     "score": 8.3233,
+     "matched_terms": [
+      "lite",
+      "llm",
+      "params",
+      "object"
+     ],
+     "edit_line": 322,
+     "tool": "apply_patch",
+     "hunk_id": "L322#1198",
+     "snippet": "109: class CharacterObject(LiteLLMBaseModel):\n116:     _hidden_params: dict[str, builtins.object] = PrivateAttr(default={})",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/types/containers/main.py",
+     "line": 145,
+     "end_line": 145,
+     "text": "    _hidden_params: dict[str, builtins.object] = PrivateAttr(default={})",
+     "function": "ContainerFileObject",
+     "score": 8.2956,
+     "matched_terms": [
+      "params",
+      "object"
+     ],
+     "edit_line": 221,
+     "tool": "apply_patch",
+     "hunk_id": "L221#735",
+     "snippet": "145:     _hidden_params: dict[str, builtins.object] = PrivateAttr(default={})",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/types/videos/main.py",
+     "line": 27,
+     "end_line": 27,
+     "text": "    _hidden_params: dict[str, builtins.object] = PrivateAttr(default={})",
+     "function": "VideoObject",
+     "score": 8.2956,
+     "matched_terms": [
+      "params",
+      "object"
+     ],
+     "edit_line": 322,
+     "tool": "apply_patch",
+     "hunk_id": "L322#1196",
+     "snippet": "27:     _hidden_params: dict[str, builtins.object] = PrivateAttr(default={})",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/proxy/anthropic_endpoints/gateway_endpoints.py",
+     "line": 71,
+     "end_line": 83,
+     "text": "class _OAuthErrorBody(LiteLLMBaseModel):",
+     "score": 8.1485,
+     "matched_terms": [
+      "error",
+      "body",
+      "lite",
+      "llm"
+     ],
+     "edit_line": 97,
+     "tool": "apply_patch",
+     "hunk_id": "L97#323",
+     "snippet": "71: class _OAuthErrorBody(LiteLLMBaseModel):\n76: class _AuthorizationServerMetadata(LiteLLMBaseModel):\n83: class _DeviceAuthorizationBody(LiteLLMBaseModel):",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py",
+   "line": 16,
+   "end_line": 16,
+   "text": "    workers: list[WorkerRegistryEntry] = Field(default=[])",
+   "function": "UiDiscoveryEndpoints",
+   "score": 15.9255,
+   "matched_terms": [
+    "worker",
+    "workers"
+   ],
+   "edit_line": 270,
+   "tool": "apply_patch",
+   "hunk_id": "L270#959",
+   "snippet": "16:     workers: list[WorkerRegistryEntry] = Field(default=[])",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 14644,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:ui/litellm-dashboard/src/components/ui/field.tsx (over budget)",
+    "transcript_window:reasoning mentioning \"Field\" (L2) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Production report: right after we restarted our two-worker LiteLLM gateway, the first burst of concurrent chat completion requests got one or two HTTP 400 responses. The error body names a LiteLLM internal: \"'CredentialLiteLLMParams' object has no attribute 'use_litellm_proxy'\". No fallback was tried. Later requests on the same workers succeed. It only shows up on a fresh worker under concurrent load.",
+   "edit": {
+    "file": "litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py",
+    "line": 16,
+    "hunk": "     hide_default_credentials_hint: bool = False\n     is_control_plane: bool = False\n     mcp_stdio_enabled: bool = False\n-    workers: list[WorkerRegistryEntry] = []\n+    workers: list[WorkerRegistryEntry] = Field(default=[])"
+   },
+   "code_window": "1: from pydantic import Field\n2: \n3: from litellm.types.llms.base import LiteLLMBaseModel\n4: from litellm.types.proxy.control_plane_endpoints import WorkerRegistryEntry\n5: \n6: \n7: class UiDiscoveryEndpoints(LiteLLMBaseModel):\n8:     server_root_path: str\n9:     proxy_base_url: str | None\n10:     auto_redirect_to_sso: bool\n11:     admin_ui_disabled: bool\n12:     sso_configured: bool\n13:     hide_default_credentials_hint: bool = False\n14:     is_control_plane: bool = False\n15:     mcp_stdio_enabled: bool = False\n16:     workers: list[WorkerRegistryEntry] = Field(default=[])\n17: ",
+   "related_files": [],
+   "three_piece": {
+    "asked": "(PR-derived transcript: the original request is not public.)",
+    "understood": "perf(types): defer pydantic schema builds via shared LiteLLMBaseModel\n\n## TLDR\n\nProblem this solves:\n\n- Every LiteLLM pydantic model builds its schema at import time\n- Proxy import pays for ~1,380 schema builds, most never used\n\nHow it solves it:\n\n- New shared base `LiteLLMBaseModel` sets `defer_build` from `DEFER_PYDANTIC_BUILD`\n- `DEFER_PYDANTIC_BUILD` defaults to true; `\"true\"`, `\"1\"`, `\"on\"` enable it\n- All direct `BaseModel` subclasses in `litellm/` and `enterprise/` now inherit it\n- Trace codegen passes `--base-class` so regenerated models stay on it\n\n```python\n# litellm/constants.py\nDEFER_PYDANTIC_BUILD: Final = os.getenv(\"DEFER_PYDANTIC_BUILD\", \"true\") in (\"true\", \"1\", \"on\")\n\n# litellm/types/llms/base.py\nclass LiteLLMBaseModel(BaseModel):\n    model_config = ConfigDict(defer_build=DEFER_PYDANTIC_BUILD)\n\nclass LiteLLMPydanticObjectBase(LiteLLMBaseModel): ...      # keeps its dict-returning .json()\nclass BaseLiteLLMOpenAIResponseObject(LiteLLMBaseModel): ...\n```\n\nThe parsing matches the OpenAI and Anthropic SDKs, which already read this same variable, so `DEFER_PYDANTIC_BUILD=false` turns eager builds back on everywhere at once. `LiteLLMPydanticObjectBase` was not used as the universal base because its `.json()` returns a dict, which would change behavior for ~1,300 classes\n\nInstances that a parent model's validator creates, or that come from `model_construct`, never run their own class's first-use build, so the class keeps pydantic's `MockValSer` and a later `serialize_as_any` or `Any`-typed dump of that instance fails. `LiteLLMBaseModel.model_post_init` rebuilds an incomplete class the first time any instance of it appears, which is a single attribute check once the class is built. This is open upstream as https://github.com/pydantic/pydantic/issues/13647, so the hook carries a TODO to drop it once pydantic ships the fix\n\nThe lens worker image copies a handful of `litellm/proxy/lens/` modules into a standalone package without `litellm` installed, so `models.py`, `worker.py` and `agent_context.py` stay on plain `pydantic.BaseModel`\n\nPydantic merges `model_config` from parents, so subclasses that set their own `model_config` keep `defer_build` unless they override that key. Moving mutable defaults on migrated models to `Field(default=...)` / `PrivateAttr(default=...)` and dict `model_config` to `ConfigDict(...)` keeps the strict ruff `RUF012` budget flat; pydantic already copied those defaults per instance, so behavior is unchanged\n\n## User Flow\n\nBefo",
+    "happened": "Production report: right after we restarted our two-worker LiteLLM gateway, the first burst of concurrent chat completion requests got one or two HTTP 400 responses. The error body names a LiteLLM internal: \"'CredentialLiteLLMParams' object has no attribute 'use_litellm_proxy'\". No fallback was tried. Later requests on the same workers succeed. It only shows up on a fresh worker under concurrent load.\n\n  at UiDiscoveryEndpoints (litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16)\n  16: workers: list[WorkerRegistryEntry] = Field(default=[])\n\nWritten by transcript edit L270 (apply_patch):\n     hide_default_credentials_hint: bool = False\n     is_control_plane: bool = False\n     mcp_stdio_enabled: bool = False\n-    workers: list[WorkerRegistryEntry] = []\n+    workers: list[WorkerRegistryEntry] = Field(default=[])"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L270)",
+     "text": "L267 [tool] TOOL: apply_patch {\"path\":\"litellm/types/proxy/compliance_endpoints.py\"}\nL267| CODE_WRITTEN: {\"path\":\"litellm/types/proxy/compliance_endpoints.py\"}\nL267| --- a/litellm/types/proxy/compliance_endpoints.py\nL267| +++ b/litellm/types/proxy/compliance_endpoints.py\nL267| @@ -1,7 +1,7 @@\nL267| -from pydantic import BaseModel\nL267| +from litellm.types.llms.base import LiteLLMBaseModel\nL267|  \nL267|  \nL267| -class ComplianceCheckResult(BaseModel):\nL267| +class ComplianceCheckResult(LiteLLMBaseModel):\nL267|      \"\"\"Result of a single compliance check.\"\"\"\nL267|  \nL267|      check_name: str\nL267| @@ -10,15 +10,15 @@ class ComplianceCheckResult(BaseModel):\nL267|      detail: str\nL267|  \nL267|  \nL267| -class ComplianceResponse(BaseModel):\nL267| +class ComplianceResponse(LiteLLMBaseModel):\nL267|      \"\"\"Response from a compliance check endpoint.\"\"\"\nL267|  \nL267|      compliant: bool\nL267|      regulation: str\nL267|      checks: list[ComplianceCheckResult]\nL267|  \nL267|  \nL267| -class ComplianceCheckRequest(BaseModel):\nL267| +class ComplianceCheckRequest(LiteLLMBaseModel):\nL267|      \"\"\"Request payload for compliance check endpoints.\nL267|  \nL267|      Mirrors the spend log fields needed for compliance evaluation.\nL267| \nL268 [tool] TOOL: apply_patch {\"path\":\"litellm/types/proxy/control_plane_endpoints.py\"}\nL268| CODE_WRITTEN: {\"path\":\"litellm/types/proxy/control_plane_endpoints.py\"}\nL268| --- a/litellm/types/proxy/control_plane_endpoints.py\nL268| +++ b/litellm/types/proxy/control_plane_endpoints.py\nL268| @@ -1,7 +1,9 @@\nL268| -from pydantic import BaseModel, field_validator\nL268| +from pydantic import field_validator\nL268|  \nL268| +from litellm.types.llms.base import LiteLLMBaseModel\nL268|  \nL268| -class WorkerRegistryEntry(BaseModel):\nL268| +\nL268| +class WorkerRegistryEntry(LiteLLMBaseModel):\nL268|      worker_id: str\nL268|      name: str\nL268|      url: str\nL268| \nL269 [tool] TOOL: apply_patch {\"path\":\"litellm/types/proxy/discovery_endpoints/agent_skills_endpoints.py\"}\nL269| CODE_WRITTEN: {\"path\":\"litellm/types/proxy/discovery_endpoints/agent_skills_endpoints.py\"}\nL269| --- a/litellm/types/proxy/discovery_endpoints/agent_skills_endpoints.py\nL269| +++ b/litellm/types/proxy/discovery_endpoints/agent_skills_endpoints.py\nL269| @@ -5,21 +5,23 @@\nL269|  \nL269|  from typing import Final, Literal\nL269|  \nL269| -from pydantic import BaseModel, Field\nL269| +from pydantic import Field\nL269| +\nL269| +from litellm.types.llms.base import LiteLLMBaseModel\nL269|  \nL269|  AGENT_SKILLS_DISCOVERY_SCHEMA_URL: Final = \"https://schemas.agentskills.io/discovery/0.2.0/schema.json\"\nL269|  MAX_SKILL_NAME_LENGTH: Final = 64\nL269|  MAX_SKILL_DESCRIPTION_LENGTH: Final = 1024\nL269|  \nL269|  \nL269| -class AgentSkillsIndexEntry(BaseModel):\nL269| +class AgentSkillsIndexEntry(LiteLLMBaseModel):\nL269|      name: str\nL269|      type: Literal[\"archive\"]\nL269|      description: str\nL269|      url: str\nL269|      digest: str\nL269|  \nL269|  \nL269| -class AgentSkillsIndex(BaseModel):\nL269| +class AgentSkillsIndex(LiteLLMBaseModel):\nL269|      discovery_schema: str = Field(default=AGENT_SKILLS_DISCOVERY_SCHEMA_URL, alias=\"$schema\")\nL269|      skills: tuple[AgentSkillsIndexEntry, ...]\nL269| \nL270 [tool] TOOL: apply_patch {\"path\":\"litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py\"}\nL270| CODE_WRITTEN: {\"path\":\"litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py\"}\nL270| --- a/litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py\nL270| +++ b/litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py\nL270| @@ -1,9 +1,10 @@\nL270| -from pydantic import BaseModel\nL270| +from pydantic import Field\nL270|  \nL270| +from litellm.types.llms.base import LiteLLMBaseModel\nL270|  from litellm.types.proxy.control_plane_endpoints import WorkerRegistryEntry\nL270|  \nL270|  \nL270| -class UiDiscoveryEndpoints(BaseModel):\nL270| +class UiDiscoveryEndpoints(LiteLLMBaseModel):\nL270|      server_root_path: str\nL270|      proxy_base_url: str | None\nL270|      auto_redirect_to_sso: bool\nL270| @@ -12,4 +13,4 @@ class UiDiscoveryEndpoints(BaseModel):\nL270|      hide_default_credentials_hint: bool = False\nL270|      is_control_plane: bool = False\nL270|      mcp_stdio_enabled: bool = False\nL270| -    workers: list[WorkerRegistryEntry] = []\nL270| +    workers: list[WorkerRegistryEntry] = Field(default=[])\nL270| \nL271 [tool] TOOL: apply_patch {\"path\":\"litellm/types/proxy/gateway_requests.py\"}\nL271| CODE_WRITTEN: {\"path\":\"litellm/types/proxy/gateway_requests.py\"}\nL271| --- a/litellm/types/proxy/gateway_requests.py\nL271| +++ b/litellm/types/proxy/gateway_requests.py\nL271| @@ -4,7 +4,7 @@\nL271|  from dataclasses import dataclass\nL271|  from typing import TypeAlias\nL271|  \nL271| -from pydantic import BaseModel\nL271| +from litellm.types.llms.base import LiteLLMBaseModel\nL271|  \nL271|  \nL271|  @dataclass(frozen=True, slots=True)\nL271| @@ -29,20 +29,20 @@ def plus(self, *, succeeded: bool) -> \"GatewayRequestCounts\":\nL271|  GatewayRequestSnapshot: TypeAlias = Mapping[GatewayRequestKey, GatewayRequestCounts]\nL271|  \nL271|  \nL271| -class GatewayRequestBreakdownEntry(BaseModel):\nL271| +class GatewayRequestBreakdownEntry(LiteLLMBaseModel):\nL271|      category: str\nL271|      route: str\nL271|      successful_requests: int = 0\nL271|      failed_requests: int = 0\nL271|  \nL271|  \nL271| -class GatewayRequestDailyEntry(BaseModel):\nL271| +class GatewayRequestDailyEntry(LiteLLMBaseModel):\nL271|      date: str\nL271|      successful_requests: int = 0\nL271|      failed_requests: int = 0\nL271|  \nL271|  \nL271| -class GatewayRequestActivityResponse(BaseModel):\nL271| +class GatewayRequestActivityResponse(LiteLLMBaseModel):\nL271|      \"\"\"Response for GET /gateway/daily/activity.\"\"\"\nL271|  \nL271|      total_successful_requests: int = 0\nL271| \nL272 [tool] TOOL: apply_patch {\"path\":\"litellm/types/proxy/guardrails/guardrail_hooks/azure/azure_text_moderation.py\"}\nL272| CODE_WRITTEN: {\"path\":\"litellm/types/proxy/guardrails/guardrail_hooks/azure/azure_text_moderation.py\"}\nL272| --- a/litellm/types/proxy/guardrails/guardrail_hooks/azure/azure_text_moderation.py\nL272| +++ b/litellm/types/proxy/guardrails/guardrail_hooks/azure/azure_text_moderation.py\nL272| @@ -1,8 +1,10 @@\nL272|  from typing import Any, Final, Literal\nL272|  \nL272| -from pydantic import BaseModel, Field\nL272| +from pydantic import Field\nL272|  from typing_extensions import Required, TypedDict\nL272|  \nL272| +from litellm.types.llms.base import LiteLLMBaseModel\nL272| +\nL272|  from ..base import GuardrailConfigModel\nL272|  from .base import AzureContentSafetyConfigModel\nL272|  \nL272| @@ -42,7 +44,7 @@ class AzureTextModerationGuardrailResponse(TypedDict):\nL272|  AzureHarmCategories = Literal[\"Hate\", \"SelfHarm\", \"Sexual\", \"Violence\"]\nL272|  \nL272|  \nL272| -class AzureTextModerationOptionalParams(BaseModel):\nL272| +class AzureTextModerationOptionalParams(LiteLLMBaseModel):\nL272|      severity_threshold: int | None = Field(\nL272|          default=None,\nL272|          description=\"Severity threshold for the Azure Content Safety Text Moderation guardrail across all categories\",\nL272| \nL273 [tool] TOOL: apply_patch {\"path\":\"litellm/types/proxy/guardrails/guardrail_hooks/azure/base.py\"}\nL273| CODE_WRITTEN: {\"path\":\"litellm/types/proxy/guardrails/guardrail_hooks/azure/base.py\"}\nL273| --- a/litellm/types/proxy/guardrails/guardrail_hooks/azure/base.py\nL273| +++ b/litellm/types/proxy/guardrails/guardrail_hooks/azure/base.py\nL273| @@ -1,7 +1,9 @@\nL273| -from pydantic import BaseModel, Field\nL273| +from pydantic import Field\nL273|  \nL273| +from litellm.types.llms.base import LiteLLMBaseModel\nL273|  \nL273| -class AzureContentSafetyConfigModel(BaseModel):\nL273| +\nL273| +class AzureContentSafetyConfigModel(LiteLLMBaseModel):\nL273|      \"\"\"Configuration parameters for the Azure Content Safety Prompt Shield guardrail\"\"\"\nL273|  \nL273|      api_key: str | None = Field(\nL273| "
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that replacing `workers: list[WorkerRegistryEntry] = []` with `Field(default=[])` would preserve the same mutable default behavior while enabling `defer_build`, but missed that `Field(default=[])` creates a shared mutable default that is evaluated once at class definition time, and that `LiteLLMBaseModel`'s `defer_build` mechanism delays schema construction until first instance access, which can leave attribute access broken under concurrent load before the build completes.",
+  "why_it_breaks": "The `LiteLLMBaseModel` sets `model_config = ConfigDict(defer_build=True)` (via `DEFER_PYDANTIC_BUILD` env var). When `defer_build=True`, pydantic delays the actual model schema build until the first instance is accessed or serialized. The `Field(default=[])` syntax creates the list literal at class definition time. Under concurrent load on a fresh worker, multiple goroutines/threads may attempt to access the `workers` attribute before the schema build completes, hitting a partially-initialized `MockValSer` proxy. The original `= []` assignment also created a shared default, but the migration to `Field(default=[])` was done without preserving the instance-per-model defaulting pattern that pydantic's `defer_build` relies on, causing the `'CredentialLiteLLMParams' object has no attribute 'use_litellm_proxy'` error when code tries to read `use_litellm_proxy` on an unbuilt credential model. Later requests succeed because the schema has already been built and cached.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py",
+    "line": 16,
+    "quote": "    workers: list[WorkerRegistryEntry] = Field(default=[])",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 268,
+    "quote": "-class WorkerRegistryEntry(BaseModel):\n+class WorkerRegistryEntry(LiteLLMBaseModel):",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that changing the default from `= []` to `Field(default=[])` would preserve the same runtime behavior when the model is used with `defer_build=True`, but missed that pydantic's `Field(default=[])` with `defer_build` creates a shared mutable default that is evaluated once at class definition time and reused across all instances under deferred loading, causing the `MockValSer` proxy to be shared and later serialization to fail on first access.",
+  "why_it_breaks": "When `DEFER_PYDANTIC_BUILD` is true (default), pydantic defers schema building until the first instance is accessed. With `Field(default=[])`, the empty list is stored as a class-level `MockValSer` proxy that gets shared across all instances. On a fresh worker under concurrent load, the first request triggers schema building, but the shared `MockValSer` proxy for the `workers` field does not carry the real `use_litellm_proxy` attribute that `CredentialLiteLLMParams` later expects. The attribute error surfaces because the proxy was created before the class was fully built, and later serialization attempts fail on that incomplete proxy. Subsequent requests succeed because the class schema is now built and the proxy is replaced with a real instance.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py",
+    "line": 16,
+    "quote": "    workers: list[WorkerRegistryEntry] = Field(default=[])",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 268,
+    "quote": "-class WorkerRegistryEntry(BaseModel):\n+class WorkerRegistryEntry(LiteLLMBaseModel):",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ }
+}

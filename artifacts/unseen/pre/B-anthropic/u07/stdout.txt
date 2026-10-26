@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs:111
+stage: ok
+provider: anthropic
+frame: test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs:111
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that the test asset 'RazorAppWithP2PReference' exists in the test infrastructure, but it does not.
+report: /workspace/open-agent/wt-pre/artifacts/unseen/pre/B-anthropic/u07/report.html

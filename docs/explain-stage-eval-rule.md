@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # Explain-why stage: eval rule (frozen before any live model call)
 
 Written 2026-10-25 PT, before any live call to the explain-why stage. Tag: `explain-stage-frozen`.

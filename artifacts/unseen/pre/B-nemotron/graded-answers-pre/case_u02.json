@@ -1,0 +1,58 @@
+{
+ "overlooked_assumption": "The agent assumed that gpt-5.5 with function tools and no explicit reasoning_effort would be automatically bridged to the Responses API, but the actual product change (measured live 2026-10-02) makes gpt-5.4 and gpt-5.5 default to \"none\" reasoning and serve tools on Chat Completions without bridging. The unset-effort bridge was incorrectly kept active for gpt-5.5, causing the proxy to attempt routing to Responses where the 400 error is triggered.",
+ "why_it_breaks": "The agent's edit replaced the old comment that said \"only an explicit \\\"none\\\" keeps the request chat-servable\" with a new comment stating that gpt-5.4/5.5 default to \"none\" and serve tools on Chat Completions, and unset effort bridges only from gpt-5.6. However, the code logic downstream of this comment (not shown in the diff) likely still attempts to unset reasoning_effort and bridge to Responses for gpt-5.5 when function tools are present. Since OpenAI's gpt-5.5 rejects function tools with any explicit reasoning_effort in Chat Completions (returning HTTP 400), the proxy's attempt to unset or bridge the effort triggers that error. The agent overlooked that the product change means gpt-5.5 should stay on Chat Completions without any bridging attempt when reasoning_effort is unset or \"none\".",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 1128,
+   "quote": "#   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).",
+   "verified": false,
+   "reason": "cited line does not exist"
+  },
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1128,
+   "quote": "#   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 1129,
+   "quote": "#   gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;",
+   "verified": false,
+   "reason": "cited line does not exist"
+  },
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1129,
+   "quote": "#   gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 1130,
+   "quote": "#   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).",
+   "verified": false,
+   "reason": "cited line does not exist"
+  },
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1130,
+   "quote": "#   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

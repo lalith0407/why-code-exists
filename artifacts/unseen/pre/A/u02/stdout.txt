@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/main.py:1123
+stage: ok
+provider: nemotron
+frame: litellm/main.py:1127
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that gpt-5.4 and gpt-5.5 default to "none" reasoning effort and serve function tools on Chat Completions when unset, but the actual OpenAI behavior rejects function tools with any explicit reasoning_effort value on these models, and the unset-effort bridge was incorrectly made conditional only on gpt-5.6+ when it should have been active for all gpt-5.4+ models on OpenAI/Azure hosts that enforce the constraint.
+report: /workspace/open-agent/wt-pre/artifacts/unseen/pre/A/u02/report.html

@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # Judge assessment v8 — Why-Code-Exists (Track 02)
 
 Independent, skeptical pass, Fri Oct 23 2026 ~9:50 PM PT. **[tested]** = ran on the box this pass (only `npm test`, offline; no OpenAI calls). **[read]** = files/docs only; live eval numbers below are taken from `docs/eval-lines.md` v6c tables, not re-run.

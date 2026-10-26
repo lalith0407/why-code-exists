@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # M9 results (Sun Oct 25 2026). Restore point: tag `pre-m9-2026-10-25` + snapshots/pre-m9-2026-10-25.tar.gz
 
 Grading of "correct" = the claim names the known root cause of the burned dev case (read by hand, same standard as M8; "strict" counts hedged claims as false).

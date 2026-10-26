@@ -1,0 +1,27 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "litellm-video-hook",
+  "complete": true,
+  "notes": [
+    "ASKED comes from the PR description, which the agent wrote: it restates the request; the human's original prompt is not public",
+    "text-only error: file:line comes from the engine's ranked-commit pick, not from a stack frame"
+  ],
+  "asked": {
+    "text": "## TLDR\n\nProblem this solves:\n\n- Guardrails attached to a virtual key never ran on `POST /v1/videos`\n- Banned prompts started paid video jobs at the provider\n- Same hole for during_call and request-level guardrails on videos",
+    "citation": "https://github.com/BerriAI/litellm/pull/42354 (PR description by devin-ai-integration[bot])",
+    "valid": true,
+    "full_length": 14745
+  },
+  "understood": {
+    "text": "fix(guardrails): scan video prompts for key-attached guardrails on /v1/videos\n\n/v1/videos dispatches call_type avideo_generation, which CallTypes did not\nknow and no guardrail translation handler covered, so the unified guardrail\nhook returned the request unscanned. Add the video call types and an OpenAI\nvideo guardrail translation package that scans the prompt for create, remix,\nedit and extension requests\n\nResolves LIT-6685\n\nCo-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+    "citation": "https://github.com/BerriAI/litellm/commit/9ae2fe2ea4095c9d2baa3d1613756a7ea7f4535f",
+    "valid": true,
+    "full_length": 518
+  },
+  "happened": {
+    "text": "Invalid request format: 'VideoObject' object has no attribute 'choices'\n  localized to litellm/llms/openai/videos/guardrail_translation/__init__.py:1-23 (from PR 42354)\n  later fix: https://github.com/BerriAI/litellm/pull/42535",
+    "citation": "https://github.com/BerriAI/litellm/pull/42535",
+    "valid": true,
+    "later_edits": []
+  }
+}

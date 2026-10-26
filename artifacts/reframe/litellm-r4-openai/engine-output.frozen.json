@@ -1,0 +1,531 @@
+{
+ "schema": "why-code-exists/reframe@1",
+ "error": {
+  "id": "litellm-video-hook",
+  "message": "Invalid request format: 'VideoObject' object has no attribute 'choices'",
+  "behaviour": "POST /v1/videos with {\"model\": \"sora-2\", \"prompt\": \"a cat\", \"seconds\": \"4\", \"size\": \"720x1280\"} returns HTTP 400 {\"error\": {\"message\": \"Invalid request format: 'VideoObject' object has no attribute 'choices'\", \"type\": \"invalid_request_error\", \"code\": \"400\"}}. The provider dashboard shows three queued video jobs for that one request.",
+  "frames": [],
+  "observed_at": "2026-09-22T19:10:35Z",
+  "source_url": "https://github.com/BerriAI/litellm/pull/42535",
+  "source_note": "Error text and observed behaviour copied verbatim from the 'User Flow / Before' section and the 'Before (9d299d016a)' curl output of the fix PR. Only the symptom is used; the PR's diagnosis lines ('#42354 routed...', 'A chat-shaped hook...'), its proxy log line (which names the call type) and its diff are NOT given to the engine.",
+  "repo": {
+   "url": "https://github.com/BerriAI/litellm",
+   "commit": "a80379baf8910f5aa72990cd1bdbd8088d5e6b2c",
+   "commit_note": "parent of the fix commit 944f44d8 on main"
+  }
+ },
+ "localization": {
+  "method": "text-only error: IDF-ranked first-parent commits in the 7 days before observed_at by error-stem matches in added code lines (best hunk), then one LLM pick from the shortlist",
+  "stems": [
+   "video",
+   "choice",
+   "post",
+   "sora",
+   "x1280",
+   "three",
+   "jobs"
+  ],
+  "window": {
+   "since": "2026-09-15T19:10:35.000Z",
+   "until": "2026-09-22T19:10:35Z",
+   "commits": 681
+  },
+  "shortlist": [
+   {
+    "commit": "dc81cf57f7fbfebde227d2e5359e275777ccda54",
+    "subject": "Merge pull request #41550 from BerriAI/new-ocr-mapping2",
+    "score": 13.703,
+    "hunks": [
+     "dc81cf57f7#0",
+     "dc81cf57f7#1",
+     "dc81cf57f7#2",
+     "dc81cf57f7#3",
+     "dc81cf57f7#4",
+     "dc81cf57f7#5",
+     "dc81cf57f7#6",
+     "dc81cf57f7#7",
+     "dc81cf57f7#8"
+    ]
+   },
+   {
+    "commit": "deba47382188582e14a46cb3cd61c522b346937e",
+    "subject": "fix(cost): bill batch prompts above 272K at OpenAI's long-context batch tier (#39861)",
+    "score": 8.08,
+    "hunks": [
+     "deba473821#0"
+    ]
+   },
+   {
+    "commit": "12f79308cf4dfbcc6e3b9a612a464e1a35c0d705",
+    "subject": "Merge pull request #42354 from BerriAI/litellm_fix_video_key_guardrails_lit_6685",
+    "score": 8.08,
+    "hunks": [
+     "12f79308cf#0",
+     "12f79308cf#1"
+    ]
+   },
+   {
+    "commit": "e7bff277a6f93ec4a26850d05ce2f6c2842c1512",
+    "subject": "Merge pull request #40251 from BerriAI/litellm_decrease_anys_opus5_r5",
+    "score": 8.08,
+    "hunks": [
+     "e7bff277a6#0",
+     "e7bff277a6#1",
+     "e7bff277a6#2",
+     "e7bff277a6#3",
+     "e7bff277a6#4",
+     "e7bff277a6#5",
+     "e7bff277a6#6",
+     "e7bff277a6#7",
+     "e7bff277a6#8",
+     "e7bff277a6#9",
+     "e7bff277a6#10",
+     "e7bff277a6#11",
+     "e7bff277a6#12",
+     "e7bff277a6#13"
+    ]
+   },
+   {
+    "commit": "f6c69af4275d21467471eeaff2859df58dbd480a",
+    "subject": "Merge pull request #41101 from hMED22/litellm_add_edenai_provider",
+    "score": 8.08,
+    "hunks": [
+     "f6c69af427#0",
+     "f6c69af427#1",
+     "f6c69af427#2",
+     "f6c69af427#3",
+     "f6c69af427#4",
+     "f6c69af427#5",
+     "f6c69af427#6"
+    ]
+   },
+   {
+    "commit": "89de508d6ed6698117e8bd3e6f2e46a467f7cb5b",
+    "subject": "Merge pull request #42306 from BerriAI/litellm_fal_ai_surface_video_errors",
+    "score": 8.08,
+    "hunks": [
+     "89de508d6e#0",
+     "89de508d6e#1",
+     "89de508d6e#2",
+     "89de508d6e#3",
+     "89de508d6e#4"
+    ]
+   },
+   {
+    "commit": "5216844c4084a96e924e79c41b1b5b504384600c",
+    "subject": "Merge pull request #42286 from BerriAI/litellm_fal_ai_minimax_h3",
+    "score": 8.08,
+    "hunks": [
+     "5216844c40#0",
+     "5216844c40#1",
+     "5216844c40#2"
+    ]
+   },
+   {
+    "commit": "af1f46af1a824ae0c2022c84292e3b3fbc35f559",
+    "subject": "Merge pull request #41980 from BerriAI/litellm_fal_seedance_video",
+    "score": 8.08,
+    "hunks": [
+     "af1f46af1a#0",
+     "af1f46af1a#1",
+     "af1f46af1a#2"
+    ]
+   },
+   {
+    "commit": "825e287f63b934fce041b7afc80226fd6d87a12b",
+    "subject": "Merge pull request #41237 from BerriAI/litellm_internal_copy_36887",
+    "score": 8.08,
+    "hunks": [
+     "825e287f63#0",
+     "825e287f63#1",
+     "825e287f63#2"
+    ]
+   },
+   {
+    "commit": "c4ddea7cfc422da282929ed3ff11cbc225bd34c9",
+    "subject": "Merge pull request #41917 from BerriAI/litellm_fireworks_cache_read_default_discount",
+    "score": 8.08,
+    "hunks": [
+     "c4ddea7cfc#0"
+    ]
+   },
+   {
+    "commit": "636313e9fc4fff55d5fd8cae69c375fc1f64759f",
+    "subject": "Merge pull request #41322 from BerriAI/litellm_gcp_video_usage",
+    "score": 8.08,
+    "hunks": [
+     "636313e9fc#0",
+     "636313e9fc#1",
+     "636313e9fc#2",
+     "636313e9fc#3",
+     "636313e9fc#4",
+     "636313e9fc#5",
+     "636313e9fc#6",
+     "636313e9fc#7",
+     "636313e9fc#8"
+    ]
+   },
+   {
+    "commit": "1a714548a46694bf82ed4d285941bcb2d5d86c0e",
+    "subject": "fix(guardrails): store the masked output in spend logs when Presidio masks the response (#42441)",
+    "score": 8.021,
+    "hunks": [
+     "1a714548a4#0"
+    ]
+   },
+   {
+    "commit": "3353c57e768310364af96d8170b72cf0bb908c47",
+    "subject": "Merge pull request #42292 from BerriAI/litellm_extract_mcp_operation_context_7741",
+    "score": 8.021,
+    "hunks": [
+     "3353c57e76#0",
+     "3353c57e76#1",
+     "3353c57e76#2",
+     "3353c57e76#3"
+    ]
+   },
+   {
+    "commit": "4011367b396cc0deb29752044bc4caf953000d2f",
+    "subject": "Merge pull request #40986 from BerriAI/litellm_lit_7346_multi_choice_stream_guardrails",
+    "score": 8.021,
+    "hunks": [
+     "4011367b39#0",
+     "4011367b39#1",
+     "4011367b39#2",
+     "4011367b39#3",
+     "4011367b39#4",
+     "4011367b39#5",
+     "4011367b39#6",
+     "4011367b39#7",
+     "4011367b39#8",
+     "4011367b39#9",
+     "4011367b39#10",
+     "4011367b39#11",
+     "4011367b39#12",
+     "4011367b39#13"
+    ]
+   },
+   {
+    "commit": "eda1faba14d0ca2ffd60d2cc3e341c513d0333e8",
+    "subject": "Merge pull request #41718 from BerriAI/litellm_mcp_dependency_gate_7737",
+    "score": 8.021,
+    "hunks": [
+     "eda1faba14#0",
+     "eda1faba14#1",
+     "eda1faba14#2",
+     "eda1faba14#3"
+    ]
+   },
+   {
+    "commit": "5f1268c0563bc3307f3520a3bbc723dfd81ef927",
+    "subject": "Merge pull request #41933 from BerriAI/litellm_deliver_multi_choice_stream_rewrites",
+    "score": 8.021,
+    "hunks": [
+     "5f1268c056#0",
+     "5f1268c056#1",
+     "5f1268c056#2",
+     "5f1268c056#3",
+     "5f1268c056#4",
+     "5f1268c056#5"
+    ]
+   },
+   {
+    "commit": "839c040b532af21410add1e2a8e02ed83d57baa3",
+    "subject": "Merge pull request #41695 from BerriAI/litellm_issue_classifier",
+    "score": 8.021,
+    "hunks": [
+     "839c040b53#0",
+     "839c040b53#1",
+     "839c040b53#2"
+    ]
+   },
+   {
+    "commit": "cf42b607c318e81882f6ebd3c7782cc781a6cf6f",
+    "subject": "Merge pull request #41615 from BerriAI/litellm_jev_complexity_classifier",
+    "score": 8.021,
+    "hunks": [
+     "cf42b607c3#0",
+     "cf42b607c3#1",
+     "cf42b607c3#2"
+    ]
+   },
+   {
+    "commit": "db04e7909e7bfe1f9402dd30e71f9c6b5e3e4e36",
+    "subject": "Merge pull request #41934 from BerriAI/litellm_mistral_ocr_batches",
+    "score": 7.131,
+    "hunks": [
+     "db04e7909e#0",
+     "db04e7909e#1"
+    ]
+   },
+   {
+    "commit": "f129e7e2d0db91efcb48b443e3a26bf683707230",
+    "subject": "Merge pull request #41515 from BerriAI/litellm_transcribe_passthrough",
+    "score": 7.131,
+    "hunks": [
+     "f129e7e2d0#0",
+     "f129e7e2d0#1",
+     "f129e7e2d0#2"
+    ]
+   },
+   {
+    "commit": "88a4cbdd7b9188f6fbc68b29bacdde4371b4ef22",
+    "subject": "fix(otel v2): map rerank and search output and the OCR, image edit and search input onto the Langfuse generation (#42444)",
+    "score": 5.623,
+    "hunks": [
+     "88a4cbdd7b#0",
+     "88a4cbdd7b#1"
+    ]
+   },
+   {
+    "commit": "5a8c4f48e41619b670dad5eec7e2dc3b48811e99",
+    "subject": "feat(router): native compact-to-fit across conversation APIs (#42074)",
+    "score": 5.623,
+    "hunks": [
+     "5a8c4f48e4#0",
+     "5a8c4f48e4#1",
+     "5a8c4f48e4#2",
+     "5a8c4f48e4#3"
+    ]
+   },
+   {
+    "commit": "13b374873d7b75f400fc1702c759d68195620f62",
+    "subject": "fix(otel v2): map completions, images, speech, transcription and moderation output onto the Langfuse generation output (#42394)",
+    "score": 5.623,
+    "hunks": [
+     "13b374873d#0",
+     "13b374873d#1",
+     "13b374873d#2",
+     "13b374873d#3",
+     "13b374873d#4",
+     "13b374873d#5"
+    ]
+   },
+   {
+    "commit": "0abd9267c106c8b6a276b1e68824cc7688e19435",
+    "subject": "feat(tokenizer): preserve Python defaults with opt-in Rust dispatch (#42174)",
+    "score": 5.623,
+    "hunks": [
+     "0abd9267c1#0",
+     "0abd9267c1#1",
+     "0abd9267c1#2",
+     "0abd9267c1#3"
+    ]
+   },
+   {
+    "commit": "b833e1fc4c28a49614feff30abef76692752ac3b",
+    "subject": "feat(fal_ai): add flux-lora-depth image edits and moondream3 chat completions (#42334)",
+    "score": 5.623,
+    "hunks": [
+     "b833e1fc4c#0",
+     "b833e1fc4c#1"
+    ]
+   }
+  ],
+  "pick": {
+   "hunk_id": "12f79308cf#0",
+   "reason": "The error message indicates an issue with handling a 'VideoObject' that lacks a 'choices' attribute, which suggests a problem in the video generation handler or its routing. The hunk '12f79308cf#0' introduces or modifies the OpenAI Video Generation handler mapping for video generation call types, which plausibly affects how video requests are processed and could lead to the observed error if the handler does not properly handle the response structure."
+  },
+  "edit": {
+   "commit": "12f79308cf4dfbcc6e3b9a612a464e1a35c0d705",
+   "file": "litellm/llms/openai/videos/guardrail_translation/__init__.py",
+   "lines": [
+    1,
+    23
+   ],
+   "added": "\"\"\"OpenAI Video Generation handler for Unified Guardrails.\"\"\"\n\nfrom typing import Final\n\nfrom litellm.llms.openai.videos.guardrail_translation.handler import (\n    OpenAIVideoGenerationHandler,\n)\nfrom litellm.types.utils import CallTypes\n\nguardrail_translation_mappings: Final = {  # mutable-ok: discover_guardrail_translation_mappings only accepts isinstance(mappings, dict)\n    CallTypes.video_generation: OpenAIVideoGenerationHandler,\n    CallTypes.avideo_generation: OpenAIVideoGenerationHandler,\n    CallTypes.create_video: OpenAIVideoGenerationHandler,\n    CallTypes.acreate_video: OpenAIVideoGenerationHandler,\n    CallTypes.video_remix: OpenAIVideoGenerationHandler,\n    CallTypes.avideo_remix: OpenAIVideoGenerationHandler,\n    CallTypes.video_edit: OpenAIVideoGenerationHandler,\n    CallTypes.avideo_edit: OpenAIVideoGenerationHandler,\n    CallTypes.video_extension: OpenAIVideoGenerationHandler,\n    CallTypes.avideo_extension: OpenAIVideoGenerationHandler,\n}\n\n__all__ = (\"OpenAIVideoGenerationHandler\", \"guardrail_translation_mappings\")",
+   "still_present_at_head": true,
+   "blamed_to": [
+    "9ae2fe2ea4",
+    "652bddfdc6"
+   ]
+  }
+ },
+ "evidence": [],
+ "verdict": "belief_unverified",
+ "frozen": {
+  "sha256": "5cfa059d36f74a5ddc456251987f2c132a3398ba3c58f405cbf77a5e090fea3f",
+  "at": "2026-10-25T21:39:17.157Z"
+ },
+ "calls": [
+  {
+   "label": "reframe_pick_edit",
+   "model": "gpt-4.1-mini",
+   "ok": true
+  },
+  {
+   "label": "reframe_belief",
+   "model": "gpt-4.1-mini",
+   "ok": true
+  }
+ ],
+ "provenance": {
+  "repo": "BerriAI/litellm",
+  "commit": "12f79308cf4dfbcc6e3b9a612a464e1a35c0d705",
+  "agent": {
+   "is_agent": true,
+   "name": "Devin",
+   "evidence": [
+    {
+     "signal": "pr_author",
+     "detail": "PR opened by devin-ai-integration[bot] (type Bot)"
+    },
+    {
+     "signal": "co_authored_by_trailer",
+     "detail": "9ae2fe2ea4: Co-Authored-By: Devin AI"
+    }
+   ]
+  },
+  "segments": [
+   {
+    "id": "S0",
+    "kind": "pr_title",
+    "url": "https://github.com/BerriAI/litellm/pull/42354",
+    "author": "devin-ai-integration[bot]",
+    "text": "fix(guardrails): run key-attached guardrails on /v1/videos"
+   },
+   {
+    "id": "S1",
+    "kind": "pr_body",
+    "url": "https://github.com/BerriAI/litellm/pull/42354",
+    "author": "devin-ai-integration[bot]",
+    "text": "## TLDR\n\nProblem this solves:\n\n- Guardrails attached to a virtual key never ran on `POST /v1/videos`\n- Banned prompts started paid video jobs at the provider\n- Same hole for during_call and request-level guardrails on videos\n\nHow it solves it:\n\n- Add `video_generation` / `avideo_generation` to `CallTypes`\n- Add a video guardrail translation handler that scans `prompt`\n- Register it for create, remix, edit and extension call types\n\nSupersedes #39323, which targeted the retired `litellm_internal_staging` branch and had no `tests/e2e/` coverage\n\n## User Flow\n\nBefore: an admin attaches a content-filter guardrail to a key, but a banned video prompt still reaches the provider\n\n1. Admin sends POST http://localhost:4000/guardrails with a `litellm_content_filter` guardrail blocking `BANNEDWORD`, `mode: pre_call`, `default_on: false`\n2. Admin sends POST http://localhost:4000/key/generate with `{\"metadata\": {\"guardrails\": [\"lpr-pre\"]}}` and hands the key to a developer\n3. The developer sends POST http://localhost:4000/v1/videos with that key and `{\"model\": \"veo-3.1-fast\", \"prompt\": \"A paper boat on a stream. BANNEDWORD\", \"seconds\": \"4\"}`\n4. They get HTTP 200 with a `video_...` id and `\"status\": \"queued\"`: the provider started the job and the guardrail never ran\n5. The same developer sends the same prompt to POST http://localhost:4000/v1/chat/completions and gets HTTP 400 `Content blocked`, so the key looks guarded everywhere except videos\n\nAfter: the same key blocks the same prompt on videos too\n\n1. Admin sends POST http://localhost:4000/guardrails with the same content-filter guardrail\n2. Admin sends POST http://localhost:4000/key/generate with `{\"metadata\": {\"guardrails\": [\"lpr-pre\"]}}`\n3. The developer sends POST http://localhost:4000/v1/videos with that key and the banned prompt\n4. They get HTTP 400 `{\"error\": {\"message\": \"Content blocked: keyword 'bannedword' detected\", \"type\": \"invalid_request_error\", ...}}` and no provider job is created\n5. A clean prompt on the same key still returns HTTP 200 with a `video_...` id\n\n## Relevant issues\n\n## Affected release\n\n## Linear ticket\n\nResolves LIT-6685\n\n## Pre-Submission checklist\n\n**Please complete all items before asking a LiteLLM maintainer to review your PR**\n\n- [x] I have added meaningful tests\n- [x] The handful of test files covering my change pass locally, e.g. `uv run pytest tests/test_litellm/<your_test_file>.py -v`. Leave the suites (`make test-unit-*`, `make test-unit`) to CI: it finishes in ~15 minutes where a laptop takes an hour or more\n- [ ] My PR passes all required CI/CD checks (e.g., lint, schema.d.ts sync check, etc.)\n- [x] My PR's scope is as isolated as possible; it only solves 1 specific problem\n- [ ] I have received a Greptile **Confidence Score of at least 4/5** before requesting a maintainer review (Greptile reviews automatically once the PR is opened; only comment `@greptileai` to re-request a review after pushing changes)\n\n## Screenshots / Proof of Fix\n\nTwo proxies, same config and two uvicorn workers each, real Postgres, real Vertex AI Veo (`vertex_ai/veo-3.1-fast-generate-001` as `veo-3.1-fast`). Base on :4686, head on :4685. Setup on each side:\n\n```bash\nP=http://127.0.0.1:PORT; M=\"Authorization: Bearer sk-1234\"; J=\"Content-Type: application/json\"\ncurl -s $P/guardrails -H \"$M\" -H \"$J\" -d '{\"guardrail\":{\"guardrail_name\":\"lpr-pre\",\"litellm_params\":{\"guardrail\":\"litellm_content_filter\",\"mode\":\"pre_call\",\"default_on\":false,\"blocked_words\":[{\"keyword\":\"BANNEDWORD\",\"action\":\"BLOCK\"}]}}}'\ncurl -s $P/guardrails -H \"$M\" -H \"$J\" -d '{\"guardrail\":{\"guardrail_name\":\"lpr-during\",\"litellm_params\":{\"guardrail\":\"litellm_content_filter\",\"mode\":\"during_call\",\"default_on\":false,\"blocked_words\":[{\"keyword\":\"BANNEDWORD\",\"action\":\"BLOCK\"}]}}}'\nKPRE=$(curl -s $P/key/generate -H \"$M\" -H \"$J\" -d '{\"metadata\":{\"guardrails\":[\"lpr-pre\"]}}' | jq -r .key)\nKDUR=$(curl -s $P/key/generate -H \"$M\" -H \"$J\" -d '{\"metadata\":{\"guardrails\":[\"lpr-during\"]}}' | jq -r .key)\nKNONE=$(curl -s $P/key/generate -H \"$M\" -H \"$J\" -d '{}' | jq -r .key)\nBANNED='{\"model\":\"veo-3.1-fast\",\"prompt\":\"A paper boat on a stream. BANNEDWORD\",\"seconds\":\"4\"}'\nCLEAN='{\"model\":\"veo-3.1-fast\",\"prompt\":\"A paper boat on a stream.\",\"seconds\":\"4\"}'\n```\n\n### Before (3d26a29a1a)\n\n#### pre_call key, banned prompt\n\n1. `curl -s -w '\\nHTTP %{http_code}\\n' $P/v1/videos -H \"Authorization: Bearer $KPRE\" -H \"$J\" -d \"$BANNED\"`\n2. `{\"id\":\"video_bGl0ZWxsbTpjdXN0b21fbGxtX3Byb3ZpZGVyOnZlcnRleF9haT...\",\"status\":\"queued\",...}` then `HTTP 200`: the job was started at Vertex\n\n#### pre_call key, clean prompt\n\n1. Same call with `$CLEAN`\n2. `HTTP 200`, `video_...` id\n\n#### no-guardrail key, banned prompt\n\n1. Same call with `$KNONE` and `$BANNED`\n2. `HTTP 200`\n\n#### during_call key, banned prompt\n\n1. Same call with `$KDUR` and `$BANNED`\n2. `{\"error\":{\"message\":\"'avideo_generation' is not a valid CallTypes\",\"type\":\"internal_server_error\",\"code\":\"500\"}}` then `HTTP 500`\n\n#### request-level guardrail, banned prompt\n\n1. `curl ... -H \"Authorization: Bearer $KNONE\" -d '{\"model\":\"veo-3.1-fast\",\"prompt\":\"... BANNEDWORD\",\"seconds\":\"4\",\"guardrails\":[\"lpr-pre\"]}'`\n2. `HTTP 200`: job started\n\n#### same key on chat\n\n1. `curl ... $P/v1/chat/completions -H \"Authorization: Bearer $KPRE\" -d '{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"BANNEDWORD\"}]}'`\n2. `HTTP 400` Content blocked (chat was already guarded)\n\n### After (2f0584cec6)\n\n#### pre_call key, banned prompt\n\n1. `curl -s -w '\\nHTTP %{http_code}\\n' $P/v1/videos -H \"Authorization: Bearer $KPRE\" -H \"$J\" -d \"$BANNED\"`\n2. `{\"error\":{\"message\":\"Content blocked: keyword 'bannedword' detected\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"400\",...}}` then `HTTP 400`; repeated 6 times across both workers: `400 400 400 400 400 400`\n\n#### pre_call key, clean prompt\n\n1. Same call with `$CLEAN`\n2. `HTTP 200`, `video_...` id, same response keys as before\n\n#### no-guardrail key, banned prompt\n\n1. Same call with `$KNONE` and `$BANNED`\n2. `HTTP 200` (unchanged, nothing attached)\n\n#### during_call key, banned prompt\n\n1. Same call with `$KDUR` and `$BANNED`\n2. `{\"error\":{\"message\":\"Content blocked: keyword 'bannedword' detected\",...,\"code\":\"400\"}}` then `HTTP 400`\n\n#### request-level guardrail, banned prompt\n\n1. Same request-body `guardrails` call as before\n2. `HTTP 400` Content blocked\n\n#### same key on chat\n\n1. Same chat call\n2. `HTTP 400` Content blocked (unchanged)\n\nRe-run of the full A/B on the final tip 2f0584cec6 against the same two rigs produced the same per-scenario results as above (base 200/200/200/500/200 for the guarded cells, head 400 for each of them, all control cells unchanged)\n\nAlso on the head: `POST /v1/videos/{id}/remix` with a banned prompt on `$KPRE` returns `HTTP 400` Content blocked (the base returned a Vertex \"remix not supported\" 500 after forwarding the prompt), `GET /v1/videos/{id}` on `$KPRE` returns `HTTP 200` on both sides, a post_call-only key returns `HTTP 200` on both sides, and a non-string `prompt` is passed through untouched and rejected by Vertex with the same 400 on both sides\n\n### Admin UI (base vs head)\n\n1. http://localhost:4000/ui/?page=guardrails, Add Guardrail, LiteLLM Content Filter, mode `pre_call`, default off, blocked keyword `bannedwordui`, name `ui-video-pre`\n2. http://localhost:4000/ui/?page=api-keys, Create Key, then Edit Settings and select `ui-video-pre` under Guardrails\n3. Send `POST /v1/videos` with that key and a prompt containing `bannedwordui` (Playground has no video endpoint, so the request was sent with the UI-created key over the API), then open http://localhost:4000/ui/?page=logs\n\nBase: the banned request is logged as a successful `avideo_generation` with a real Veo job and no guardrail evaluation\n\n![base banned prompt succeeded](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdfaWQiOiJvcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUiLCJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvNmI1MDVlZWYtNjFmYy00MzE5LTk3ZjMtNWNlOTY3Yzk1OTM0IiwiaWF0IjoxNzkwMDM0ODM2LCJleHAiOjE3OTA2Mzk2MzYsImZpbGVuYW1lIjoic3NfZmNkOTg3NTkucG5nIn0.NzKv4s2kvMJXFGLTXOImKwWAm3Am_9tLpMB77LM99xM)\n\nHead: the banned request is a 400 `Content blocked: keyword 'bannedwordui' detected` with a failed PRE-CALL guardrail row, and a clean prompt on the same key still succeeds with a PRE-CALL pass\n\n![head banned prompt blocked](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdfaWQiOiJvcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUiLCJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvZWQ0NjI3NjMtYTA2NC00MjE1LWJiOWYtYWIyNTAyYzVhNWMzIiwiaWF0IjoxNzkwMDM0ODM2LCJleHAiOjE3OTA2Mzk2MzYsImZpbGVuYW1lIjoic3NfYzUwMWU0MGEucG5nIn0.whLPo5l_3gPSQF1TTv1cRvffxtNpHxR_9GQeOXbJTI0)\n\n![head guardrail row](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdfaWQiOiJvcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUiLCJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvMmMzYzk5OWItNDc0ZS00OTYxLTgxZDYtNzUwNzQ2NmJkYjhmIiwiaWF0IjoxNzkwMDM0ODM2LCJleHAiOjE3OTA2Mzk2MzYsImZpbGVuYW1lIjoic3NfNDM2OWFmOGMucG5nIn0.1MaEXxKdQ5SPlv_HtVceB7MThabcSVUcMbGV5ZplAUg)\n\n![head clean prompt succeeded](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdfaWQiOiJvcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUiLCJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvOTVkZTQ0YzUtZWNhNy00ZjcxLTkxMTctZjc0N2M4YjM1MDllIiwiaWF0IjoxNzkwMDM0ODM2LCJleHAiOjE3OTA2Mzk2MzYsImZpbGVuYW1lIjoic3NfN2MwYmMwOWEucG5nIn0.VuKflWVeeBpaX6P35-wbMdt93YG3YfiFsfAj523w21Q)\n\n## Type\n\n🐛 Bug Fix\n\n## Caveats (if any)\n\n### Medium\n\n- Post-call video guardrails still do not inspect the video job response, same as before this PR\n- A guardrail created through the API reaches other uvicorn workers on their next DB sync, so the first request after creation can slip through on a worker that has not synced yet (pre-existing, also true for chat)\n\n### Low\n\n- `during_call` key guardrails on videos now block with 400 instead of failing with the 500 shown above\n- Requests rejected before the LLM call on `/v1/videos` are logged with call type `atext_completion` because the route maps to both create and list, so `proxy/utils.py` falls back to the body shape (a string `prompt`). Pre-existing: a key without model access gets the same label on the base. Guardrail blocks now hit this path too, so the Logs page shows them under that label. Separately, expanding the failed guardrail evaluation row in Logs crashes the page (\"This page couldn't load\"), a UI defect this PR does not touch\n- Prompt storage was off in the UI rig, so the Logs screenshots do not show the prompt text\n- `tests/test_litellm/llms/azure/test_azure_common_utils.py` enumerates every async `CallTypes` member and had to skip the new `avideo_generation` like the other video operations\n- `ui/litellm-dashboard/src/lib/http/schema.d.ts` regenerated for the two new `CallTypes` members\n\n## QA runbook\n\n- tests/e2e/guardrails/test_key_guardrail_video_e2e.py::TestKeyAttachedGuardrailOnVideos::test_key_attached_content_filter_blocks_banned_video_prompt - a content filter attached only through a key's `metadata.guardrails` blocks a banned prompt on `/v1/videos` before Vertex is called\n  - [ ] Set `VERTEXAI_PROJECT`, `VERTEXAI_LOCATION` and `VERTEXAI_CREDENTIALS` in the proxy environment and run the proxy with `store_model_in_db: true`\n  - [ ] Create a `litellm_content_filter` guardrail with `mode: pre_call`, `default_on: false` and a unique blocked keyword: POST /guardrails with the master key\n  - [ ] Create a key with `{\"metadata\": {\"guardrails\": [\"<that guardrail name>\"]}}`: POST /key/generate\n  - [ ] Create a deployment for `vertex_ai/veo-3.1-fast-generate-001`: POST /model/new with the vertex `os.environ/...` params\n  - [ ] Wait for the key guardrail to sync by sending POST /chat/completions with the new key and the banned prompt until it returns HTTP 400 (cheap, and chat guardrails already worked before this fix)\n  - [ ] Send one POST /v1/videos with the new key, that model, and the banned prompt\n  - [ ] Expect HTTP 400 whose body says `Content blocked`; a 200 with a `video_...` id means the guardrail was skipped and a paid job was started\n  - [ ] Sanity check: this test makes sense to add and is not hand-wavey (e.g., assert actual expected spend instead of just spend > 0) or potentially flaky\n\n## Final Attestation\n\n- [x] The tests check the right things, including the edge cases, and regressions in the respective real-world customer use-cases are not possible after this PR\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> **Medium Risk**\n> Changes unified guardrail pre-call behavior for all video generation routes; incorrect mapping could block allowed prompts or still leak banned content, but the change is narrow and mirrors existing chat translation patterns.\n> \n> **Overview**\n> Fixes a guardrail bypass on **`POST /v1/videos`**: key-attached and request-level unified guardrails now run on video prompts before the provider is called (LIT-6685).\n> \n> Adds **`video_generation`** and **`avideo_generation`** to `CallTypes` so the proxy’s existing `avideo_generation` call type is valid (fixing prior 500s on during-call guardrails). Introduces **`OpenAIVideoGenerationHandler`**, auto-discovered via `guardrail_translation_mappings`, which runs pre-call guardrails on the request **`prompt`** (and optional **`model`**) for create/remix/edit/extension video call types; post-call video output is still passthrough.\n> \n> **Tests:** unit coverage for video call types through `UnifiedLLMGuardrails`, a new e2e scenario (`guardrail.litellm_content_filter.pre_call.blocks_video`) with `GuardrailsClient` helpers for keys with `metadata.guardrails` and `/v1/videos`, plus `schema.d.ts` and Azure test skip updates for the new enum members.\n> \n> <sup>Reviewed by [Cursor Bugbot](https://cursor.com/bugbot) for commit 2f0584cec6cd6e6ce445db254ff9473b0d01d306. Bugbot is set up for automated code reviews on this repo. Configure [here](https://www.cursor.com/dashboard/bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->\n\n\nLink to Devin session: https://app.devin.ai/sessions/0d34d5cc371c433881527b2775a12c4c\nOpen in Devin Desktop: https://app.devin.ai/desktop/session/0d34d5cc371c433881527b2775a12c4c?variant=devin\nRequested by: @yucheng-berri"
+   },
+   {
+    "id": "S2",
+    "kind": "commit_message",
+    "url": "https://github.com/BerriAI/litellm/commit/9ae2fe2ea4095c9d2baa3d1613756a7ea7f4535f",
+    "author": "yucheng",
+    "text": "fix(guardrails): scan video prompts for key-attached guardrails on /v1/videos\n\n/v1/videos dispatches call_type avideo_generation, which CallTypes did not\nknow and no guardrail translation handler covered, so the unified guardrail\nhook returned the request unscanned. Add the video call types and an OpenAI\nvideo guardrail translation package that scans the prompt for create, remix,\nedit and extension requests\n\nResolves LIT-6685\n\nCo-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+   },
+   {
+    "id": "S3",
+    "kind": "commit_message",
+    "url": "https://github.com/BerriAI/litellm/commit/8ffca3bd196c6f5d8fbbd50c26855bc269b68c69",
+    "author": "yucheng",
+    "text": "chore(ui): regenerate api types for video call types\n\nCo-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+   },
+   {
+    "id": "S4",
+    "kind": "commit_message",
+    "url": "https://github.com/BerriAI/litellm/commit/a44befa8c529465c331cecd373f1f38d810927ee",
+    "author": "yucheng",
+    "text": "test: skip avideo_generation in azure sdk client exhaustive check\n\nCo-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+   },
+   {
+    "id": "S5",
+    "kind": "commit_message",
+    "url": "https://github.com/BerriAI/litellm/commit/dfc5ef70b4259bd5f189af1f04d11a9d9ffb8a41",
+    "author": "yucheng",
+    "text": "test(e2e): retry a leaked video job until the guardrail sync deadline\n\nCo-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+   },
+   {
+    "id": "S6",
+    "kind": "commit_message",
+    "url": "https://github.com/BerriAI/litellm/commit/652bddfdc60a1369ae5416f92f957e49d38864df",
+    "author": "yucheng",
+    "text": "refactor(guardrails): satisfy the type-discipline gate in the video handler\n\nCo-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+   },
+   {
+    "id": "S7",
+    "kind": "commit_message",
+    "url": "https://github.com/BerriAI/litellm/commit/2f0584cec6cd6e6ce445db254ff9473b0d01d306",
+    "author": "yucheng",
+    "text": "test(guardrails): gate the video e2e on a chat probe so a miss starts at most one paid job\n\nAddresses Greptile review: typed RewritingGuardrail override, dropped routine docstrings, and the e2e waits for the key guardrail to sync via /chat/completions before its single /v1/videos call\n\nCo-Authored-By: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"
+   },
+   {
+    "id": "S8",
+    "kind": "agent_comment",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#issuecomment-5768555202",
+    "author": "devin-ai-integration[bot]",
+    "text": "<!-- devin-pr-monitoring-controls -->\nI'll fix CI failures and address comments from users with write access. I'll skip comments containing \"(aside)\".\n\n- [ ] Disable automatic comment, CI, and merge conflict monitoring\n"
+   },
+   {
+    "id": "S9",
+    "kind": "agent_comment",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#issuecomment-5769184287",
+    "author": "devin-ai-integration[bot]",
+    "text": "Admin UI evidence: base accepted the banned video prompt and started a Veo job, head blocked it with 400 and the clean prompt still succeeded\n\n<details open>\n<summary>Admin UI Logs, base vs head</summary>\n\n| Base (merge base) | Head (2f0584c) |\n|---|---|\n| ![base banned prompt succeeded](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdfaWQiOiJvcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUiLCJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvMzU5MGNhYWYtMTJhMS00YjZkLTgwMmUtMmFiMzcyODBiODZhIiwiaWF0IjoxNzkwMDM0NDc0LCJleHAiOjE3OTA2MzkyNzQsImZpbGVuYW1lIjoic3NfZmNkOTg3NTkucG5nIn0.tAQp2LD6255LCGqqlBkf_rZ5xBYv0nO3dHKiWyiSPyk) | ![head banned prompt blocked](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdfaWQiOiJvcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUiLCJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvMzdmYjZkMGItZGIyZS00ZTM3LTg5NzEtNjNmOTIwYjgwYmE3IiwiaWF0IjoxNzkwMDM0NDc0LCJleHAiOjE3OTA2MzkyNzQsImZpbGVuYW1lIjoic3NfYzUwMWU0MGEucG5nIn0.SQA1bU1cudddiK2HvnZ1_WQy63YNn-3tINY9OdBFJ0k) |\n| | ![head guardrail row](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdfaWQiOiJvcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUiLCJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvODU1OWNmZjgtZGQyNy00MmZhLWI1MTItNmIwODgyMzlhNTdiIiwiaWF0IjoxNzkwMDM0NDc0LCJleHAiOjE3OTA2MzkyNzQsImZpbGVuYW1lIjoic3NfNDM2OWFmOGMucG5nIn0.lFvgKOFORr-IjxfFHCVWaE1IFsw8ks3aZao2Ut_R_oQ) |\n| | ![head clean prompt succeeded](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdfaWQiOiJvcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUiLCJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvNmI1YTcxZWYtZTUzMC00OTUwLWJmMWQtMjhhYTBiYWRkMTk5IiwiaWF0IjoxNzkwMDM0NDc0LCJleHAiOjE3OTA2MzkyNzQsImZpbGVuYW1lIjoic3NfN2MwYmMwOWEucG5nIn0.jdSgnCU0y-fTF74Gk6RtnMUuiYRE7CPvX09CeqjCo0A) |\n\nRecording: https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdfaWQiOiJvcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUiLCJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvNjM5ZDYzODYtZDg2ZS00ZTJjLTkwYmUtYjFkZTJkYzU5NWMwIiwiaWF0IjoxNzkwMDM0NDc0LCJleHAiOjE3OTA2MzkyNzQsImZpbGVuYW1lIjoidmlkZW8tZ3VhcmRyYWlscy1wcm9vZi1lZGl0ZWQubXA0In0.X-taECSfo1MSLb_oozBgXN6ED3X2pwPH6BJIwKgr5oM\n\n</details>\n"
+   },
+   {
+    "id": "S10",
+    "kind": "agent_comment",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#discussion_r4067217235",
+    "author": "devin-ai-integration[bot]",
+    "text": "Checked every changed line in both files: none exceeds 120 chars and ruff format at line-length 120 passes, so leaving these as is"
+   },
+   {
+    "id": "S11",
+    "kind": "agent_comment",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#discussion_r4067217244",
+    "author": "devin-ai-integration[bot]",
+    "text": "Good catch. In 2f0584c the test waits for the key guardrail to sync via a cheap /chat/completions probe, then makes a single /v1/videos call, so a miss starts at most one job"
+   },
+   {
+    "id": "S12",
+    "kind": "agent_comment",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#discussion_r4067217256",
+    "author": "devin-ai-integration[bot]",
+    "text": "Typed the override in 2f0584c: GenericGuardrailAPIInputs, request_data dict, Literal input_type, optional logging_obj, returning GenericGuardrailAPIInputs"
+   },
+   {
+    "id": "S13",
+    "kind": "agent_comment",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#discussion_r4067217262",
+    "author": "devin-ai-integration[bot]",
+    "text": "Dropped the handler class docstring and the e2e helper docstring in 2f0584c. The remaining module docstrings match the sibling guardrails e2e files"
+   },
+   {
+    "id": "S14",
+    "kind": "agent_comment",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#discussion_r4067279834",
+    "author": "devin-ai-integration[bot]",
+    "text": "<!-- devin-review-comment {\"id\": \"BUG_pr-review-job-68867487e91842e5910ec20bd9a3d2fa_0001\", \"file_path\": \"litellm/llms/openai/videos/guardrail_translation/handler.py\", \"start_line\": 40, \"end_line\": 48, \"side\": \"RIGHT\", \"based_on_repo_rules\": false, \"kind\": \"bug\"} -->\n\n🟡 **Post-call guardrails falsely recorded**\n\nWith a post-call video guardrail, `process_output_response` returns without invoking it. The dispatcher then records the guardrail as applied in metadata and headers.\n\n<details>\n<summary>Learn more</summary>\n\nA mapped translation tells the unified dispatcher that this call type supports the selected guardrail. After `process_output_response` returns, [async_post_call_success_hook](https://github.com/berriai/litellm/blob/2f0584cec6cd6e6ce445db254ff9473b0d01d306/litellm/proxy/guardrails/guardrail_hooks/unified_guardrail/unified_guardrail.py#L344-L377 \"litellm/proxy/guardrails/guardrail_hooks/unified_guardrail/unified_guardrail.py:344-377\") unconditionally adds the guardrail to `applied_guardrails`. This implementation returns the response without calling `apply_guardrail`, so post-call video requests claim an enforcement run that never occurred.\n\n**Example:** A key selects a post-call content filter and creates a video. The response remains allowed, which is expected for an unscannable video job, but `x-litellm-applied-guardrails` names that filter even though it received no response input.\n\n**Recommended fix:** Let translations report that output scanning was skipped, and only call `add_guardrail_to_applied_guardrails_header` after an actual run. Preserve the new input mapping for pre-call and during-call video prompts.\n\n</details>\n\n<!-- devin-review-badge-begin -->\n<a href=\"https://app.devin.ai/review/berriai/litellm/pull/42354\" target=\"_blank\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://static.devin.ai/assets/gh-devin-review-dark.svg?v=4\"><img src=\"https://static.devin.ai/assets/gh-devin-review-light.svg?v=4\" alt=\"Devin Review\"></picture></a>\n<!-- devin-review-badge-end -->\n\n---\n*Was this helpful? React with 👍 or 👎 to provide feedback.*"
+   },
+   {
+    "id": "S15",
+    "kind": "agent_comment",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#discussion_r4067285562",
+    "author": "devin-ai-integration[bot]",
+    "text": "Existing handlers (anthropic, a2a, bedrock passthrough) also return early with the header still added, so this matches the current header semantics. Leaving as is"
+   }
+  ],
+  "method": "gh api repos/{repo}/commits/{sha}/pulls -> PR; PR author, commit authors and Co-Authored-By trailers -> agent; PR title/body, commit messages, agent-authored comments -> segments",
+  "pr": {
+   "number": 42354,
+   "url": "https://github.com/BerriAI/litellm/pull/42354",
+   "title": "fix(guardrails): run key-attached guardrails on /v1/videos",
+   "author": "devin-ai-integration[bot]",
+   "author_is_bot": true,
+   "merged_at": "2026-09-22T00:23:57Z",
+   "merge_commit": "12f79308cf4dfbcc6e3b9a612a464e1a35c0d705"
+  }
+ },
+ "belief": {
+  "statement": "The agent believed that returning the response directly from process_output_response without invoking apply_guardrail is acceptable and that the unified dispatcher will correctly handle the guardrail application metadata and headers regardless.",
+  "kind": "code_contract",
+  "grounding_type": "stated",
+  "quotes": [
+   {
+    "segment_id": "S14",
+    "quote": "With a post-call video guardrail, `process_output_response` returns without invoking it. The dispatcher then records the guardrail as applied in metadata and headers.",
+    "match": "exact",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#discussion_r4067279834"
+   },
+   {
+    "segment_id": "S14",
+    "quote": "This implementation returns the response without calling `apply_guardrail`, so post-call video requests claim an enforcement run that never occurred.",
+    "match": "exact",
+    "url": "https://github.com/BerriAI/litellm/pull/42354#discussion_r4067279834"
+   }
+  ],
+  "code_quote": {
+   "file": "litellm/llms/openai/videos/guardrail_translation/handler.py",
+   "quote": "async def process_output_response(\n        self,\n        response: object,\n        guardrail_to_apply: \"CustomGuardrail\",\n        litellm_logging_obj: \"LiteLLMLoggingObj | None\" = None,\n        user_api_key_dict: \"UserAPIKeyAuth | None\" = None,\n        request_data: dict[str, object] | None = None,  # mutable-ok: BaseTranslation contract\n    ) -> object:\n        return response",
+   "match": "exact"
+  },
+  "how_error_contradicts": "The error shows that the guardrail was not actually applied to the video response, but the system recorded it as if it had been, leading to incorrect metadata and headers. This contradicts the belief that returning early without applying the guardrail is acceptable, as it causes false positives in guardrail enforcement reporting.",
+  "verified": true,
+  "error_link_stems": []
+ }
+}

@@ -1,0 +1,30 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "pulseboard-invite-accept",
+  "complete": false,
+  "notes": [],
+  "frame": {
+    "file": "lib/actions/invites.ts",
+    "line": 128,
+    "function": "acceptInviteForExistingUserAction"
+  },
+  "asked": {
+    "text": "I run a B2B SaaS. Each of my customer companies should get their own\nworkspace with a feedback board. People in a workspace can submit\nfeedback, upvote, and leave comments. Teammates join via email invite.\nSome users are admins for their workspace and can edit workspace\nsettings (name, slug, webhook URL).",
+    "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L1 (user message)",
+    "valid": true,
+    "full_length": 1098
+  },
+  "understood": {
+    "text": "Now I'm considering what actions to invite next.",
+    "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L127 (assistant, 8 words, 2 line(s) before the edit at L129)",
+    "valid": false,
+    "full_length": 48,
+    "why_invalid": "agent wrote fewer than 15 words before the edit (silent edit)"
+  },
+  "happened": {
+    "text": "Security alert: user bob@example.com became ADMIN of workspace 'acme' by accepting an invite that was addressed to carol@example.com\n  at acceptInviteForExistingUserAction (lib/actions/invites.ts:128)\n  128: export async function acceptInviteForExistingUserAction(token: string) {\n\nWritten by transcript edit L129 (search_replace):\n+  });\n+  return {};\n+}\n+\n+/** Lets an already-logged-in user join a workspace they were invited to\n+ * under their existing account. */\n+export async function acceptInviteForExistingUserAction(token: string) {\n+  const user = await requireUser();\n+  const invite = await prisma.invite.findUnique({ where: { token }, include: { workspace: true } });\n+  if (!invite || invite.status !== \"PENDING\" || invite.expiresAt < new Date()) {\n+    return;\n+  }\n+",
+    "citation": "error pulseboard-invite-accept frame lib/actions/invites.ts:128; bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L129",
+    "valid": true,
+    "later_edits": []
+  }
+}

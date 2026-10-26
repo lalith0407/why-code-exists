@@ -1,0 +1,29 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "br-sqlite-retype-drops-unique",
+  "complete": true,
+  "notes": [],
+  "frame": {
+    "file": "world/db.py",
+    "line": 101,
+    "function": "_sqlite_script"
+  },
+  "asked": {
+    "text": "HOLD: do not merge the pass-2 bundle commits yet. The user wants to weigh in first. Finish the import and your own hardening branch, and leave the pass-2 commits unapplied until told.",
+    "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L131 (user message, latest of 4 before the edit)",
+    "valid": true,
+    "full_length": 183
+  },
+  "understood": {
+    "text": "I need to add a sqlite compatibility shim that detects canonical TRUNCATE and ALTER COLUMN TYPE statements and translates them for sqlite, using PRAGMA table_info to safely rebuild tables for type changes.",
+    "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L159 (assistant, 32 words, 2 line(s) before the edit at L161)",
+    "valid": true,
+    "full_length": 205
+  },
+  "happened": {
+    "text": "After the guard ran a signed 'ALTER TABLE customers ALTER COLUMN tier SET DATA TYPE BIGINT' on the SQLite backend, customers lost its unique index on email (indexes now: []); a second row with the same email was accepted (2 rows for ana@example.com).\n  at _sqlite_script (world/db.py:101)\n  101: def _sqlite_script(conn: sqlite3.Connection, sql: str) -> None:\n\nWritten by transcript edit L161 (search_replace):\n+    tmp = f\"{table}__br_retype_tmp\"\n+    conn.execute(f'CREATE TABLE \"{tmp}\" ({\", \".join(defs)})')\n+    conn.execute(f'INSERT INTO \"{tmp}\" SELECT {\", \".join(names)} FROM \"{table}\"')\n+    conn.execute(f'DROP TABLE \"{table}\"')\n+    conn.execute(f'ALTER TABLE \"{tmp}\" RENAME TO \"{table}\"')\n+\n+def _sqlite_script(conn: sqlite3.Connection, sql: str) -> None:\n+    if m := _TRUNCATE_RE.match(sql):\n+        conn.execute(f'DELETE FROM \"{m.group(1)}\"')\n+        return\n+    if m := _RETYPE_RE.match(sql):\n+        _retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3))\n+        return",
+    "citation": "error br-sqlite-retype-drops-unique frame world/db.py:101; bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L161",
+    "valid": true,
+    "later_edits": []
+  }
+}

@@ -1,0 +1,31 @@
+{
+ "overlooked_assumption": "The agent assumed that gpt-5.5 with function tools and no explicit reasoning_effort would route to Chat Completions, but the code at main.py:1127-1131 still contains the old conditional logic that routes gpt-5.4+ with explicit reasoning_effort to Responses, and the new gpt-5.4/5.5 default-to-none logic only applies when reasoning_effort is unset or 'none'. When a user explicitly sets reasoning_effort: low on gpt-5.5, the old bridge condition still fires and routes to Responses, triggering the 400 error.",
+ "why_it_breaks": "The PR's new comment at line 1128 says gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions, but this only applies when reasoning_effort is unset or explicitly 'none'. The original code comment (removed in the edit) stated that unset reasoning_effort means medium server-side and Chat Completions rejects function tools whenever reasoning is on. When the user explicitly sets reasoning_effort: low on gpt-5.5, the bridge logic still treats it as an explicit effort and routes to the Responses API, where the provider returns HTTP 400 for function tools with reasoning_effort on gpt-5.5. The agent overlooked that the 'default to none' behavior is conditional on the absence of an explicit reasoning_effort value, not a model-wide property.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1127,
+   "quote": "# - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1128,
+   "quote": "#   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 2,
+   "quote": "gpt-5.4/5.5 tools requests now bill as Chat Completions, not Responses - In one-request samples, chat reported more prompt tokens (145 vs 63) for the same request",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 1
+}

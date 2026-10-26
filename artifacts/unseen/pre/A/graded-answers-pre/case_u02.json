@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that gpt-5.4 and gpt-5.5 default to \"none\" reasoning effort and serve function tools on Chat Completions when unset, but the actual OpenAI behavior rejects function tools with any explicit reasoning_effort value on these models, and the unset-effort bridge was incorrectly made conditional only on gpt-5.6+ when it should have been active for all gpt-5.4+ models on OpenAI/Azure hosts that enforce the constraint.",
+ "why_it_breaks": "The code at line 1127-1139 documents that gpt-5.4/5.5 default to \"none\" and serve tools on Chat Completions when reasoning_effort is unset, and that the unset-effort bridge only fires from gpt-5.6 onward. However, OpenAI's actual API rejects function tools with any explicit reasoning_effort (including \"low\") on gpt-5.4 and gpt-5.5 in Chat Completions, returning HTTP 400. The agent's edit removed the old guard that required setting reasoning_effort to \"none\" to keep requests chat-servable, replacing it with an assumption that unset effort automatically defaults to \"none\" on these models. When a user explicitly sets reasoning_effort: low (as in the bug report), the code now routes the request to Chat Completions without unsetting the effort, causing the 400 error because OpenAI rejects function tools with active reasoning on gpt-5.5 Chat Completions. The unset-effort bridge that would have saved the request is only triggered from gpt-5.6+, so gpt-5.5 requests with explicit low effort are left unprotected.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 1127,
+   "quote": "    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n    #   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;\n    #   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).",
+   "verified": false,
+   "reason": "cited line does not exist"
+  },
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1144,
+   "quote": "    has_function_tool: Final = any(\n        (\n            tool.get(\"type\") == \"function\" and (isinstance(tool.get(\"function\"), dict) or \"name\" in tool)\n            if isinstance(tool, dict) else False\n        )\n        for tool in tools\n    )",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

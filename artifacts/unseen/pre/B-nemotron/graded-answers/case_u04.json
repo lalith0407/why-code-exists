@@ -1,0 +1,40 @@
+{
+ "overlooked_assumption": "The agent assumed that the presence of `all-team-models` in a key's model list unconditionally meant the key should have unrestricted model access, without considering whether the key actually belongs to a team. It failed to add a `team_id is not None` guard before skipping the model check.",
+ "why_it_breaks": "When a teamless key (team_id is None) has `all-team-models` in its models list, the unconditional `elif \"all-team-models\" in valid_token.models: pass` skips the key-level model access check entirely. This allows the key to call any model despite having no team, which is the auth bypass. The fix adds `and valid_token.team_id is not None` so that only team-owned keys with `all-team-models` skip the check; teamless keys fall through to `can_key_call_model`, which correctly denies access because the sentinel model cannot be resolved to a real model.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 2,
+   "quote": "However, two call-path functions still unconditionally skip key-level model checks when `all-team-models` is present, without checking whether the key actually belongs to a team:",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 2,
+   "quote": "1. `_enforce_key_and_fallback_model_access` (the main auth entry point for `/chat/completions` etc.) had `elif \"all-team-models\" in valid_token.models: pass` - skipping the model check entirely regardless of team membership",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "litellm/proxy/auth/user_api_key_auth.py",
+   "line": 2676,
+   "quote": "elif \"all-team-models\" in valid_token.models:\n    pass",
+   "verified": false,
+   "reason": "file \"litellm/proxy/auth/user_api_key_auth.py\" not in context"
+  },
+  {
+   "kind": "code",
+   "file": "litellm/proxy/auth/auth_checks.py",
+   "line": 3017,
+   "quote": "skip_key_model_check = valid_token.config or (\n        isinstance(valid_token.models, list) and SpecialModelNames.all_team_models.value in valid_token.models\n    )",
+   "verified": false,
+   "reason": "file \"litellm/proxy/auth/auth_checks.py\" not in context"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 2
+}

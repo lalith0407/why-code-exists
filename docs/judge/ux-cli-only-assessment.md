@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # Product & UX — CLI-only assessment (independent)
 
 **When:** Oct 23, 2026 ~2:00 pm PT (America/Los_Angeles).  

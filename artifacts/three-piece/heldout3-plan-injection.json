@@ -1,0 +1,13 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "br-safe-plan-injection",
+  "complete": false,
+  "notes": [
+    "frame line blast_radius/reasoner/base.py:20 (\"def safe_plan(action: Action, conds: list[Condition]) -> list[PlanStep]:\") was not written by any edit in this transcript"
+  ],
+  "frame": {
+    "file": "blast_radius/reasoner/base.py",
+    "line": 20,
+    "function": "safe_plan"
+  }
+}

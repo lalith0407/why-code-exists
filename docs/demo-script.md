@@ -95,7 +95,7 @@ Then show the "Lesson" section of `/tmp/demo/case05/report.html` (stored, memory
 > it. Unverified answers are refused. The next report shows related past lessons."
 Say plainly: related lessons are matched by **shared words**, not meaning. In our test an unrelated lesson also showed up.
 Nemotron is a supported provider. Zetaris is not used in the new stages.
-Optional: saved Zetaris result for this bug, `artifacts/m8-zetaris/m8-v13f_heldout2-webhook-block.json` (`"verdict": "does_not_confirm"`);
+Optional: the saved Zetaris result for this bug (`does_not_confirm`) is kept private because it came from a private cluster;
 do not claim Zetaris confirmed it.
 
 ### 7. Honest numbers (2:20–2:50)

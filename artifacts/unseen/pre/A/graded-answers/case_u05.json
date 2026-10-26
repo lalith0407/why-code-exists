@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that unchanged unique-index values on Modified commands would always be safe to skip, without considering that reassigning a 1:1 relationship with a unique index to an already-attached entity could cause the unchanged value to be a placeholder that later conflicts when the dependent's foreign key is updated.",
+ "why_it_breaks": "The fix skips creating unique-index predecessor edges for Modified commands when the index value hasn't changed between original and current values. However, this overlooks the case where a 1:1 relationship is reassigned to an already-attached entity: the dependent's shadow foreign key may retain its original unchanged unique-index value while the relationship target changes, causing SaveChanges to emit an INSERT/UPDATE that violates the unique constraint on the new target. The agent assumed unchanged values are always benign, but here the unchanged value is a stale reference that becomes invalid after the relationship reassignment.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 2,
+   "quote": "The reported failure is a false circular-dependency detection when saving multiple entities that use a unique, store-generated clustering key alongside a composite key. In this shape, update command ordering treated unchanged unique-index values as conflicting dependencies and produced a cycle.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+   "line": 1145,
+   "quote": "if (command.EntityState == EntityState.Modified) { var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command); if (Equals(value, currentValue)) { continue; } }",
+   "verified": false,
+   "reason": "file \"EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\" not in context"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 1
+}

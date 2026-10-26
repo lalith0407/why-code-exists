@@ -1,0 +1,29 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "ta-replay-macro-leapday",
+  "complete": true,
+  "notes": [],
+  "frame": {
+    "file": "src/ta/replay.py",
+    "line": 322,
+    "function": "_refresh_macro"
+  },
+  "asked": {
+    "text": "1. Stock Research sub-agent (retrieval-only). Whenever an analyst agent picks up a ticker, it spawns a per-stock Stock Research sub-agent. The analyst can query it in natural language for specific info or specific timelines/date ranges (e.g. 'gross margin trend 2022-2025', 'what happened around the Aug 14 drop'). It never generates opinions or trades; it only retrieves through gateway tools and returns answers where every fact carries FactRef citation IDs. It's strictly point-in-time (only data available as of simulated date; leakage logged), and there's a configurable per-stock query cap plus cost tracking under the existing budget stop. Sources: prices, all filings, news, industry/macro, options, short interest, ownership, past trade/observation/journal history for that stock.",
+    "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L3010 (user message, latest of 13 before the edit)",
+    "valid": true,
+    "full_length": 2394
+  },
+  "understood": {
+    "text": "Adding `_refresh_macro` and `_refresh_positioning` functions to `replay.py`.\n\nUpdating notes on industry and filings. Checking replay import line lengths for ruff. Ingesting filings for all 98 names may be slow due to repeated ticker-map lookups, but this is acceptable per the user's request.",
+    "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L3565 (assistant, 42 words, 2 line(s) before the edit at L3567)",
+    "valid": true,
+    "full_length": 293
+  },
+  "happened": {
+    "text": "ValueError: day is out of range for month\n  at _refresh_macro (src/ta/replay.py:322)\n  322: start = end.replace(year=end.year - 5)\n\nWritten by transcript edit L3567 (search_replace):\n+    (\"IMPCH\", \"census\", fetch_census, \"Imports of goods\"),\n+)\n+\n+\n+def _refresh_macro(store: Store, end: date, created: str) -> list[str]:\n+    notes: list[str] = []\n+    start = end.replace(year=end.year - 5)\n+    for series_id, source, fetcher, title in _MACRO:\n+        try:\n+            live = fetcher(series_id, start, end)\n+        except Exception:\n+            notes.append(f\"{source} {series_id} refresh failed.\")\n+            continue",
+    "citation": "error ta-replay-macro-leapday frame src/ta/replay.py:322; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L3567",
+    "valid": true,
+    "later_edits": []
+  }
+}

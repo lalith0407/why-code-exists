@@ -1,0 +1,497 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u03",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "tests/integration/_support/forward_proxy.py",
+   "line": 9
+  },
+  "asked": {
+   "text": "(PR-derived transcript: the original request is not public.)",
+   "citation": "u03.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 60
+  },
+  "understood": {
+   "text": "feat(decisions): backport the decisions and Jev follow-ups to stable/1.104.x and bump to 1.104.3\n\n## TLDR\n\nBackports the decisions and Jev work merged on main since #45190 onto stable/1.104.x, without the decisions playground, so the 1.104.3 patch serves every decisions provider and SDK shape the launch ships with\n\nProblem this solves:\n\n- stable/1.104.x only has the openai, perplexity, typesafe, openrouter, cloudflare and strands_decider decisions providers\n- It has no hosted_vllm or azure_ai Microsoft-Decision-1 provider, no AgentCore runtime ARN support, no `litellm.systemone`\n- OpenRouter decisions calls are billed from the cost map instead of the provider-reported `usage.cost`\n- TypeSafe and Strands Decider are missing from the Add Model provider list, and Swagger UI does not describe the two decisions routes\n\nHow it solves it:\n\n- Bumps the line to 1.104.3 in its own commit\n- Cherry-picks the 16 main commits listed under Picks with `git cherry-pick -x`, adapted where stable/1.104.x lacks what they build on\n- Regenerates `schema.d.ts` on the line instead of merging the generated file by hand\n- Leaves the decisions playground (#45654, #45732, #45755) out, as asked\n\n## User Flow\n\nBefore: a proxy admin on 1.104.2 cannot route a decisions request to a hosted vLLM or Azure decider\n\n1. They add `hosted_vllm/my-decider` or `azure_ai/Microsoft-Decision-1` to the config and start the proxy\n2. They send POST http://localhost:4000/v1/decisions with that model, an input and yes/no questions\n3. They get HTTP 400 \"Unknown Decisions provider\", and the Add Model page has no TypeSafe or Strands Decider provider\n\nAfter: the same request is answered, and the new providers show up everywhere the old ones did\n\n1. They add the same models to the config and start the proxy\n2. The same POST http://localhost:4000/v1/decisions returns HTTP 200 with one answer per question and a `usage` block, billed at the line's price for that model\n3. http://localhost:4000/ui/?page=models lists TypeSafe and Strands Decider under Add Model, and http://localhost:4000/#/v1/decisions in Swagger UI documents both routes\n4. `litellm.systemone(...)` and `litellm.decisions(...)` work from the SDK with the same shapes as main\n\n## Picks\n\n- [x] 79f62db620 feat(decisions): add the OpenAI Decisions spec types and the System One translation (#45129)\n- [x] 0e09e99146 refactor(decisions): dispatch /v1/decisions through provider configs and the shared HTTP handler (#45130)\n- [x] a7b04a8028 test(decisions): post System One bodies to /v1/systemone in the translation bases (#45327)\n- [x] 6e54dced8c test: realign stale decisions and lens tests with merged behaviour (#45346)\n- [x] 3a3b8cad80 feat(ui): add TypeSafe and Strands Decider to the Add Model provider list (#45335)\n- [x] 0e48048bd5 chore(decisions): remove the System One converters and OpenAI spec types left dead by #45214 (#45442)\n- [x] 61e5f2dd3c feat(decisions): add hosted_vllm provider (#45501)\n- [x] de6a0717b7 feat(azure): add azure_ai/Microsoft-Decision-1 (#45639)\n- [x] 465f20f274 fix(openrouter): bill responses, decisions and pass-through from usage.cost and always allow reasoning params (#45640), decisions and pass-through billing only\n- [x] 2fcc780498 feat(azure_ai): support Microsoft-Decision-1 on the decisions API (#45673)\n- [x] 546402c98c fix(decisions)!: refuse safety_identifier on providers that cannot take it unless drop_params drops it (#44955)\n- [x] 674208bb7d fix(model_prices): drop unverified output price for azure_ai/Microsoft-Decision-1 (#45717)\n- [x] ed9c31cfa8 feat(strands_decider): call a Strands Decider on an AgentCore runtime ARN (#45678)\n- [x] bc2cc42340 docs(proxy): describe /v1/decisions and /v1/systemone in Swagger UI (#45838)\n- [x] 5894968c5d test(decisions): bill the OpenAI-format openrouter case from provider-reported cost (#45853)\n- [x] 25d9b05386 feat(sdk): add litellm.systemone and trim litellm.decisions to the OpenAI shape (#45846)\n\nSkipped on purpose\n\n- #45654, #45732, #45755: the decisions playground and its Add Model sublabel, excluded on this line\n- #45200: Databricks `ai_decide` and the auto-router decider need the Laya and Bespoke classifier work (#43626, #44246, #44928) that is not on the line\n- #45661: hosted_vllm translation cases need the newer `tests/integration/translation` runner\n\nAdaptations on this line\n\n- The shared HTTP handler keeps the line's `_get_httpx_client` name and its `DecisionsIRRequest` flow, with the AgentCore signing from #45678 on top\n- The OpenRouter Responses API half of #45640 is left out because it imports `litellm_core_utils.hidden_params`, which the line does not have; the decisions and pass-through billing from `usage.cost` is in\n- The Databricks tests that #45846 added to `tests/unit/decisions/test_main.py` are dropped with #45200\n- `tests/unit/conftest.py` gets the per-test logging worker flush from main (#44146), without which the new systemone callback test sees callbacks queued by earlier tests\n- `ui/litellm-dashboard/src/lib/http/schema.d.ts` is regenerated with `npm run gen:api`, and the Strands logo is copied from main\n- The lazy-route and Sail tests that only exist on rc/1.105.0 and main are left out of the picked test files, and `tests/integration/management/test_model_health_check.py` is not on this line so its hunk is dropped\n- The picks come from the rc/1.105.0 backport branch, so every commit body still names its main commit, and the line gets its own `bump: version 1.104.3` commit\n\n## Testing\n\n- `tests/unit/decisions`, `tests/unit/systemone`, `tests/unit/proxy/decisions_endpoints`, `tests/unit/proxy/public_endpoints`, the strands_decider, openrouter, azure_ai and hosted_vllm provider tests, `tests/test_litellm/proxy/auth/test_auth_utils.py`, `tests/test_litellm/proxy/common_utils/test_custom_openapi_spec.py` and `tests/unit/test_cost_map_guard.py`: 1131 passed on this branch\n- `provider_info_helpers.test.tsx`: 75 passed, no type errors\n- ruff reports no new findings on the touched Python files against stable/1.104.x\n- The live before and after on a proxy built from this branch is the /ready follow-along video, linked from the Slack READY ping\n\n## Screenshots / Proof of Fix\n\nLive /qa leg at this tip (fd7aec367b) against the merge base (19180f34a2, 1.104.2): two proxies booted from clean worktrees with `--num_workers 2`, their own Postgres and Redis, real TypeSafe, OpenRouter and Azure AI Foundry keys from the shared vault, real spend. Full command and output log in the QA record kept with the run; the flips a user sees:\n\n```\n# [C1] POST /v1/decisions model=typesafe/jev-1.13.0 with safety_identifier\nBEFORE: HTTP 200 (param silently dropped)   x-litellm-response-cost: 1.1886e-05\nAFTER:  HTTP 400 litellm.UnsupportedParamsError: typesafe does not support parameters: ['safety_identifier'] ...\n# [C2] same body on a deployment with drop_params: true\nBEFORE: HTTP 200   AFTER: HTTP 200\n\n# [D] POST /v1/decisions model=openrouter/typesafe/jev-1.13 (billing from usage.cost)\nBEFORE: HTTP 200 (no x-litellm-response-cost header, spend log 0)\nAFTER:  HTTP 200 x-litellm-response-cost: 1.239e-05\n\n# [G1] POST /v1/systemone model=azure_ai/decision-1 (real Microsoft-Decision-1 deployment)\nBEFORE: HTTP 400 Unknown Decisions provider 'azure_ai'. Supported providers: perplexity, typesafe, openrouter, cloudflare, strands_decider, openai\nAFTER:  HTTP 200 {\"model\":\"microsoft-decision-1\",\"answers\":{...}}\n# [G2] same on POST /v1/decisions: BEFORE 400, AFTER 200\n\n# [F] GET /v1/model/info azure_ai/Microsoft-Decision-1\nBEFORE: input_cost_per_token null, mode null\nAFTER:  input_cost_per_token 4.2e-08, output_cost_per_token 0.0, mode evaluation\n\n# [L] GET /openapi.json, POST /v1/decisions\nBEFORE: summary \"Decisions\", no description, no request example\nAFTER:  summary \"Ask questions about an input (OpenAI Decisions format)\", description, example, schema props input/model/questions/safety_identifier\n\n# Admin UI Add Model provider dropdown (Playwright, before :49819 / after :48789 via GET /public/providers/fields)\nBEFORE: no TypeSafe or Strands Decider entries (GET /public/providers/fields: 0 matches)\nAFTER:  \"TypeSafe\" and \"Strands Decider\" entries present with their default model placeholders\n```\n\nTwo picks could not be exercised live and are blocked, not mocked: hosted_vllm (no vLLM server; the route now resolves the provider and fails on connect instead of 400 unknown provider) and the Strands Decider AgentCore call (no AgentCore runtime ARN credential in the shared vault)\n\n## Pre-Submission checklist\n\n**Please complete all items before asking a LiteLLM maintainer to review your PR**\n\n- [x] I have added meaningful tests\n- [x] The handful of test files covering my change pass locally, e.g. `uv run pytest tests/unit/<your_test_file>.py -v`. Leave the suites (`make test-unit-*`, `make test-unit`) to CI: it finishes in ~15 minutes where a laptop takes an hour or more\n- [ ] My PR passes all required CI/CD checks (e.g., lint, schema.d.ts sync check, etc.)\n- [x] My PR's scope is as isolated as possible; it only solves 1 specific problem\n- [ ] I have received a Greptile **Confidence Score of at least 4/5** before requesting a maintainer review (Greptile reviews automatically once the PR is opened; only comment `@greptileai` to re-request a review after pushing changes)\n\n## Type\n\n🆕 New Feature\n\n## Caveats (if any)\n\n### Medium\n\n- No Databricks decisions provider on this line, so `databricks/...` decisions requests still return the unknown provider 400\n- The OpenRouter Responses API still bills from the cost map on this line, only decisions and pass-through use `usage.cost`\n\n### Low\n\n- #44955 is a behavior change: a non-string `safety_identifier` on a provider that cannot take it is now a 400 unless `drop_params` drops it\n\n## Final Attestation\n\n- [x] The tests check the right things, including the edge cases, and regressions in the respective real-world customer use-cases are not possible after this PR",
+   "citation": "u03.jsonl#L2 (assistant, 1383 words, 41 line(s) before the edit at L43)",
+   "valid": true,
+   "full_length": 9936
+  },
+  "happened": {
+   "text": "Production report: after upgrading our proxy to the stable/1.104.3 release, the Admin UI \"Add Guardrail\" wizard shows an empty provider list. The dashboard's call to GET /guardrails/ui/add_guardrail_settings returns HTTP 500 \"Internal server error\" on every call, and the server log shows an ImportError for that request. Nobody can add a guardrail from the dashboard.\n\n  at ? (tests/integration/_support/forward_proxy.py:9)\n  9: from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n\nWritten by transcript edit L43 (apply_patch):\n+import contextlib\n+import socket\n+import threading\n+from collections.abc import Generator, Mapping\n+from contextlib import contextmanager\n+from dataclasses import dataclass\n+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n+from queue import SimpleQueue\n+from typing import Final\n+\n+\n+@dataclass(frozen=True, slots=True)\n+class Tunnel:",
+   "citation": "error u03 frame tests/integration/_support/forward_proxy.py:9; u03.jsonl#L43",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Production report: after upgrading our proxy to the stable/1.104.3 release, the Admin UI \"Add Guardrail\" wizard shows an empty provider list. The dashboard's call to GET /guardrails/ui/add_guardrail_settings returns HTTP 500 \"Internal server error\" on every call, and the server log shows an ImportError for that request. Nobody can add a guardrail from the dashboard.\n",
+  "terms": [
+   "add guardrail",
+   "s call to get /guardrails/ui/add_guardrail_settings returns http 500",
+   "production report",
+   "admin ui",
+   "the dashboard",
+   "internal server error",
+   "importerror for that request",
+   "nobody can add a",
+   "1.104",
+   "3",
+   "500",
+   "add",
+   "guardrail",
+   "settings",
+   "import",
+   "error",
+   "production",
+   "report",
+   "upgrading",
+   "proxy",
+   "stable",
+   "release",
+   "admin",
+   "wizard",
+   "shows",
+   "empty",
+   "provider",
+   "list",
+   "dashboard",
+   "call",
+   "guardrails",
+   "returns",
+   "http",
+   "internal",
+   "server",
+   "request",
+   "nobody"
+  ],
+  "layer1": {
+   "symbols_indexed": 423582,
+   "edited_hunks_indexed": 179,
+   "candidates": [
+    {
+     "file": "tests/integration/_support/forward_proxy.py",
+     "line": 9,
+     "end_line": 117,
+     "text": "from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer",
+     "score": 23.7161,
+     "matched_terms": [
+      "get",
+      "http",
+      "server",
+      "error",
+      "request",
+      "import",
+      "proxy",
+      "provider"
+     ],
+     "edit_line": 43,
+     "tool": "apply_patch",
+     "hunk_id": "L43#86",
+     "snippet": "1: from __future__ import annotations\n2: \n3: import contextlib\n4: import socket\n5: import threading\n6: from collections.abc import Generator, Mapping\n7: from contextlib import contextmanager\n8: from dataclasses import dataclass\n9: from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n10: from queue import SimpleQueue",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/decisions/call.py",
+     "line": 179,
+     "end_line": 348,
+     "text": "        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error",
+     "function": "prepare_call",
+     "score": 18.7439,
+     "matched_terms": [
+      "call",
+      "get",
+      "settings",
+      "http",
+      "error",
+      "request",
+      "import",
+      "proxy",
+      "provider"
+     ],
+     "edit_line": 8,
+     "tool": "apply_patch",
+     "hunk_id": "L8#11",
+     "snippet": "1: from collections.abc import Mapping, Sequence\n2: from dataclasses import dataclass, field, replace\n3: from typing import Final, TypeAlias\n4: \n5: import httpx\n6: from pydantic import ConfigDict, TypeAdapter, ValidationError\n7: from typing_extensions import assert_never\n8: \n9: import litellm\n10: from litellm.litellm_core_utils.core_helpers import RESPONSE_COST_HEADER, normalize_drop_params",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/unit/decisions/test_main.py",
+     "line": 424,
+     "end_line": 467,
+     "text": "    with pytest.raises(litellm.InternalServerError, match=\"unexpected response\"):",
+     "score": 18.7274,
+     "matched_terms": [
+      "http",
+      "internal",
+      "server",
+      "error",
+      "request",
+      "empty",
+      "provider",
+      "list"
+     ],
+     "edit_line": 67,
+     "tool": "apply_patch",
+     "hunk_id": "L67#134",
+     "snippet": "389: async def test_provider_without_decisions_support_is_rejected_before_http(respx_mock: respx.MockRouter) -> None:\n390:     with pytest.raises(litellm.BadRequestError, match=r\"Unknown Decisions provider 'anthropic'\\. Supported providers\"):\n391:         await litellm.asystemone(\n392:             model=\"anthropic/claude-sonnet-4-5\",\n401: @pytest.mark.asyncio\n402: async def test_empty_custom_provider_falls_back_to_the_model_prefix(respx_mock: respx.MockRouter) -> None:\n403:     route: Final = respx_mock.post(\"https://api.perplexity.ai/v1/decisions\").respond(json=_RESPONSE)\n404: \n405:     response: Final = await litellm.asystemone(\n406:         model=\"perplexity/pplx-decider-v1-27b\",",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_litellm/proxy/auth/test_auth_utils.py",
+     "line": 2730,
+     "end_line": 2745,
+     "text": "def test_agentcore_runtime_session_id_in_request_body_is_rejected_without_admin_opt_in():",
+     "score": 17.6994,
+     "matched_terms": [
+      "settings",
+      "admin",
+      "error",
+      "request"
+     ],
+     "edit_line": 62,
+     "tool": "apply_patch",
+     "hunk_id": "L62#107",
+     "snippet": "2730: def test_agentcore_runtime_session_id_in_request_body_is_rejected_without_admin_opt_in():\n2731:     body: Final = {\"model\": \"strands-decider\", \"agentcore_runtime_session_id\": \"caller-session-0123456789abcdef0123\"}\n2732: \n2733:     with pytest.raises(ValueError, match=\"agentcore_runtime_session_id\"):\n2734:         is_request_body_safe(request_body=body, general_settings={}, llm_router=None, model=\"strands-decider\")\n2735:     assert (\n2736:         is_request_body_safe(\n2737:             request_body=body,\n2738:             general_settings={\"allow_client_side_credentials\": True},\n2739:             llm_router=None,",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/integration/providers/test_strands_decider_agentcore_wire.py",
+     "line": 25,
+     "end_line": 457,
+     "text": "from integration._support.wire import Reply, Request, Wire, wire_server",
+     "score": 17.2878,
+     "matched_terms": [
+      "call",
+      "get",
+      "settings",
+      "http",
+      "server",
+      "error",
+      "request",
+      "import",
+      "proxy",
+      "empty",
+      "provider",
+      "list"
+     ],
+     "edit_line": 46,
+     "tool": "apply_patch",
+     "hunk_id": "L46#89",
+     "snippet": "1: import hashlib\n2: import json\n3: import os\n4: import re\n5: import threading\n6: import time\n7: import uuid\n8: from collections.abc import Callable, Iterator, Mapping, Sequence\n9: from concurrent.futures import ThreadPoolExecutor\n10: from dataclasses import dataclass, replace",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/unit/systemone/test_main.py",
+     "line": 50,
+     "end_line": 138,
+     "text": "async def test_systemone_sends_the_systemone_wire_format_and_returns_a_systemone_response(",
+     "score": 15.4347,
+     "matched_terms": [
+      "call",
+      "returns",
+      "http",
+      "error",
+      "request",
+      "import",
+      "proxy",
+      "list"
+     ],
+     "edit_line": 75,
+     "tool": "apply_patch",
+     "hunk_id": "L75#161",
+     "snippet": "1: from __future__ import annotations\n2: \n3: import asyncio\n4: import json\n5: from collections.abc import Mapping\n6: from types import MappingProxyType\n7: from typing import Final\n8: \n9: import pytest\n10: import respx",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/integration/providers/test_decisions_wire.py",
+     "line": 371,
+     "end_line": 426,
+     "text": "def test_request_body_api_base_is_refused_like_chat_without_an_upstream_call(gateway: Gateway) -> None:",
+     "score": 14.2683,
+     "matched_terms": [
+      "call",
+      "get",
+      "settings",
+      "http",
+      "error",
+      "request",
+      "import",
+      "proxy",
+      "empty",
+      "provider",
+      "list"
+     ],
+     "edit_line": 45,
+     "tool": "apply_patch",
+     "hunk_id": "L45#88",
+     "snippet": "1: import json\n2: import math\n3: import socket\n4: import uuid\n5: from collections.abc import Sequence\n6: from dataclasses import dataclass\n7: from pathlib import Path\n8: from typing import Final\n9: \n10: import httpx",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/router.py",
+     "line": 2057,
+     "end_line": 2059,
+     "text": "        self.asystemone = self.factory_function(asystemone, call_type=\"asystemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable",
+     "function": "_initialize_ocr_search_endpoints",
+     "score": 13.8077,
+     "matched_terms": [
+      "call",
+      "report",
+      "import"
+     ],
+     "edit_line": 33,
+     "tool": "apply_patch",
+     "hunk_id": "L33#60",
+     "snippet": "2055:         from litellm.systemone import asystemone, systemone\n2056: \n2057:         self.asystemone = self.factory_function(asystemone, call_type=\"asystemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable\n2058:         self.systemone = self.factory_function(systemone, call_type=\"systemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable\n2059: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/integration/providers/test_decisions_openai_format_wire.py",
+     "line": 93,
+     "end_line": 449,
+     "text": "    \"SELECT spend, status, call_type, model_group, custom_llm_provider, api_base, prompt_tokens, completion_tokens, \"",
+     "score": 13.3681,
+     "matched_terms": [
+      "call",
+      "get",
+      "settings",
+      "request",
+      "import",
+      "proxy",
+      "empty",
+      "provider",
+      "list"
+     ],
+     "edit_line": 44,
+     "tool": "apply_patch",
+     "hunk_id": "L44#87",
+     "snippet": "1: import math\n2: import uuid\n3: from collections.abc import Callable, Sequence\n4: from dataclasses import dataclass\n5: from pathlib import Path\n6: from typing import Final\n7: \n8: import httpx\n9: import pytest\n10: import yaml",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "litellm/llms/custom_httpx/llm_http_handler.py",
+     "line": 1448,
+     "end_line": 1509,
+     "text": "        except httpx.HTTPError as e:",
+     "function": "decisions",
+     "score": 13.3428,
+     "matched_terms": [
+      "call",
+      "get",
+      "http",
+      "error",
+      "request",
+      "provider"
+     ],
+     "edit_line": 16,
+     "tool": "apply_patch",
+     "hunk_id": "L16#29",
+     "snippet": "1384:     def _prepare_decisions_request(\n1385:         self,\n1386:         model: str,\n1387:         logging_obj: LiteLLMLoggingObj | None,\n1388:         provider_config: BaseDecisionsConfig,\n1389:         body: Mapping[str, object],\n1390:         api_base: str,\n1391:         api_key: str | None,\n1392:         headers: Mapping[str, str],\n1393:     ) -> tuple[str, dict[str, str], dict[str, object]]:",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "tests/integration/_support/forward_proxy.py",
+   "line": 9,
+   "end_line": 117,
+   "text": "from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer",
+   "score": 23.7161,
+   "matched_terms": [
+    "get",
+    "http",
+    "server",
+    "error",
+    "request",
+    "import",
+    "proxy",
+    "provider"
+   ],
+   "edit_line": 43,
+   "tool": "apply_patch",
+   "hunk_id": "L43#86",
+   "snippet": "1: from __future__ import annotations\n2: \n3: import contextlib\n4: import socket\n5: import threading\n6: from collections.abc import Generator, Mapping\n7: from contextlib import contextmanager\n8: from dataclasses import dataclass\n9: from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n10: from queue import SimpleQueue",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "list_edits",
+     "args": {},
+     "result": "ci_cd/cost_map_guard.py:17-19 (edit at L3, apply_patch)\n  17: from collections.abc import Mapping, Sequence\n  19: from types import MappingProxyType\n\nci_cd/cost_map_guard.py:29-29 (edit at L3, apply_patch)\n  29: EVALUATION_OUTPUT_PRICE_SOURCES: Final[Mapping[str, str]] = MappingProxyType({})\n\nci_cd/cost_map_guard.py:56-80 (edit at L3, apply_patch)\n  56: def _evaluation_output_price_failure(\n  57:     key: str, entry: object, evaluation_output_price_sources: Mapping[str, str]\n  58: ) -> str | None:\n  59:     if not isinstance(entry, dict) or entry.get(\"mode\") != \"evaluation\":\n\nci_cd/cost_map_guard.py:104-113 (edit at L3, apply_patch)\n  104:         *(\n  105:             failure\n  106:             for key, entry in head_map.items()\n  107:             if (\n\nci_cd/cost_map_guard.py:160-178 (edit at L3, apply_patch)\n  160: def guard_failures(\n  161:     base: Snapshot,\n  162:     head: Snapshot,\n  163:     changed_files: Sequence[str],\n\nlitellm/__init__.py:1471-1471 (edit at L4, apply_patch)\n  1471: from .systemone.main import *\n\nlitellm/__init__.py:1652-1675 (edit at L4, apply_patch)\n  1652:     from .llms.perplexity.decisions.transformation import (\n  1653:         PerplexityDecisionsConfig as PerplexityDecisionsConfig,\n  1654:     )\n  1655:     from .llms.typesafe.decisions.transformation import (\n\nlitellm/_lazy_imports_registry.py:156-163 (edit at L5, apply_patch)\n  156:     \"PerplexityDecisionsConfig\",\n  157:     \"TypeSafeDecisionsConfig\",\n  158:     \"OpenRouterDecisionsConfig\",\n  159:     \"CloudflareDecisionsConfig\",\n\nlitellm/_lazy_imports_registry.py:706-719 (edit at L5, apply_patch)\n  706:     \"PerplexityDecisionsConfig\": (\".llms.perplexity.decisions.transformation\", \"PerplexityDecisionsConfig\"),\n  707:     \"TypeSafeDecisionsConfig\": (\".llms.typesafe.decisions.transformation\", \"TypeSafeDecisionsConfig\"),\n  708:     \"OpenRouterDecisionsConfig\": (\".llms.openrouter.decisions.transformation\", \"OpenRouterDecisionsConfig\"),\n  709:     \"CloudflareDecisionsConfig\": (\".llms.cloudflare.decisions.transformation\", \"CloudflareDecisionsConfig\"),\n\nlitellm/constants.py:256-256 (edit at L6, apply_patch)\n  256: PLACEHOLDER_API_KEY=[REDACTED] = \"fake-api-key\"\n\nlitellm/cost_calculator.py:1993-1994 (edit at L7, apply_patch)\n  1993:         \"systemone\",\n  1994:         \"asystemone\",\n\nlitellm/decisions/call.py:1-348 (edit at L8, apply_patch)\n  1: from collections.abc import Mapping, Sequence\n  2: from dataclasses import dataclass, field, replace\n  3: from typing import Final, TypeAlias\n  4: \n\nlitellm/decisions/main.py:1-131 (edit at L9, apply_patch)\n  1: import warnings\n  2: from collections.abc import Mapping\n  3: from typing import Final\n  6: from pydantic import TypeAdapter\n\nlitellm/litellm_core_utils/exception_mapping_utils.py:2149-2152 (edit at L10, apply_patch)\n  2149:     received_status: Final = hasattr(original_exception, \"status_code\") and not getattr(\n  2150:         original_exception, \"status_code_is_synthesized\", False\n  2151:     )\n  2152:     if received_status:\n\nlitellm/litellm_core_utils/health_check_helpers.py:6-6 (edit at L11, apply_patch)\n  6: from collections.abc import Awaitable, Callable, Mapping\n\nlitellm/litellm_core_utils/health_check_helpers.py:33-47 (edit at L11, apply_patch)\n  33: def _decisions_health_check_questions(model: str, custom_llm_provider: str) -> Mapping[str, Mapping[str, object]]:\n  34:     import litellm\n  35:     from litellm.llms.base_llm.decisions.transformation import BaseDecisionsConfig\n  36:     from litellm.utils import ProviderConfigManager\n\nlitellm/litellm_core_utils/health_check_helpers.py:278-284 (edit at L11, apply_patch)\n  278:             \"evaluation\": lambda: litellm.asystemone(\n  282:                         \"questions\": _decisions_health_check_questions(\n  283:                             model=model, custom_llm_provider=custom_llm_provider\n  284:                         ),\n\nlitellm/llms/azure_ai/decisions/transformation.py:1-24 (edit at L12, apply_patch)\n  1: import re\n  2: from typing import Final\n  3: \n  4: import httpx\n\nlitellm/llms/base_llm/decisions/__init__.py:1-3 (edit at L13, apply_patch)\n  1: from .transformation import BaseDecisionsConfig\n  3: __all__ = [\"BaseDecisionsConfig\"]\n\nlitellm/llms/base_llm/decisions/transformation.py:2-11 (edit at L14, apply_patch)\n  2: from abc import ABC\n  5: from typing import Final\n  7: import httpx\n  8: from pydantic import TypeAdapter, ValidationError\n\nlitellm/llms/base_llm/decisions/transformation.py:51-53 (edit at L14, apply_patch)\n  51: _PAYLOAD_ADAPTER: Final[TypeAdapter[object]] = TypeAdapter(object)\n  53: _RESERVED_HEADERS: Final[frozenset[str]] = frozenset({\"authorization\", \"content-type\"})\n\nlitellm/llms/base_llm/decisions/transformation.py:299-326 (edit at L14, apply_patch)\n  299: class BaseDecisionsConfig(ABC):\n  300:     path: str = \"/v1/systemone\"\n  301:     api_key_env: tuple[str, ...] = ()\n  302:     api_base_env: tuple[str, ...] = ()\n\nlitellm/llms/base_llm/decisions/transformation.py:334-394 (edit at L14, apply_patch)\n  334:     def validate_environment(self, headers: Mapping[str, str], model: str, api_key: str | None) -> dict[str, str]:\n  335:         return {\n  336:             **{name: value for name, value in headers.items() if name.lower() not in _RESERVED_HEADERS},\n  337:             **({\"Authorization\": f\"Bearer {api_key}\"} if api_key is not None else {}),\n\nlitellm/llms/cloudflare/decisions/transformation.py:4-25 (edit at L15, apply_patch)\n  4: from pydantic import TypeAdapter, ValidationError\n  6: from litellm.llms.base_llm.decisions.transformation import BaseDecisionsConfig\n  15: class CloudflareDecisionsConfig(BaseDecisionsConfig):\n  16:     api_key_env = (\"CLOUDFLARE_API_KEY\",)\n\nlitellm/llms/cloudflare/decisions/transformation.py:36-36 (edit at L15, apply_patch)\n  36:     def get_complete_url(self, api_base: str, model: str) -> str:\n\nlitellm/llms/cloudflare/decisions/transformation.py:44-54 (edit at L15, apply_patch)\n  44:     def unwrap_response(self, payload: object) -> object:\n  45:         try:\n  46:             response_mapping: Final = _RESPONSE_MAPPING_ADAPTER.validate_python(payload)\n  47:         except ValidationError:\n\nlitellm/llms/custom_httpx/llm_http_handler.py:6-6 (edit at L16, apply_patch)\n  6: from functools import lru_cache, partial\n\nlitellm/llms/custom_httpx/llm_http_handler.py:71-71 (edit at L16, apply_patch)\n  71: from litellm.llms.base_llm.decisions.transformation import BaseDecisionsConfig\n\nlitellm/llms/custom_httpx/llm_http_handler.py:124-124 (edit at L16, apply_patch)\n  124: from litellm.types.decisions import DecisionsIRRequest, DecisionsIRResponse\n\nlitellm/llms/custom_httpx/llm_http_handler.py:1384-1509 (edit at L16, apply_patch)\n  1384:     def _prepare_decisions_request(\n  1385:         self,\n  1386:         model: str,\n  1387:         logging_obj: LiteLLMLoggingObj | None,\n\nlitellm/llms/custom_httpx/llm_http_handler.py:6018-6018 (edit at L16, apply_patch)\n  6018:             BaseDecisionsConfig,\n\nlitellm/llms/hosted_vllm/decisions/transformation.py:1-26 (edit at L17, apply_patch)\n  1: from types import MappingProxyType\n  2: from typing import Final\n  3: \n  4: from litellm.constants import PLACEHOLDER_API_KEY\n\nlitellm/llms/openai/decisions/transformation.py:8-8 (edit at L18, apply_patch)\n  8: from litellm.llms.base_llm.decisions.transformation import BaseDecisionsConfig, decisions_text\n\nlitellm/llms/openai/decisions/transformation.py:293-318 (edit at L18, apply_patch)\n  293: class OpenAIDecisionsConfig(BaseDecisionsConfig):\n  294:     path = \"/v1/decisions\"\n  295:     supports_safety_identifier = True\n  297:     def get_default_api_base(self) -> str | None:\n\nlitellm/llms/openrouter/chat/transformation.py:42-45 (edit at L19, apply_patch)\n  42:         Include reasoning parameters regardless of model-map capabilities.\n  45:         return list(dict.fromkeys([*supported_params, \"reasoning_effort\", \"thinking\"]))\n\nlitellm/llms/openrouter/decisions/transformation.py:3-19 (edit at L20, apply_patch)\n  3: from litellm.llms.base_llm.decisions.transformation import BaseDecisionsConfig\n  4: from litellm.types.decisions import DecisionsIRResponse\n  5: \n  6: \n\nlitellm/llms/perplexity/decisions/transformation.py:1-10 (edit at L21, apply_patch)\n  1: from litellm.llms.base_llm.decisions.transformation import BaseDecisionsConfig\n  4: class PerplexityDecisionsConfig(BaseDecisionsConfig):\n  5:     path = \"/v1/decisions\"\n  6:     api_key_env = (\"PERPLEXITYAI_API_KEY\", \"PERPLEXITY_API_KEY\")\n\nlitellm/llms/strands_decider/decisions/transformation.py:1-161 (edit at L22, apply_patch)\n  1: import hashlib\n  2: import json\n  3: import re\n  4: from collections.abc import Mapping\n\nlitellm/llms/typesafe/decisions/transformation.py:1-9 (edit at L23, apply_patch)\n  1: from litellm.llms.base_llm.decisions.transformation import BaseDecisionsConfig\n  4: class TypeSafeDecisionsConfig(BaseDecisionsConfig):\n  5:     api_key_env = (\"TYPESAFE_API_KEY\",)\n  6:     api_base_env = (\"TYPESAFE_API_BASE\",)\n\nlitellm/model_prices_and_context_window_backup.json:77481-77487 (edit at L24, apply_patch)\n  77481:     },\n  77482:     \"azure_ai/Microsoft-Decision-1\": {\n  77483:         \"input_cost_per_token\": 4.2e-08,\n  77484:         \"litellm_provider\": \"azure_ai\","
+    },
+    {
+     "step": 2,
+     "action": "grep",
+     "args": {
+      "pattern": "GET /guardrails/ui/add_guardrail_settings"
+     },
+     "result": "no matches"
+    },
+    {
+     "step": 3,
+     "action": "grep",
+     "args": {
+      "pattern": "add_guardrail_settings"
+     },
+     "result": "ui/litellm-dashboard/src/components/networking.tsx:6028: ? `${proxyBaseUrl}/guardrails/ui/add_guardrail_settings`\nui/litellm-dashboard/src/components/networking.tsx:6029: : `/guardrails/ui/add_guardrail_settings`;\nlitellm/proxy/guardrails/guardrail_endpoints.py:1385: \"/guardrails/ui/add_guardrail_settings\",\nlitellm/proxy/_experimental/out/_next/static/chunks/3njucl6m20ck2.js:3: Allowed values: ${r.enum.join(\", \")}`:S)}),children:i=>w(e,r)?(0,t.jsx)(n.Textarea,{...i,value:i.value,rows:4,placeholder:\"Enter as JSON\",className:\"font-mono\"}):r.enum?(0,t.jsxs)(a.Select,{value:i.va"
+    },
+    {
+     "step": 4,
+     "action": "read",
+     "args": {
+      "file": "litellm/proxy/guardrails/guardrail_endpoints.py",
+      "start": 1380,
+      "end": 1420
+     },
+     "result": "1380:     except Exception as e:\n1381:         raise HTTPException(status_code=500, detail=str(e))\n1382: \n1383: \n1384: @router.get(\n1385:     \"/guardrails/ui/add_guardrail_settings\",\n1386:     tags=[\"Guardrails\"],\n1387:     dependencies=[Depends(user_api_key_auth)],\n1388: )\n1389: async def get_guardrail_ui_settings():\n1390:     \"\"\"\n1391:     Get the UI settings for the guardrails\n1392: \n1393:     Returns:\n1394:     - Supported entities for guardrails\n1395:     - Supported modes for guardrails\n1396:     - PII entity categories for UI organization\n1397:     - Content filter settings (patterns and categories)\n1398:     \"\"\"\n1399:     from litellm.decisions.main import supported_decisions_providers\n1400:     from litellm.proxy.guardrails.guardrail_hooks.litellm_content_filter.patterns import (\n1401:         PATTERN_CATEGORIES,\n1402:         get_available_content_categories,\n1403:         get_pattern_metadata,\n1404:     )\n1405:     from litellm.proxy.guardrails.guardrail_registry import guardrail_class_registry\n1406: \n1407:     category_maps: Final = [\n1408:         {\n1409:             \"category\": category.value,\n1410:             \"entities\": [entity.value for entity in entities],\n1411:         }\n1412:         for category, entities in PII_ENTITY_CATEGORIES_MAP.items()\n1413:     ]\n1414: \n1415:     supported_modes_by_provider: Final = {\n1416:         provider: [hook.value for hook in hooks]\n1417:         for provider, guardrail_class in guardrail_class_registry.items()\n1418:         if (hooks := guardrail_class.get_supported_event_hooks()) is not None\n1419:     } | MappingProxyType(\n1420:         # hide-secrets lives in the enterprise package, not in the registry"
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "litellm/proxy/guardrails/guardrail_endpoints.py",
+      "start": 1,
+      "end": 50
+     },
+     "result": "1: \"\"\"\n2: CRUD ENDPOINTS FOR GUARDRAILS\n3: \"\"\"\n4: \n5: import concurrent.futures\n6: import inspect\n7: import json\n8: import os\n9: from collections.abc import Awaitable, Callable, Mapping, Sequence\n10: from datetime import datetime, timezone\n11: from types import MappingProxyType, UnionType\n12: from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, TypeVar, Union, cast, get_args, get_origin\n13: from urllib.parse import urlparse\n14: \n15: from fastapi import APIRouter, Depends, HTTPException, Request\n16: from pydantic import BaseModel, ValidationError\n17: \n18: from litellm._logging import verbose_proxy_logger\n19: from litellm.constants import DEFAULT_MAX_RECURSE_DEPTH\n20: from litellm.integrations.custom_guardrail import CustomGuardrail\n21: from litellm.litellm_core_utils.safe_json_dumps import safe_dumps\n22: from litellm.proxy._types import LitellmUserRoles, UserAPIKeyAuth\n23: from litellm.proxy.auth.user_api_key_auth import user_api_key_auth\n24: from litellm.proxy.common_utils.path_utils import safe_join\n25: from litellm.proxy.guardrails.guardrail_hooks.custom_code.sandbox import (\n26:     build_sandbox_globals,\n27:     compile_sandboxed,\n28: )\n29: from litellm.proxy.guardrails.guardrail_registry import GuardrailRegistry\n30: from litellm.proxy.guardrails.usage_endpoints import router as guardrails_usage_router\n31: from litellm.proxy.management_endpoints.common_utils import _user_has_admin_view\n32: from litellm.repositories.prisma_protocols import TableActions\n33: from litellm.repositories.table_repositories import GuardrailsRepository\n34: from litellm.types.guardrails import (\n35:     PII_ENTITY_CATEGORIES_MAP,\n36:     ApplyGuardrailRequest,\n37:     ApplyGuardrailResponse,\n38:     BaseLitellmParams,\n39:     BedrockGuardrailConfigModel,\n40:     BedrockGuardrailStreamingParams,\n41:     Guardrail,\n42:     GuardrailEventHooks,\n43:     GuardrailInfoResponse,\n44:     GuardrailUIAddGuardrailSettings,\n45:     LakeraV2GuardrailConfigModel,\n46:     ListGuardrailsResponse,\n47:     LitellmParams,\n48:     PatchGuardrailRequest,\n49:     PiiAction,\n50:     PiiEntityType,"
+    },
+    {
+     "step": 6,
+     "action": "read",
+     "args": {
+      "file": "litellm/decisions/main.py",
+      "start": 1,
+      "end": 131
+     },
+     "result": "1: import warnings\n2: from collections.abc import Mapping\n3: from typing import Final\n4: \n5: import httpx\n6: from pydantic import TypeAdapter\n7: \n8: from litellm.decisions.call import (\n9:     DecisionsCall,\n10:     OpenAIDecisionQuestions,\n11:     OpenAIDecisionRequestFields,\n12:     RequestFields,\n13:     SystemOneQuestions,\n14:     SystemOneRequestFields,\n15:     asend,\n16:     prepare_call,\n17:     send,\n18: )\n19: from litellm.types.decisions import DecisionsJSON, DecisionsResponse, OpenAIDecisionInput, OpenAIDecisionResponse\n20: from litellm.utils import client\n21: \n22: _STATE_ADAPTER: Final[TypeAdapter[DecisionsJSON | None]] = TypeAdapter(DecisionsJSON | None)\n23: _SYSTEMONE_QUESTIONS_ADAPTER: Final[TypeAdapter[SystemOneQuestions | None]] = TypeAdapter(SystemOneQuestions | None)\n24: _OPENAI_QUESTIONS_ADAPTER: Final[TypeAdapter[OpenAIDecisionQuestions | None]] = TypeAdapter(\n25:     OpenAIDecisionQuestions | None\n26: )\n27: \n28: \n29: def _request_fields(\n30:     decision_input: OpenAIDecisionInput | None,\n31:     questions: OpenAIDecisionQuestions | SystemOneQuestions | None,\n32:     kwargs: Mapping[str, object],\n33: ) -> RequestFields:\n34:     if \"state\" not in kwargs:\n35:         return OpenAIDecisionRequestFields(\n36:             input=decision_input, questions=_OPENAI_QUESTIONS_ADAPTER.validate_python(questions)\n37:         )\n38:     warnings.warn(\n39:         \"litellm.decisions(state=...) is deprecated, call litellm.systemone for the System One request format\",\n40:         UserWarning,\n41:         stacklevel=5,\n42:     )\n43:     return SystemOneRequestFields(\n44:         state=_STATE_ADAPTER.validate_python(kwargs[\"state\"]),\n45:         questions=_SYSTEMONE_QUESTIONS_ADAPTER.validate_python(questions),\n46:     )\n47: \n48: \n49: def _prepare_decisions_call(\n50:     *,\n51:     model: str,\n52:     decision_input: OpenAIDecisionInput | None,\n53:     questions: OpenAIDecisionQuestions | SystemOneQuestions | None,\n54:     safety_identifier: str | None,\n55:     api_key: str | None,\n56:     api_base: str | None,\n57:     timeout: float | httpx.Timeout | None,\n58:     custom_llm_provider: str | None,\n59:     extra_headers: Mapping[str, str] | None,\n60:     kwargs: Mapping[str, object],\n61: ) -> DecisionsCall:\n62:     return prepare_call(\n63:         model=model,\n64:         fields=_request_fields(decision_input, questions, kwargs),\n65:         safety_identifier=safety_identifier,\n66:         api_key=api_key,\n67:         api_base=api_base,\n68:         timeout=timeout,\n69:         custom_llm_provider=custom_llm_provider,\n70:         extra_headers=extra_headers,\n71:         kwargs={key: value for key, value in kwargs.items() if key != \"state\"},\n72:     )\n73: \n74: \n75: @client\n76: async def adecisions(\n77:     model: str,\n78:     input: OpenAIDecisionInput | None = None,\n79:     questions: OpenAIDecisionQuestions | SystemOneQuestions | None = None,\n80:     safety_identifier: str | None = None,\n81:     api_key: str | None = None,\n82:     api_base: str | None = None,\n83:     timeout: float | httpx.Timeout | None = None,\n84:     custom_llm_provider: str | None = None,\n85:     extra_headers: Mapping[str, str] | None = None,\n86:     **kwargs: object,\n87: ) -> OpenAIDecisionResponse | DecisionsResponse:\n88:     call: Final = _prepare_decisions_call(\n89:         model=model,\n90:         decision_input=input,\n91:         questions=questions,\n92:         safety_identifier=safety_identifier,\n93:         api_key=api_key,\n94:         api_base=api_base,\n95:         timeout=timeout,\n96:         custom_llm_provider=custom_llm_provider,\n97:         extra_headers=extra_headers,\n98:         kwargs=kwargs,\n99:     )\n100:     return await asend(call)\n101: \n102: \n103: @client\n104: def decisions(\n105:     model: str,\n106:     input: OpenAIDecisionInput | None = None,\n107:     questions: OpenAIDecisionQuestions | SystemOneQuestions | None = None,\n108:     safety_identifier: str | None = None,\n109:     api_key: str | None = None,\n110:     api_base: str | None = None,\n111:     timeout: float | httpx.Timeout | None = None,\n112:     custom_llm_provider: str | None = None,\n113:     extra_headers: Mapping[str, str] | None = None,\n114:     **kwargs: object,\n115: ) -> OpenAIDecisionResponse | DecisionsResponse:\n116:     call: Final = _prepare_decisions_call(\n117:         model=model,\n118:         decision_input=input,\n119:         questions=questions,\n120:         safety_identifier=safety_identifier,\n121:         api_key=api_key,\n122:         api_base=api_base,\n123:         timeout=timeout,\n124:         custom_llm_provider=custom_llm_provider,\n125:         extra_headers=extra_headers,\n126:         kwargs=kwargs,\n127:     )\n128:     return send(call)\n129: \n130: \n131: __all__ = [\"adecisions\", \"decisions\"]"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 16885,
+   "truncated": false,
+   "dropped_sections": []
+  },
+  "prompt_user": {
+   "symptom": "Production report: after upgrading our proxy to the stable/1.104.3 release, the Admin UI \"Add Guardrail\" wizard shows an empty provider list. The dashboard's call to GET /guardrails/ui/add_guardrail_settings returns HTTP 500 \"Internal server error\" on every call, and the server log shows an ImportError for that request. Nobody can add a guardrail from the dashboard.",
+   "edit": {
+    "file": "tests/integration/_support/forward_proxy.py",
+    "line": 9,
+    "hunk": "+import contextlib\n+import socket\n+import threading\n+from collections.abc import Generator, Mapping\n+from contextlib import contextmanager\n+from dataclasses import dataclass\n+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n+from queue import SimpleQueue\n+from typing import Final\n+\n+\n+@dataclass(frozen=True, slots=True)\n+class Tunnel:"
+   },
+   "code_window": "1: from __future__ import annotations\n2: \n3: import contextlib\n4: import socket\n5: import threading\n6: from collections.abc import Generator, Mapping\n7: from contextlib import contextmanager\n8: from dataclasses import dataclass\n9: from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n10: from queue import SimpleQueue\n11: from typing import Final\n12: \n13: \n14: @dataclass(frozen=True, slots=True)\n15: class Tunnel:\n16:     method: str\n17:     target: str\n18:     headers: Mapping[str, str]\n19: \n20: \n21: @dataclass(frozen=True, slots=True)\n22: class ForwardProxy:\n23:     url: str\n24:     port: int\n25:     received: SimpleQueue[Tunnel]\n26: \n27:     def drain(self) -> tuple[Tunnel, ...]:\n28:         return tuple(self.received.get_nowait() for _ in range(self.received.qsize()))\n29: ",
+   "related_files": [],
+   "three_piece": {
+    "asked": "(PR-derived transcript: the original request is not public.)",
+    "understood": "feat(decisions): backport the decisions and Jev follow-ups to stable/1.104.x and bump to 1.104.3\n\n## TLDR\n\nBackports the decisions and Jev work merged on main since #45190 onto stable/1.104.x, without the decisions playground, so the 1.104.3 patch serves every decisions provider and SDK shape the launch ships with\n\nProblem this solves:\n\n- stable/1.104.x only has the openai, perplexity, typesafe, openrouter, cloudflare and strands_decider decisions providers\n- It has no hosted_vllm or azure_ai Microsoft-Decision-1 provider, no AgentCore runtime ARN support, no `litellm.systemone`\n- OpenRouter decisions calls are billed from the cost map instead of the provider-reported `usage.cost`\n- TypeSafe and Strands Decider are missing from the Add Model provider list, and Swagger UI does not describe the two decisions routes\n\nHow it solves it:\n\n- Bumps the line to 1.104.3 in its own commit\n- Cherry-picks the 16 main commits listed under Picks with `git cherry-pick -x`, adapted where stable/1.104.x lacks what they build on\n- Regenerates `schema.d.ts` on the line instead of merging the generated file by hand\n- Leaves the decisions playground (#45654, #45732, #45755) out, as asked\n\n## User Flow\n\nBefore: a proxy admin on 1.104.2 cannot route a decisions request to a hosted vLLM or Azure decider\n\n1. They add `hosted_vllm/my-decider` or `azure_ai/Microsoft-Decision-1` to the config and start the proxy\n2. They send POST http://localhost:4000/v1/decisions with that model, an input and yes/no questions\n3. They get HTTP 400 \"Unknown Decisions provider\", and the Add Model page has no TypeSafe or Strands Decider provider\n\nAfter: the same request is answered, and the new providers show up everywhere the old ones did\n\n1. They add the same models to the config and start the proxy\n2. The same POST http://localhost:4000/v1/decisions returns HTTP 200 with one answer per question and a `usage` block, billed at the line's price for that model\n3. http://localhost:4000/ui/?page=models lists TypeSafe and Strands Decider under Add Model, and http://localhost:4000/#/v1/decisions in Swagger UI documents both routes\n4. `litellm.systemone(...)` and `litellm.decisions(...)` work from the SDK with the same shapes as main\n\n## Picks\n\n- [x] 79f62db620 feat(decisions): add the OpenAI Decisions spec types and the System One translation (#45129)\n- [x] 0e09e99146 refactor(decisions): dispatch /v1/decisions through provider configs and the shared HTTP handler (#45130)\n- [x] a7b04a8028 test(decisions): pos",
+    "happened": "Production report: after upgrading our proxy to the stable/1.104.3 release, the Admin UI \"Add Guardrail\" wizard shows an empty provider list. The dashboard's call to GET /guardrails/ui/add_guardrail_settings returns HTTP 500 \"Internal server error\" on every call, and the server log shows an ImportError for that request. Nobody can add a guardrail from the dashboard.\n\n  at ? (tests/integration/_support/forward_proxy.py:9)\n  9: from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n\nWritten by transcript edit L43 (apply_patch):\n+import contextlib\n+import socket\n+import threading\n+from collections.abc import Generator, Mapping\n+from contextlib import contextmanager\n+from dataclasses import dataclass\n+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n+from queue import SimpleQueue\n+from typing import Final\n+\n+\n+@dataclass(frozen=True, slots=True)\n+class Tunnel:"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L43)",
+     "text": "L40 [tool] TOOL: apply_patch {\"path\":\"provider_endpoints_support.json\"}\nL40| CODE_WRITTEN: {\"path\":\"provider_endpoints_support.json\"}\nL40| --- a/provider_endpoints_support.json\nL40| +++ b/provider_endpoints_support.json\nL40| @@ -1351,7 +1351,8 @@\nL40|          \"rerank\": true,\nL40|          \"a2a\": true,\nL40|          \"interactions\": true,\nL40| -        \"video_generations\": true\nL40| +        \"video_generations\": true,\nL40| +        \"systemone\": true\nL40|        }\nL40|      },\nL40|      \"huggingface\": {\nL40| \nL41 [tool] TOOL: apply_patch {\"path\":\"pyproject.toml\"}\nL41| CODE_WRITTEN: {\"path\":\"pyproject.toml\"}\nL41| --- a/pyproject.toml\nL41| +++ b/pyproject.toml\nL41| @@ -1,6 +1,6 @@\nL41|  [project]\nL41|  name = \"litellm\"\nL41| -version = \"1.104.2\"\nL41| +version = \"1.104.3\"\nL41|  description = \"Library to easily interface with LLM API providers\"\nL41|  readme = \"README.md\"\nL41|  requires-python = \">=3.10, <3.15\"\nL41| @@ -355,7 +355,7 @@ litellm-enterprise = { workspace = true }\nL41|  members = [\"enterprise\", \"litellm-proxy-extras\"]\nL41|  \nL41|  [tool.commitizen]\nL41| -version = \"1.104.2\"\nL41| +version = \"1.104.3\"\nL41|  version_files = [\nL41|      \"pyproject.toml:^version\",\nL41|  ]\nL41| \nL42 [tool] TOOL: apply_patch {\"path\":\"tests/code_coverage_tests/recursive_detector.py\"}\nL42| CODE_WRITTEN: {\"path\":\"tests/code_coverage_tests/recursive_detector.py\"}\nL42| --- a/tests/code_coverage_tests/recursive_detector.py\nL42| +++ b/tests/code_coverage_tests/recursive_detector.py\nL42| @@ -53,6 +53,7 @@\nL42|      \"sanitize_oci_schema\",  # OCI: bounded by JSON-schema tree depth.\nL42|      \"_freeze_for_dedupe\",  # OTEL: max depth set (default 16, _FREEZE_MAX_DEPTH); fails closed by returning repr(value) at the cap.\nL42|      \"apply_json_merge_patch\",  # max depth set (_MAX_MERGE_DEPTH=64); fails closed by raising ValueError at the cap.\nL42| +    \"_inlined\",  # max depth set (_MAX_INLINE_DEPTH=32); passes the schema node through untouched at the cap. Walks a Pydantic JSON schema once at import time.\nL42|      \"_filter_argument_value\",  # max depth set (DEFAULT_MAX_RECURSE_DEPTH); fails closed by blocking the tool call at the cap.\nL42|      \"_redact_scanned_content\",  # max depth set (DEFAULT_MAX_RECURSE_DEPTH); fails closed by returning \"[REDACTED]\" at the cap.\nL42|      \"replace_ciphertexts\",  # max depth set (DEFAULT_MAX_RECURSE_DEPTH); walks stored JSON, which has no cycles, and leaves values below the cap untouched.\nL42| \nL43 [tool] TOOL: apply_patch {\"path\":\"tests/integration/_support/forward_proxy.py\"}\nL43| CODE_WRITTEN: {\"path\":\"tests/integration/_support/forward_proxy.py\"}\nL43| --- a/tests/integration/_support/forward_proxy.py\nL43| +++ b/tests/integration/_support/forward_proxy.py\nL43| @@ -0,0 +1,117 @@\nL43| +from __future__ import annotations\nL43| +\nL43| +import contextlib\nL43| +import socket\nL43| +import threading\nL43| +from collections.abc import Generator, Mapping\nL43| +from contextlib import contextmanager\nL43| +from dataclasses import dataclass\nL43| +from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\nL43| +from queue import SimpleQueue\nL43| +from typing import Final\nL43| +\nL43| +\nL43| +@dataclass(frozen=True, slots=True)\nL43| +class Tunnel:\nL43| +    method: str\nL43| +    target: str\nL43| +    headers: Mapping[str, str]\nL43| +\nL43| +\nL43| +@dataclass(frozen=True, slots=True)\nL43| +class ForwardProxy:\nL43| +    url: str\nL43| +    port: int\nL43| +    received: SimpleQueue[Tunnel]\nL43| +\nL43| +    def drain(self) -> tuple[Tunnel, ...]:\nL43| +        return tuple(self.received.get_nowait() for _ in range(self.received.qsize()))\nL43| +\nL43| +    def targets(self) -> tuple[str, ...]:\nL43| +        return tuple(tunnel.target for tunnel in self.drain())\nL43| +\nL43| +\nL43| +@contextmanager\nL43| +def refusing_forward_proxy(port: int = 0) -> Generator[ForwardProxy, None, None]:\nL43| +    \"\"\"Owned HTTP forward proxy: records the host each CONNECT asks for and refuses the tunnel with 403.\nL43| +\nL43| +    A litellm proxy booted with ``HTTPS_PROXY`` pointed here makes the host it dials for a provider\nL43| +    observable without a byte leaving the box; the caller sees litellm's own connection error.\nL43| +    \"\"\"\nL43| +    received: Final[SimpleQueue[Tunnel]] = SimpleQueue()\nL43| +\nL43| +    class Handler(B\nL44 [tool] TOOL: apply_patch {\"path\":\"tests/integration/providers/test_decisions_openai_format_wire.py\"}\nL44| CODE_WRITTEN: {\"path\":\"tests/integration/providers/test_decisions_openai_format_wire.py\"}\nL44| --- a/tests/integration/providers/test_decisions_openai_format_wire.py\nL44| +++ b/tests/integration/providers/test_decisions_openai_format_wire.py\nL44| @@ -0,0 +1,593 @@\nL44| +import math\nL44| +import uuid\nL44| +from collections.abc import Callable, Sequence\nL44| +from dataclasses import dataclass\nL44| +from pathlib import Path\nL44| +from typing import Final\nL44| +\nL44| +import httpx\nL44| +import pytest\nL44| +import yaml\nL44| +from integration._support.client import Gateway, Scenario, eventually, object_value, string_value\nL44| +from integration._support.database import read_rows\nL44| +from integration._support.process import owned_proxy_process\nL44| +from integration._support.upstream import ScenarioHandle, delete_scenario, register_scenario\nL44| +from integration.cost_calculation.cost_tracking_case import JsonResponse\nL44| +from pydantic import JsonValue, TypeAdapter\nL44| +\nL44| +import litellm\nL44| +\nL44| +_API_KEY: Final = \"synthetic-decisions-key\"\nL44| +_SAFETY_IDENTIFIER: Final = \"end-user-7\"\nL44| +_DROPPING_DEPLOYMENT: Final = \"decisions-under-litellm-settings-drop-params\"\nL44| +_JSON_OBJECT: Final = TypeAdapter(dict[str, JsonValue])\nL44| +_INPUT: Final = \"Ticket (billing): The export job hangs at 99%\"\nL44| +_FOLLOW_UP: Final = \"Customer: still stuck after retrying\"\nL44| +_QUESTIONS: Final[list[JsonValue]] = [\nL44| +    {\"type\": \"predicate\", \"name\": \"defect\", \"instructions\": \"Is this a defect?\"},\nL44| +    {\nL44| +        \"type\": \"choice\",\nL44| +        \"name\": \"severity\",\nL44| +        \"instructions\": \"How severe is it?\",\nL44| +        \"choices\": [{\"value\": \"l\nL45 [tool] TOOL: apply_patch {\"path\":\"tests/integration/providers/test_decisions_wire.py\"}\nL45| CODE_WRITTEN: {\"path\":\"tests/integration/providers/test_decisions_wire.py\"}\nL45| --- a/tests/integration/providers/test_decisions_wire.py\nL45| +++ b/tests/integration/providers/test_decisions_wire.py\nL45| @@ -0,0 +1,551 @@\nL45| +import json\nL45| +import math\nL45| +import socket\nL45| +import uuid\nL45| +from collections.abc import Sequence\nL45| +from dataclasses import dataclass\nL45| +from pathlib import Path\nL45| +from typing import Final\nL45| +\nL45| +import httpx\nL45| +import pytest\nL45| +import yaml\nL45| +from integration._support.client import Gateway, Scenario, eventually, object_value, string_value\nL45| +from integration._support.database import read_rows\nL45| +from integration._support.process import owned_proxy_process\nL45| +from integration._support.upstream import ScenarioHandle, delete_scenario, register_scenario\nL45| +from integration.cost_calculation.cost_tracking_case import JsonResponse\nL45| +from pydantic import JsonValue, TypeAdapter\nL45| +\nL45| +import litellm\nL45| +\nL45| +_API_KEY: Final = \"synthetic-decisions-key\"\nL45| +_ENV_KEY: Final = \"synthetic-decisions-env-key\"\nL45| +_PASS_THROUGH_MODEL: Final = \"gpt-6-luna\"\nL45| +_PASS_THROUGH_AUTHORIZATION: Final = \"Bearer [REDACTED]\"\nL45| +_PASS_THROUGH_NEIGHBOUR: Final = \"decisions-beside-a-pass-through\"\nL45| +_JSON_OBJECT: Final = TypeAdapter(dict[str, JsonValue])\nL45| +_QUESTION_MAPPINGS: Final = TypeAdapter(dict[str, dict[str, object]])\nL45| +_USAGE: Final[dict[str, JsonValue]] = {\"input_tokens\": 367, \"output_tokens\": 3}\nL45| +_STATE: Final[dict[str, JsonValue]] = {\"ticket\": \"The export job hangs at 99%\", \"component\": \"billing\"}\nL45| +_QUESTIONS: Final[dict[str, JsonValue]] = {\nL45| +    \"defect\":\nL46 [tool] TOOL: apply_patch {\"path\":\"tests/integration/providers/test_strands_decider_agentcore_wire.py\"}\nL46| CODE_WRITTEN: {\"path\":\"tests/integration/providers/test_strands_decider_agentcore_wire.py\"}\nL46| --- a/tests/integration/providers/test_strands_decider_agentcore_wire.py\nL46| +++ b/tests/integration/providers/test_strands_decider_agentcore_wire.py\nL46| @@ -0,0 +1,827 @@\nL46| +import hashlib\nL46| +import json\nL46| +import os\nL46| +import re\nL46| +import threading\nL46| +import time\nL46| +import uuid\nL46| +from collections.abc import Callable, Iterator, Mapping, Sequence\nL46| +from concurrent.futures import ThreadPoolExecutor\nL46| +from dataclasses import dataclass, replace\nL46| +from functools import partial\nL46| +from pathlib import Path\nL46| +from typing import Final\nL46| +from urllib.parse import quote, unquote\nL46| +\nL46| +import httpx\nL46| +import pytest\nL46| +import yaml\nL46| +from integration._support.client import JSON_OBJECT, Gateway, Scenario, eventually, gateway_from_environment\nL46| +from integration._support.database import read_rows\nL46| +from integration._support.forward_proxy import ForwardProxy, tunnelling_forward_proxy\nL46| +from integration._support.process import owned_proxy\nL46| +from integration._support.sigv4 import encoded_path, signature\nL46| +from integration._support.tls import server_context, write_self_signed_cert\nL46| +from integration._support.wire import Reply, Request, Wire, wire_server\nL46| +from pydantic import JsonValue, TypeAdapter\nL46| +\nL46| +import litellm\nL46| +from litellm.llms.strands_decider.decisions.transformation import StrandsDeciderDecisionsConfig\nL46| +\nL46| +_ACCOUNT: Final = \"123456789012\"\nL46| +_ACCESS_KEY: Final = \"AKIA[REDACTED]\"\nL46| +_SECRET_KEY: Final = \"synthetic-agentcore-audit-secret\"\nL46| +_SIGNING: Final[Mappin"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that adding a new test support file (forward_proxy.py) to tests/integration/_support/ would not affect production runtime imports, but the file was accidentally imported or made accessible to production code paths.",
+  "why_it_breaks": "The http.server module (containing ThreadingHTTPServer) is only available in Python's standard library for runtime environments, but the production deployment likely uses a minimal Python installation or restricted import environment where http.server is not available. When the guardrails UI endpoint tries to import or scan modules, it encounters the test support file which imports http.server, causing an ImportError that crashes the request with HTTP 500.",
+  "confidence": "medium",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 43,
+    "quote": "from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "tests/integration/_support/forward_proxy.py",
+    "line": 9,
+    "quote": "from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 43,
+    "quote": "TOOL: apply_patch {\"path\":\"tests/integration/_support/forward_proxy.py\"}",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 46,
+    "quote": "from integration._support.forward_proxy import ForwardProxy, tunnelling_forward_proxy",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 3
+ }
+}

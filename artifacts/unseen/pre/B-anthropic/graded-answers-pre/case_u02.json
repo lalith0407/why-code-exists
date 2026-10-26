@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that gpt-5.4 and gpt-5.5 default reasoning_effort to \"none\", but the production deployment explicitly sets reasoning_effort to \"low\" in extra_body, which triggers the explicit-effort bridge path.",
+ "why_it_breaks": "The comment states that gpt-5.4/5.5 default to \"none\" and only unset effort bridges from gpt-5.6+, but the production deployment passes reasoning_effort: \"low\" explicitly in extra_body. This explicit non-none effort matches the \"active explicit reasoning_effort\" condition in line 1127, causing gpt-5.5 requests to bridge to /v1/responses where Chat Completions rejects function tools with reasoning_effort, producing the HTTP 400 error.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 4,
+   "quote": "gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1128,
+   "quote": "#   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 4,
+   "quote": "# - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1127,
+   "quote": "# - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 2
+}

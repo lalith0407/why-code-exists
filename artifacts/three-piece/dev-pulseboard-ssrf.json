@@ -1,0 +1,29 @@
+{
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "pulseboard-link-preview",
+  "complete": true,
+  "notes": [],
+  "frame": {
+    "file": "lib/link-preview.ts",
+    "line": 48,
+    "function": "fetchLinkPreview"
+  },
+  "asked": {
+    "text": "When someone posts feedback that includes a URL, show a nice link\npreview (title, description, image) so the board doesn't look like a\nwall of raw links.",
+    "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L1 (user message)",
+    "valid": true,
+    "full_length": 1098
+  },
+  "understood": {
+    "text": "I'm building a link preview module that uses cheerio to extract Open Graph tags, plus a regex for pulling URLs out of text, in lib/link-preview.ts.",
+    "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L98 (assistant, 25 words, 2 line(s) before the edit at L100)",
+    "valid": true,
+    "full_length": 147
+  },
+  "happened": {
+    "text": "Egress alert: link preview service made a request to http://127.0.0.1:8080/admin while creating a feedback card; the preview title returned was Internal admin console\n  at fetchLinkPreview (lib/link-preview.ts:48)\n  48: export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {\n\nWritten by transcript edit L100 (search_replace):\n+/**\n+ * Best-effort scrape of a page's Open Graph / Twitter Card metadata so a\n+ * posted link can render as a nice card instead of a raw URL. Fails soft:\n+ * any network or parsing problem returns null rather than throwing, since a\n+ * missing preview should never block posting feedback.\n+ */\n+export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {\n+  const controller = new AbortController();\n+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);\n+\n+  try {\n+    const response = await fetch(url, {\n+      signal: controller.signal,",
+    "citation": "error pulseboard-link-preview frame lib/link-preview.ts:48; bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L100",
+    "valid": true,
+    "later_edits": []
+  }
+}

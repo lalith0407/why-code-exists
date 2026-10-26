@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that replacing `workers: list[WorkerRegistryEntry] = []` with `Field(default=[])` would preserve the same mutable default behavior while enabling `defer_build`, but missed that `Field(default=[])` creates a shared mutable default that is evaluated once at class definition time, and that `LiteLLMBaseModel`'s `defer_build` mechanism delays schema construction until first instance access, which can leave attribute access broken under concurrent load before the build completes.",
+ "why_it_breaks": "The `LiteLLMBaseModel` sets `model_config = ConfigDict(defer_build=True)` (via `DEFER_PYDANTIC_BUILD` env var). When `defer_build=True`, pydantic delays the actual model schema build until the first instance is accessed or serialized. The `Field(default=[])` syntax creates the list literal at class definition time. Under concurrent load on a fresh worker, multiple goroutines/threads may attempt to access the `workers` attribute before the schema build completes, hitting a partially-initialized `MockValSer` proxy. The original `= []` assignment also created a shared default, but the migration to `Field(default=[])` was done without preserving the instance-per-model defaulting pattern that pydantic's `defer_build` relies on, causing the `'CredentialLiteLLMParams' object has no attribute 'use_litellm_proxy'` error when code tries to read `use_litellm_proxy` on an unbuilt credential model. Later requests succeed because the schema has already been built and cached.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py",
+   "line": 16,
+   "quote": "    workers: list[WorkerRegistryEntry] = Field(default=[])",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 268,
+   "quote": "-class WorkerRegistryEntry(BaseModel):\n+class WorkerRegistryEntry(LiteLLMBaseModel):",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,11 @@
+case      grounded  quotes_ok  transcript  code  proximity errors
+case_u01  False     False      True        False False     
+case_u02  False     False      False       True  False     
+case_u03  False     False      False       True  False     
+case_u04  False     False      True        False False     
+case_u05  False     False      True        False False     
+case_u06  True      True       True        True  True      
+case_u07  False     False      False       False False     
+case_u08  False     False      False       False False     missing answer file: artifacts/unseen/pre/B-nemotron/graded-answers/case_u08.json
+
+Grounded (mechanical): 1/8

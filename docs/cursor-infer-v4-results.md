@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # Cursor-infer v4 results (blind run, Sonnet 5)
 
 Graded 2026-10-25 (PT). The cloud agent did the inference. I didn't run any model.

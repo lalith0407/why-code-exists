@@ -36,7 +36,7 @@ The ids are as given by Lalith's Grok Bot. Only `9227de8` carries a Cursor autho
 - Called from `src/engine/investigate.ts:878` (and `src/bin/zetaris-rerun.ts:14`). `npm run zetaris:ping` is in `src/bin/zetaris-ping.ts`.
 - **Not used by the new stages:** `src/explain/` and `src/locate/` never call Zetaris. The explain report only *links* to it
   (`src/report/explain.ts:3-4,73`).
-- **Results (tested, saved runs):** `artifacts/m8-zetaris/`: vote-race `confirms` (r2 run only, `…vote-race.r2.json:151`;
+- **Results (tested, saved runs; the saved Zetaris results are kept private because they came from a private cluster):** vote-race `confirms` (r2 run only;
   the first run said `does_not_confirm`); webhook-block `does_not_confirm`; caps-unknown and leap-day `no_data_trace`. So
   Zetaris confirmed 1 dev case, after a re-run. The durable File Source is blocked (needs S3), so it uses TEMP views (`README.md:134`).
 

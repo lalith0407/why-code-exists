@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # Fresh held-out test: results (TESTED, 2026-10-25 PDT)
 
 - Rule: docs/fresh-heldout-rule.md, frozen at tag `fresh-heldout-frozen` (770a091) before any candidate was looked at.

@@ -1,0 +1,486 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u02",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "litellm/main.py",
+   "line": 1127,
+   "function": "responses_api_bridge_check"
+  },
+  "asked": {
+   "text": "(PR-derived transcript: the original request is not public.)",
+   "citation": "u02.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 60
+  },
+  "understood": {
+   "text": "fix(responses): keep gpt-5.4/5.5 tool calls on chat and merge bridged tool calls into one choice\n\n## TLDR\n\nProblem this solves:\n\n- gpt-5.4+ tool calls come back in `choices[1]`, separate from the text\n- Clients reading only `choices[0]` (e.g. Google ADK) never see the tool call\n- gpt-5.4/5.5 tools requests get sent to the Responses API when they don't need to be\n\nHow it solves it:\n\n- Unset `reasoning_effort` on gpt-5.4/5.5 stays on Chat Completions again\n- The unset-effort bridge now kicks in only from gpt-5.6, where Chat Completions rejects it\n- Bridged responses put the tool calls on the same choice as the text\n\nIntentional product change: for gpt-5.4 and gpt-5.5 with function tools and no `reasoning_effort` on OpenAI or Azure, the proxy calls `/chat/completions` instead of `/responses`, which is what 1.96.0 did. When a Responses reply has text plus tool calls, the client now gets one choice with `finish_reason: \"tool_calls\"` where it used to get a `stop` text choice followed by a separate tool-call choice\n\n## User Flow\n\nBefore: an agent app sends a tools request through the proxy and the tool call lands in a second choice the app ignores\n\n1. The app sends POST https://litellm-domain/v1/chat/completions with `model: azure/gpt-5.4-mini`, one function tool, and no `reasoning_effort`\n2. The response has 2 choices: `choices[0]` holds the text \"Let me check the weather.\" with `finish_reason: \"stop\"`\n3. `choices[1]` holds the `get_weather` call with `finish_reason: \"tool_calls\"`\n4. The app reads only `choices[0]`, sees a finished answer, and never runs the tool\n\nAfter: the same request returns the text and the tool call together, so the app runs the tool\n\n1. The app sends the same POST https://litellm-domain/v1/chat/completions\n2. The response has 1 choice with the text and the `get_weather` call, `finish_reason: \"tool_calls\"`\n3. The app reads `choices[0]`, runs `get_weather`, and continues the conversation; gpt-5.6+ requests (still sent to Responses) come back the same way\n\n## Affected release\n\nRegression in v1.97.0, still present in v1.103.2 and on main\n\n## Linear ticket\n\nResolves LIT-9182\n\n## Pre-Submission checklist\n\n**Please complete all items before asking a LiteLLM maintainer to review your PR**\n\n- [x] I have added meaningful tests\n- [x] The handful of test files covering my change pass locally, e.g. `uv run pytest tests/unit/<your_test_file>.py -v`. Leave the suites (`make test-unit-*`, `make test-unit`) to CI: it finishes in ~15 minutes where a laptop takes an hour or more\n- [ ] My PR passes all required CI/CD checks (e.g., lint, schema.d.ts sync check, etc.)\n- [x] My PR's scope is as isolated as possible; it only solves 1 specific problem\n- [ ] I have received a Greptile **Confidence Score of at least 4/5** before requesting a maintainer review (Greptile reviews automatically once the PR is opened; only comment `@greptileai` to re-request a review after pushing changes)\n\n## Delays in PR merge?\n\nIf you're seeing a delay in your PR being merged, ping the LiteLLM Team on [Slack (#pr-review)](https://join.slack.com/t/litellmossslack/shared_invite/zt-3o7nkuyfr-p_kbNJj8taRfXGgQI1~YyA).\n\n## Screenshots / Proof of Fix\n\nReal OpenAI and Azure calls through a local proxy, with the merge base on port 16764 and the PR head on port 16765. Both configs list `openai/gpt-5.4-mini`, `openai/gpt-5.5`, `openai/gpt-5.6` and `azure/gpt-5.4-nano` (api_version `2025-04-01-preview`). Azure has no gpt-5.4-mini deployment in our test accounts, so gpt-5.4-nano stands in for it. Every case sends the same body, with only the model changing:\n\n```bash\ncurl -s http://localhost:$PORT/v1/chat/completions -H \"Authorization: Bearer $LITELLM_MASTER_KEY\" -H \"Content-Type: application/json\" -d '{\n  \"model\": \"'$MODEL'\",\n  \"messages\": [{\"role\": \"user\", \"content\": \"What is the weather in Paris? Say one sentence then call the tool.\"}],\n  \"tools\": [{\"type\": \"function\", \"function\": {\"name\": \"get_weather\", \"description\": \"Get the weather for a city.\",\n    \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}, \"required\": [\"city\"]}}}]\n}' | jq -c '[.choices[] | {index, finish_reason, content: .message.content, tools: [.message.tool_calls[]?.function.name]}]'\n```\n\nThe upstream route column comes from a forwarding recorder sitting between the proxy and the provider\n\n### Before (a292fd409f)\n\n#### openai/gpt-5.4-mini\n\n1. `PORT=16764 MODEL=openai/gpt-5.4-mini`. Upstream route: `POST /v1/responses`\n2. `[{\"index\":0,\"finish_reason\":\"stop\",\"content\":\"The weather in Paris is:\",\"tools\":[]},{\"index\":1,\"finish_reason\":\"tool_calls\",\"content\":null,\"tools\":[\"get_weather\"]}]`\n\n#### openai/gpt-5.5\n\n1. `PORT=16764 MODEL=openai/gpt-5.5`. Upstream route: `POST /v1/responses`\n2. `[{\"index\":0,\"finish_reason\":\"stop\",\"content\":\"I’ll check the current weather in Paris now.\",\"tools\":[]},{\"index\":1,\"finish_reason\":\"tool_calls\",\"content\":null,\"tools\":[\"get_weather\"]}]`\n\n#### azure/gpt-5.4-nano\n\n1. `PORT=16764 MODEL=azure/gpt-5.4-nano`. Upstream route: `POST /openai/responses?api-version=2025-04-01-preview`\n2. `[{\"index\":0,\"finish_reason\":\"stop\",\"content\":\"I’ll check the current weather in Paris now.\",\"tools\":[]},{\"index\":1,\"finish_reason\":\"tool_calls\",\"content\":null,\"tools\":[\"get_weather\"]}]`\n\n#### openai/gpt-5.6 (still bridged)\n\n1. `PORT=16764 MODEL=openai/gpt-5.6`. Upstream route: `POST /v1/responses`\n2. `[{\"index\":0,\"finish_reason\":\"stop\",\"content\":\"I’ll check the current weather in Paris.\",\"tools\":[]},{\"index\":1,\"finish_reason\":\"tool_calls\",\"content\":null,\"tools\":[\"get_weather\"]}]`\n\n### After (444ac3bfe3)\n\n#### openai/gpt-5.4-mini\n\n1. `PORT=16765 MODEL=openai/gpt-5.4-mini`. Upstream route: `POST /v1/chat/completions`\n2. `[{\"index\":0,\"finish_reason\":\"tool_calls\",\"content\":\"Paris weather right now:\",\"tools\":[\"get_weather\"]}]`\n\n#### openai/gpt-5.5\n\n1. `PORT=16765 MODEL=openai/gpt-5.5`. Upstream route: `POST /v1/chat/completions`\n2. `[{\"index\":0,\"finish_reason\":\"tool_calls\",\"content\":\"I’ll check the current weather in Paris now.\",\"tools\":[\"get_weather\"]}]`\n\n#### azure/gpt-5.4-nano\n\n1. `PORT=16765 MODEL=azure/gpt-5.4-nano`. Upstream route: `POST /openai/deployments/gpt-5.4-nano/chat/completions?api-version=2025-04-01-preview`\n2. `[{\"index\":0,\"finish_reason\":\"tool_calls\",\"content\":\"It’s currently unknown to me—I'll check now.\",\"tools\":[\"get_weather\"]}]`\n\n#### openai/gpt-5.6 (still bridged)\n\n1. `PORT=16765 MODEL=openai/gpt-5.6`. Upstream route: `POST /v1/responses`\n2. `[{\"index\":0,\"finish_reason\":\"tool_calls\",\"content\":\"I’ll check the current weather in Paris.\",\"tools\":[\"get_weather\"]}]`\n\nThe tip 408ab26583 differs from 444ac3bfe3 only by renaming one local variable. Streaming gpt-5.6, `/v1/messages` with an OpenAI gpt-5.4-mini backend, and `reasoning_effort: \"low\"` on gpt-5.4-mini were A/B'd the same way. The stream and `/v1/messages` output were unchanged, and explicit `low` still goes to `/responses` and now returns one merged choice\n\n### Admin UI\n\nThe Playground can't attach an arbitrary function tool, so the UI check uses the Logs page for the same curl requests against openai/gpt-5.4-mini\n\n1. Open http://localhost:16764/ui/ (base) and http://127.0.0.1:16765/ui/ (head), and turn on Admin Settings > Logging Settings > Store Prompts in Spend Logs\n2. Send the curl above with `MODEL=openai/gpt-5.4-mini` to each proxy\n3. Open /ui/logs/, click the gpt-5.4-mini row, and expand Tools: base shows the tool as not called, head shows `get_weather` called\n\n| Before | After |\n|---|---|\n| ![Base gpt-5.4-mini Tools](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvNTQxOTdmMWUtYTMwZS00NWJhLThmY2QtZmU3MTZhZmQ3YTI4IiwiaWF0IjoxNzkwOTg4NTIwLCJleHAiOjE3OTE1OTMzMjAsIm9yZ19pZCI6Im9yZy01OGRkYmIxNGNjNjk0NGI2ODRmODFlOTQxOWFmZThiZSIsImZpbGVuYW1lIjoiYmFzZS1ncHQtNS40LW1pbmktdG9vbHMucG5nIn0.l39PaYzy_hPQQfVJW0Sl70S4Z9RpGa1h5WpytS0E5oo) | ![Head gpt-5.4-mini Tools](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvYTFjOWUwZmUtNzViNS00OGVmLTkxMWYtNGZmNTM1YjU0Mzg3IiwiaWF0IjoxNzkwOTg4NTIwLCJleHAiOjE3OTE1OTMzMjAsIm9yZ19pZCI6Im9yZy01OGRkYmIxNGNjNjk0NGI2ODRmODFlOTQxOWFmZThiZSIsImZpbGVuYW1lIjoiaGVhZC1ncHQtNS40LW1pbmktdG9vbHMucG5nIn0.CE0WLEFX9rqvEoTxau79ACySqr0kwwsAQ5EvfAux67A) |\n\nFor calls that still go through Responses (gpt-5.6), Logs stores the provider's native `output[]` rather than the choices the client got, so its Tools summary says not called on both base and head. That view predates this PR\n\nIntegration tests use GPT-6 names (`gpt-6-astra`, `gpt-6-luna`, `gpt-6-sol`, `gpt-6.1-sol`) against a scripted upstream; gpt-5.4, 5.5 and 5.6 routing is covered by the `responses_api_bridge_check` unit tests in `tests/unit/test_main.py`. On the merge base and with the converter merge block removed, 8 of 22 integration tests in `tests/integration/providers/test_openai_chat_wire.py` and `tests/integration/providers/test_responses_bridge_incomplete.py` go red: the four Azure GPT-6 unset-effort bridge cases, the OpenAI custom-base `low` effort bridge case, and the three merged-choice cases. All 22 pass at the head\n\n## Type\n\n🐛 Bug Fix\n\n## Caveats (if any)\n\n### Medium\n\n- gpt-5.4/5.5 tools requests now bill as Chat Completions, not Responses\n  - In one-request samples, chat reported more prompt tokens (145 vs 63) for the same request\n\n### Low\n\n- A Responses reply with several message items still yields several text choices\n  - Tool calls attach to the last one; this path predates the PR\n- Azure gpt-5.4-mini itself wasn't called live; gpt-5.4-nano stood in for it\n\nLink to Devin session: https://app.devin.ai/sessions/2a6f2ed8194643a4b482ff127c8c6b30\nOpen in Devin Desktop: https://app.devin.ai/desktop/session/2a6f2ed8194643a4b482ff127c8c6b30?variant=devin\nRequested by: @kerry-berri\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> **Medium Risk**\n> Changes default upstream routing and chat response shape for GPT-5 tool calls on OpenAI/Azure; behavior is intentional but affects agent clients and billing (chat vs Responses).\n> \n> **Overview**\n> **Restores gpt-5.4/5.5 function-tool routing to Chat Completions** when `reasoning_effort` is omitted (or `\"none\"`), instead of auto-bridging to the Responses API. On OpenAI/Azure hosts that enforce the reasoning+tools rule, **unset effort now triggers bridging only from gpt-5.6+**; explicit non-`none` effort still routes to Responses from gpt-5.4+.\n> \n> **Merges bridged Responses output into a single chat choice** when a reply has assistant text (and optional reasoning) plus function calls: tool calls attach to the last text choice with `finish_reason: \"tool_calls\"`, so clients that only read `choices[0]` see the tools. Custom OpenAI `api_base` backends keep chat routing without unset-effort bridging.\n> \n> Tests cover routing matrices (Azure/OpenAI, gpt-5.4–6), stream merging, and the responses→chat converter (including reasoning fields).\n> \n> <sup>Reviewed by [Cursor Bugbot](https://cursor.com/bugbot) for commit ecb927a68d6aca08cadba3f8cb9fd9b564b9db36. Bugbot is set up for automated code reviews on this repo. Configure [here](https://www.cursor.com/dashboard/bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+   "citation": "u02.jsonl#L2 (assistant, 1302 words, 2 line(s) before the edit at L4)",
+   "valid": true,
+   "full_length": 11433
+  },
+  "happened": {
+   "text": "Production report: our gpt-5.5 deployment sets the reasoning effort through litellm_params.extra_body ({reasoning_effort: low}). Since the latest main build, every POST /v1/chat/completions that includes a function tool comes back HTTP 400: \"Function tools with reasoning_effort are not supported for gpt-5.5 in /v1/chat/completions\". The same requests returned tool calls before the upgrade.\n\n  at responses_api_bridge_check (litellm/main.py:1127)\n  1127: # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n\nWritten by transcript edit L4 (apply_patch):\n-    #   server-side), and Chat Completions rejects function tools whenever reasoning is\n-    #   on (\"Function tools with reasoning_effort are not supported ... use\n-    #   /v1/responses or set reasoning_effort to 'none'\"), so only an explicit\n-    #   ``\"none\"`` keeps the request chat-servable. Custom (grammar) tools are served\n-    #   natively by Chat Completions with reasoning on, so custom-only requests stay on\n-    #   chat and keep their native custom tool_call response shape.\n+    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n+    #   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;\n+    #   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).\n+    # - Custom (grammar) tools are served natively by Chat Completions with reasoning on,\n+    #   so custom-only requests stay on chat and keep their native custom tool_call response shape.\n     # - The UNSET-effort arm only fires against endpoints known to enforce that\n     #   constraint (any api.openai.com host, or Azure OpenAI where api_base is",
+   "citation": "error u02 frame litellm/main.py:1127; u02.jsonl#L4",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Production report: our gpt-5.5 deployment sets the reasoning effort through litellm_params.extra_body ({reasoning_effort: low}). Since the latest main build, every POST /v1/chat/completions that includes a function tool comes back HTTP 400: \"Function tools with reasoning_effort are not supported for gpt-5.5 in /v1/chat/completions\". The same requests returned tool calls before the upgrade.\n",
+  "terms": [
+   "production report",
+   "since the latest main",
+   "function tools with",
+   "the same requests returned",
+   "5.5",
+   "400",
+   "litellm",
+   "params",
+   "extra",
+   "body",
+   "reasoning",
+   "effort",
+   "production",
+   "report",
+   "deployment",
+   "sets",
+   "through",
+   "latest",
+   "main",
+   "build",
+   "post",
+   "chat",
+   "completions",
+   "includes",
+   "function",
+   "tool",
+   "comes",
+   "back",
+   "http",
+   "tools",
+   "supported",
+   "same",
+   "requests",
+   "returned",
+   "calls",
+   "upgrade"
+  ],
+  "layer1": {
+   "symbols_indexed": 434916,
+   "edited_hunks_indexed": 19,
+   "candidates": [
+    {
+     "file": "litellm/main.py",
+     "line": 1123,
+     "end_line": 1127,
+     "text": "    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from",
+     "function": "responses_api_bridge_check",
+     "score": 19.2761,
+     "matched_terms": [
+      "function",
+      "tools",
+      "requests",
+      "reasoning",
+      "effort",
+      "chat",
+      "completions",
+      "tool",
+      "function tools with"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#2",
+     "snippet": "1123:     # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n1124:     #   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;\n1125:     #   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).\n1126:     # - Custom (grammar) tools are served natively by Chat Completions with reasoning on,\n1127:     #   so custom-only requests stay on chat and keep their native custom tool_call response shape.",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/integration/providers/test_responses_bridge_incomplete.py",
+     "line": 295,
+     "end_line": 574,
+     "text": "def test_chat_over_responses_deployment_keeps_reasoning_with_merged_tool_call(gateway: Gateway) -> None:",
+     "score": 18.5907,
+     "matched_terms": [
+      "function",
+      "tools",
+      "body",
+      "reasoning",
+      "deployment",
+      "post",
+      "chat",
+      "completions",
+      "tool",
+      "calls"
+     ],
+     "edit_line": 6,
+     "tool": "apply_patch",
+     "hunk_id": "L6#8",
+     "snippet": "197: \n198: \n199: def test_chat_over_responses_deployment_merges_message_and_function_call(gateway: Gateway) -> None:\n200:     identity: Final = \"responses-bridge-\" + uuid.uuid4().hex\n201: \n202:     def respond(request: Request) -> Reply:\n203:         if request.method == \"GET\" and request.target == \"/v1/models\":\n204:             return Reply(body=b'{\"object\":\"list\",\"data\":[]}')\n205:         assert request.method == \"POST\" and request.target == \"/responses\", request.target\n206:         return Reply(",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/integration/providers/test_openai_chat_wire.py",
+     "line": 383,
+     "end_line": 540,
+     "text": "        assert [(request.method, request.target) for request in wire.drain()] == [(\"POST\", \"/chat/completions\")]",
+     "score": 17.9522,
+     "matched_terms": [
+      "function",
+      "tools",
+      "body",
+      "reasoning",
+      "effort",
+      "post",
+      "chat",
+      "completions",
+      "tool",
+      "calls"
+     ],
+     "edit_line": 5,
+     "tool": "apply_patch",
+     "hunk_id": "L5#7",
+     "snippet": "101: \n102: \n103: @pytest.mark.parametrize(\"model_name\", _GPT_6_MODELS, ids=_GPT_6_MODELS)\n104: def test_azure_gpt_6_function_tool_with_reasoning_effort_none_stays_on_chat(gateway: Gateway, model_name: str) -> None:\n105:     identity: Final = f\"azure-{model_name}-{uuid.uuid4().hex}\"\n106:     upstream_target: Final = f\"/openai/deployments/{model_name}/chat/completions?api-version=2025-04-01-preview\"\n107: \n108:     def respond(request: Request) -> Reply:\n109:         assert request.method == \"POST\"\n110:         assert request.target == upstream_target",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/unit/test_main.py",
+     "line": 1061,
+     "end_line": 1079,
+     "text": "def test_responses_api_bridge_check_gpt_5_4_through_5_6_tools_with_reasoning_none_stay_chat(",
+     "score": 9.4347,
+     "matched_terms": [
+      "main",
+      "tools",
+      "litellm",
+      "reasoning",
+      "through",
+      "chat"
+     ],
+     "edit_line": 9,
+     "tool": "apply_patch",
+     "hunk_id": "L9#15",
+     "snippet": "1050: @pytest.mark.parametrize(\n1051:     (\"custom_llm_provider\", \"model_name\"),\n1052:     [\n1053:         pytest.param(\"openai\", \"gpt-5.4\", id=\"openai-gpt-5.4\"),\n1054:         pytest.param(\"openai\", \"gpt-5.5\", id=\"openai-gpt-5.5\"),\n1055:         pytest.param(\"openai\", \"gpt-5.6\", id=\"openai-gpt-5.6\"),\n1056:         pytest.param(\"azure\", \"gpt-5.4\", id=\"azure-gpt-5.4\"),\n1057:         pytest.param(\"azure\", \"gpt-5.5\", id=\"azure-gpt-5.5\"),\n1058:         pytest.param(\"azure\", \"gpt-5.6\", id=\"azure-gpt-5.6\"),\n1059:     ],",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/unit/proxy/guardrails/test_deferred_guardrail_logging.py",
+     "line": 325,
+     "end_line": 328,
+     "text": "    \"\"\"/v1/messages on an Azure gpt-5.4+ deployment with explicit reasoning effort and",
+     "score": 8.9685,
+     "matched_terms": [
+      "function",
+      "tools",
+      "reasoning",
+      "effort",
+      "deployment",
+      "chat"
+     ],
+     "edit_line": 8,
+     "tool": "apply_patch",
+     "hunk_id": "L8#11",
+     "snippet": "325:     \"\"\"/v1/messages on an Azure gpt-5.4+ deployment with explicit reasoning effort and\n326:     function tools runs three nested wrappers: anthropic_messages, the chat adapter's\n327:     acompletion, and the Responses bridge acompletion hands the call to, which retags the\n328:     call as ``responses``. With logging",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/unit/test_main.py",
+     "line": 917,
+     "end_line": 929,
+     "text": "    with patch(\"litellm.main._get_model_info_helper\") as mock_get_model_info:",
+     "score": 8.8341,
+     "matched_terms": [
+      "main",
+      "function",
+      "tools",
+      "litellm",
+      "reasoning",
+      "effort"
+     ],
+     "edit_line": 9,
+     "tool": "apply_patch",
+     "hunk_id": "L9#13",
+     "snippet": "897: @pytest.mark.parametrize(\n898:     (\"custom_llm_provider\", \"model_name\"),\n899:     [\n900:         pytest.param(\"openai\", \"gpt-5.4\", id=\"openai-gpt-5.4\"),\n901:         pytest.param(\"openai\", \"gpt-5.4-mini\", id=\"openai-gpt-5.4-mini\"),\n902:         pytest.param(\"openai\", \"gpt-5.5\", id=\"openai-gpt-5.5\"),\n903:         pytest.param(\"azure\", \"gpt-5.4\", id=\"azure-gpt-5.4\"),\n904:         pytest.param(\"azure\", \"gpt-5.4-mini\", id=\"azure-gpt-5.4-mini\"),\n905:         pytest.param(\"azure\", \"gpt-5.5\", id=\"azure-gpt-5.5\"),\n906:     ],",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/unit/completion_extras/litellm_responses_transformation/test_completion_extras_litellm_responses_transformation_transformation.py",
+     "line": 3384,
+     "end_line": 3460,
+     "text": "    function_calls: Final = message_and_call[0].message.tool_calls",
+     "score": 7.2112,
+     "matched_terms": [
+      "function",
+      "reasoning",
+      "tool",
+      "calls"
+     ],
+     "edit_line": 7,
+     "tool": "apply_patch",
+     "hunk_id": "L7#10",
+     "snippet": "3319: def test_convert_response_output_merges_message_reasoning_and_function_call() -> None:\n3320:     message: Final = ResponseOutputMessage(\n3321:         id=\"msg_weather\",\n3322:         content=[\n3323:             ResponseOutputText(\n3324:                 annotations=[\n3325:                     {\n3326:                         \"type\": \"url_citation\",\n3327:                         \"start_index\": 0,\n3328:                         \"end_index\": 5,",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/integration/providers/test_openai_chat_wire.py",
+     "line": 44,
+     "end_line": 62,
+     "text": "                        \"tool_calls\": [",
+     "score": 6.8625,
+     "matched_terms": [
+      "function",
+      "chat",
+      "tool",
+      "calls"
+     ],
+     "edit_line": 5,
+     "tool": "apply_patch",
+     "hunk_id": "L5#6",
+     "snippet": "31: def _tool_completion(model_name: str) -> bytes:\n32:     return json.dumps(\n33:         {\n34:             \"id\": \"chatcmpl-weather\",\n35:             \"object\": \"chat.completion\",\n36:             \"created\": 1,\n37:             \"model\": model_name,\n38:             \"choices\": [\n39:                 {\n40:                     \"index\": 0,",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/unit/test_main.py",
+     "line": 999,
+     "end_line": 1007,
+     "text": "        model_info, model = litellm_main.responses_api_bridge_check(",
+     "score": 6.6533,
+     "matched_terms": [
+      "main",
+      "tools",
+      "litellm",
+      "effort",
+      "chat"
+     ],
+     "edit_line": 9,
+     "tool": "apply_patch",
+     "hunk_id": "L9#14",
+     "snippet": "977: @pytest.mark.parametrize(\n978:     (\"custom_llm_provider\", \"model_name\"),\n979:     [\n980:         pytest.param(\"openai\", \"gpt-5.4\", id=\"openai-gpt-5.4\"),\n981:         pytest.param(\"openai\", \"gpt-5.4-mini\", id=\"openai-gpt-5.4-mini\"),\n982:         pytest.param(\"openai\", \"gpt-5.5\", id=\"openai-gpt-5.5\"),\n983:         pytest.param(\"azure\", \"gpt-5.4\", id=\"azure-gpt-5.4\"),\n984:         pytest.param(\"azure\", \"gpt-5.4-mini\", id=\"azure-gpt-5.4-mini\"),\n985:         pytest.param(\"azure\", \"gpt-5.5\", id=\"azure-gpt-5.5\"),\n986:     ],",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/unit/test_main.py",
+     "line": 1279,
+     "end_line": 1287,
+     "text": "        model_info, model = litellm_main.responses_api_bridge_check(",
+     "score": 6.4627,
+     "matched_terms": [
+      "main",
+      "litellm",
+      "effort",
+      "chat"
+     ],
+     "edit_line": 9,
+     "tool": "apply_patch",
+     "hunk_id": "L9#17",
+     "snippet": "1261: @pytest.mark.parametrize(\n1262:     \"model_name\",\n1263:     [\n1264:         pytest.param(\"gpt-5.4\", id=\"gpt-5.4\"),\n1265:         pytest.param(\"gpt-5.5\", id=\"gpt-5.5\"),\n1266:         pytest.param(\"gpt-5.6\", id=\"gpt-5.6\"),\n1267:     ],\n1268: )\n1269: def test_responses_api_bridge_check_custom_api_base_with_unset_effort_stays_chat(\n1270:     monkeypatch: pytest.MonkeyPatch,",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "litellm/main.py",
+   "line": 1123,
+   "end_line": 1127,
+   "text": "    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from",
+   "function": "responses_api_bridge_check",
+   "score": 19.2761,
+   "matched_terms": [
+    "function",
+    "tools",
+    "requests",
+    "reasoning",
+    "effort",
+    "chat",
+    "completions",
+    "tool",
+    "function tools with"
+   ],
+   "edit_line": 4,
+   "tool": "apply_patch",
+   "hunk_id": "L4#2",
+   "snippet": "1123:     # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n1124:     #   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;\n1125:     #   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).\n1126:     # - Custom (grammar) tools are served natively by Chat Completions with reasoning on,\n1127:     #   so custom-only requests stay on chat and keep their native custom tool_call response shape.",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "Function tools with reasoning_effort are not supported"
+     },
+     "result": "no matches"
+    },
+    {
+     "step": 2,
+     "action": "grep",
+     "args": {
+      "pattern": "reasoning_effort"
+     },
+     "result": "vscode-extension/src/messages.ts:187: : { reasoning_effort: input.reasoningEffort as ChatCompletionCreateParamsStreaming[\"reasoning_effort\"] }),\nvscode-extension/src/models.ts:77: supportedReasoningEfforts: stringList(value.supported_reasoning_efforts),\nui/litellm-dashboard/src/components/llm_calls/fetch_models.tsx:11: supported_reasoning_efforts?: string[] | null;\nui/litellm-dashboard/src/components/llm_calls/fetch_models.tsx:21: supported_reasoning_efforts?: string[] | null;\nui/litellm-dashboard/src/components/llm_calls/fetch_models.tsx:31: ...(item.supported_reasoning_efforts !== undefined && {\nui/litellm-dashboard/src/components/llm_calls/fetch_models.tsx:32: supported_reasoning_efforts: item.supported_reasoning_efforts,\nui/litellm-dashboard/src/components/add_model/ClassificationMethodConfig.tsx:227: const classifierReasoningEffort = value.classifier_llm_config?.reasoning_effort;\nui/litellm-dashboard/src/components/add_model/ClassificationMethodConfig.tsx:284: const { reasoning_effort: _reasoningEffort, ...classifierLlmConfig } = value.classifier_llm_config;\nui/litellm-dashboard/src/components/add_model/ClassificationMethodConfig.tsx:290: : { ...classifierLlmConfig, reasoning_effort: reasoningEffort },\nui/litellm-dashboard/src/components/add_model/ClassifierPrimarySettings.tsx:84: reasoning_effort: undefined,\nui/litellm-dashboard/src/components/add_model/ComplexityRouterConfig.tsx:141: reasoning_effort?: ReasoningEffort;\nui/litellm-dashboard/src/components/add_model/ComplexityRouterConfig.tsx:427: * params object is held, not just reasoning_effort, so keys authored in config.yaml survive an\nui/litellm-dashboard/src/components/add_model/ComplexityRouterConfig.tsx:725: handleTierModelParamChange(row.id, model, [\"reasoning_effort\", effort])\nui/litellm-dashboard/src/components/add_model/ForecastClassifierConfig.tsx:230: classifier_llm_config: { ...llm, model: model ?? \"\", reasoning_effort: undefined },\nui/litellm-dashboard/src/components/add_model/ForecastClassifierConfig.tsx:279: value={llm.reasoning_effort}\nui/litellm-dashboard/src/components/add_model/ForecastClassifierConfig.tsx:281: onChange={(reasoning_effort) =>\nui/litellm-dashboard/src/components/add_model/ForecastClassifierConfig.tsx:282: onChange({ ...value, classifier_llm_config: { ...llm, reasoning_effort } })\nui/litellm-dashboard/src/components/add_model/TierModelEffortRows.tsx:11: const stored = params?.reasoning_effort;\nui/litellm-dashboard/src/components/add_model/TierModelEffortRows.tsx:70: content={`Sent as reasoning_effort on requests this tier routes to the model, overriding the caller's value. Default leaves the request untouched.`}\nui/litellm-dashboard/src/components/add_model/add_auto_router_tab.tsx:532: reasoningEffort: complexityRouterConfig.classifier_llm_config?.reasoning_effort,\nui/litellm-dashboard/src/components/add_model/auto_setup.ts:80: )?.supported_reasoning_efforts;\nui/litellm-dashboard/src/components/add_model/auto_setup.ts:92: tier_model_params: { REASONING: { [selected[3]]: { reasoning_effort: reasoningEffort } } },\nui/litellm-dashboard/src/components/add_model/build_complexity_router_config.ts:81: reasoning_effort,\nui/litellm-dashboard/src/components/add_model/build_complexity_router_config.ts:92: ...(reasoning_effort && { reasoning_effort }),\nui/litellm-dashboard/src/components/add_model/build_complexity_router_config.ts:101: ...(reasoning_effort && { reasoning_effort }),"
+    },
+    {
+     "step": 3,
+     "action": "grep",
+     "args": {
+      "pattern": "Function tools.*not supported"
+     },
+     "result": "no matches"
+    },
+    {
+     "step": 4,
+     "action": "grep",
+     "args": {
+      "pattern": "function.*tool"
+     },
+     "result": "ui/litellm-dashboard/src/utils/mcpToolCrudClassification.ts:42: export function groupToolsByCrud(tools: MCPToolEntry[]): Record<CrudOp, MCPToolEntry[]> {\nui/litellm-dashboard/src/components/ToolDetail.tsx:59: export function ToolDetail({ toolName, onBack, accessToken }: ToolDetailProps) {\nui/litellm-dashboard/src/components/view_logs/RequestLogsTableColumns.tsx:59: function TruncatedText({ value, tooltip }: { value: string | undefined; tooltip?: string }) {\nui/litellm-dashboard/src/components/view_logs/TraceView/traceUtils.ts:280: const NON_TEXT_BLOCKS: ReadonlySet<unknown> = new Set([\"reasoning\", \"function_call\", \"tool_use\", \"tool_call\"]);\nui/litellm-dashboard/src/components/view_logs/ToolsSection/FormattedToolView.tsx:12: export function FormattedToolView({ tool }: FormattedToolViewProps) {\nui/litellm-dashboard/src/components/view_logs/ToolsSection/JsonToolView.tsx:11: export function JsonToolView({ tool }: JsonToolViewProps) {\nui/litellm-dashboard/src/components/view_logs/ToolsSection/ToolExpandedContent.tsx:17: export function ToolExpandedContent({ tool }: ToolExpandedContentProps) {\nui/litellm-dashboard/src/components/view_logs/ToolsSection/ToolItem.tsx:16: export function ToolItem({ tool }: ToolItemProps) {\nui/litellm-dashboard/src/components/view_logs/ToolsSection/utils.ts:2: * Utility functions for parsing and processing tool data from log entries\nui/litellm-dashboard/src/components/view_logs/ToolsSection/utils.ts:120: * Main function to parse tools from a log entry\nui/litellm-dashboard/src/components/view_logs/ToolsSection/utils.ts:149: // Handle both OpenAI format (tool.function.name) and Anthropic format (tool.name + tool.input_schema)\nui/litellm-dashboard/src/components/view_logs/ToolsSection/utils.ts:151: const name = tool.function?.name || tool.name || `Tool ${index + 1}`;\nui/litellm-dashboard/src/components/view_logs/ToolsSection/utils.ts:152: const description = tool.function?.description || tool.description || \"\";\nui/litellm-dashboard/src/components/view_logs/ToolsSection/utils.ts:153: const parameters = tool.function?.parameters || tool.input_schema || {};\nui/litellm-dashboard/src/components/view_logs/LogDetailsDrawer/LogDetailContent.tsx:399: function MetricLabel({ label, tooltip, docsUrl }: { label: string; tooltip: string; docsUrl: string }) {\nui/litellm-dashboard/src/components/view_logs/LogDetailsDrawer/SimpleMessageBlock.tsx:17: export function SimpleMessageBlock({ label, content, toolCalls, isCompact = false }: SimpleMessageBlockProps) {\nui/litellm-dashboard/src/components/view_logs/LogDetailsDrawer/SimpleToolCallBlock.tsx:14: export function SimpleToolCallBlock({ tool, compact = false }: SimpleToolCallBlockProps) {\nui/litellm-dashboard/src/components/view_logs/LogDetailsDrawer/prettyMessagesUtils.ts:25: if (value === \"function\") return \"tool\";\nui/litellm-dashboard/src/components/shared/table_cells/status_badge.tsx:30: export function StatusBadge({ tone, label, tooltip, dataTestId, className, href }: StatusBadgeProps) {\nui/litellm-dashboard/src/components/llm_calls/chat_completion.tsx:206: name: tool.function?.name || tool.name || \"\",\nui/litellm-dashboard/src/components/llm_calls/chat_completion.tsx:207: description: tool.function?.description || tool.description || \"\",\nui/litellm-dashboard/src/components/llm_calls/chat_completion.tsx:208: input_schema: tool.function?.parameters || tool.input_schema || {},\nui/litellm-dashboard/src/components/llm_calls/chat_completion.tsx:257: const functionName = toolCall.function?.name || toolCall.name || \"\";\nui/litellm-dashboard/src/components/llm_calls/chat_completion.tsx:258: const functionArgs = toolCall.function?.arguments || toolCall.arguments || \"{}\";\nui/litellm-dashboard/src/components/common_components/MemberTable.tsx:57: function RoleHeaderTitle({ title, tooltip }: { title: string; tooltip?: string }) {"
+    },
+    {
+     "step": 5,
+     "action": "grep",
+     "args": {
+      "pattern": "extra_body"
+     },
+     "result": "ui/litellm-dashboard/src/components/chat_ui/CodeSnippets.tsx:117: extraBodyCode = `,\\n    extra_body=${indentedExtraBodyString}`;\nui/litellm-dashboard/src/components/chat_ui/CodeSnippets.tsx:177: extraBodyCode = `,\\n    extra_body=${indentedExtraBodyString}`;\nui/litellm-dashboard/src/app/(dashboard)/prompts/_components/prompt_editor_view/PromptCodeSnippets.tsx:134: extra_body={\nui/litellm-dashboard/src/app/(dashboard)/prompts/_components/prompt_editor_view/PromptCodeSnippets.tsx:152: extra_body={\nui/litellm-dashboard/src/app/(dashboard)/prompts/_components/prompt_editor_view/PromptCodeSnippets.tsx:170: extra_body={\nlitellm/_lazy_imports_registry.py:419: \"_ensure_extra_body_is_safe\",\nlitellm/_lazy_imports_registry.py:1438: \"_ensure_extra_body_is_safe\": (\nlitellm/_lazy_imports_registry.py:1440: \"_ensure_extra_body_is_safe\",\nlitellm/main.py:1124: # ``reasoningSummary`` in ``extra_body``) must be bridged; Chat Completions rejects\nlitellm/main.py:1381: azure_ad_token: Final = optional_params.get(\"extra_body\", {}).pop(\"azure_ad_token\", None) or get_secret_str(\nlitellm/main.py:1508: azure_ad_token: Final = optional_params.get(\"extra_body\", {}).pop(\"azure_ad_token\", None) or get_secret_str(\nlitellm/main.py:1872: provider_config.map_extra_body_params(optional_params=ctx.optional_params, model=model)\nlitellm/main.py:3487: if k == \"extra_body\":\nlitellm/main.py:3488: # we use openai 'extra_body' to pass openrouter specific params - transforms, route, models\nlitellm/main.py:3489: if \"extra_body\" in optional_params:\nlitellm/main.py:3592: if k == \"extra_body\":\nlitellm/main.py:3593: # we use openai 'extra_body' to pass vercel specific params - providerOptions\nlitellm/main.py:3594: if \"extra_body\" in optional_params:\nlitellm/main.py:4958: **kwargs.get(\"extra_body\", {}),\nlitellm/main.py:8445: azure_ad_token: Final[str | None] = optional_params.get(\"extra_body\", {}).pop(\nlitellm/router.py:2470: extra_body: Final = sanitized.get(\"extra_body\")\nlitellm/router.py:2471: if isinstance(extra_body, Mapping):\nlitellm/router.py:2472: sanitized_extra_body: Final = dict(extra_body)\nlitellm/router.py:2473: sanitized_extra_body.pop(\"reasoning_effort\", None)\nlitellm/router.py:2474: sanitized_extra_body.pop(\"thinking\", None)"
+    },
+    {
+     "step": 6,
+     "action": "read",
+     "args": {
+      "file": "litellm/router.py",
+      "start": 2465,
+      "end": 2480
+     },
+     "result": "2465: \n2466:         sanitized.pop(\"thinking\", None)\n2467:         Router._pop_effort_from_nested_carrier(sanitized, \"output_config\")\n2468:         Router._pop_effort_from_nested_carrier(sanitized, \"reasoning\")\n2469: \n2470:         extra_body: Final = sanitized.get(\"extra_body\")\n2471:         if isinstance(extra_body, Mapping):\n2472:             sanitized_extra_body: Final = dict(extra_body)\n2473:             sanitized_extra_body.pop(\"reasoning_effort\", None)\n2474:             sanitized_extra_body.pop(\"thinking\", None)\n2475:             Router._pop_effort_from_nested_carrier(sanitized_extra_body, \"output_config\")\n2476:             Router._pop_effort_from_nested_carrier(sanitized_extra_body, \"reasoning\")\n2477:             if sanitized_extra_body:\n2478:                 sanitized[\"extra_body\"] = sanitized_extra_body\n2479:             else:\n2480:                 sanitized.pop(\"extra_body\", None)"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 32001,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:tests/unit/responses/litellm_completion_transformation/test_litellm_completion_responses.py (over budget)",
+    "related_file:tests/unit/test_xai_responses_auto_routing.py (over budget)",
+    "related_file:tests/unit/test_router_model_cost_isolation.py (over budget)",
+    "related_file:tests/unit/test_main.py (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Production report: our gpt-5.5 deployment sets the reasoning effort through litellm_params.extra_body ({reasoning_effort: low}). Since the latest main build, every POST /v1/chat/completions that includes a function tool comes back HTTP 400: \"Function tools with reasoning_effort are not supported for gpt-5.5 in /v1/chat/completions\". The same requests returned tool calls before the upgrade.",
+   "edit": {
+    "file": "litellm/main.py",
+    "line": 1127,
+    "hunk": "-    #   server-side), and Chat Completions rejects function tools whenever reasoning is\n-    #   on (\"Function tools with reasoning_effort are not supported ... use\n-    #   /v1/responses or set reasoning_effort to 'none'\"), so only an explicit\n-    #   ``\"none\"`` keeps the request chat-servable. Custom (grammar) tools are served\n-    #   natively by Chat Completions with reasoning on, so custom-only requests stay on\n-    #   chat and keep their native custom tool_call response shape.\n+    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n+    #   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;\n+    #   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).\n+    # - Custom (grammar) tools are served natively by Chat Completions with reasoning on,\n+    #   so custom-only requests stay on chat and keep their native custom tool_call response shape.\n     # - The UNSET-effort arm only fires against endpoints known to enforce that\n     #   constraint (any api.openai.com host, or Azure OpenAI where api_base is"
+   },
+   "code_window": "1107:             model = model.replace(\"responses/\", \"\")\n1108:             mode = \"responses\"\n1109:             model_info[\"mode\"] = mode\n1110: \n1111:     except Exception as e:\n1112:         verbose_logger.debug(\"Error getting model info: %s\", e)\n1113: \n1114:         if model.startswith(\"responses/\"):  # handle azure models - `azure/responses/<deployment-name>`\n1115:             model = model.replace(\"responses/\", \"\")\n1116:             mode = \"responses\"\n1117:             model_info[\"mode\"] = mode\n1118: \n1119:     if web_search_options is not None and custom_llm_provider == \"xai\":\n1120:         model_info[\"mode\"] = \"responses\"\n1121:         model = model.replace(\"responses/\", \"\")\n1122: \n1123:     # OpenAI/Azure GPT-5 chat-completions that need Responses-only fields (e.g.\n1124:     # ``reasoningSummary`` in ``extra_body``) must be bridged; Chat Completions rejects\n1125:     # those keys.\n1126:     #\n1127:     # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n1128:     #   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;\n1129:     #   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).\n1130:     # - Custom (grammar) tools are served natively by Chat Completions with reasoning on,\n1131:     #   so custom-only requests stay on chat and keep their native custom tool_call response shape.\n1132:     # - The UNSET-effort arm only fires against endpoints known to enforce that\n1133:     #   constraint (any api.openai.com host, or Azure OpenAI where api_base is\n1134:     #   always set): chat-only OpenAI-compatible backends registered under the openai\n1135:     #   provider with a custom api_base and gpt-5.4+ model names serve tools without\n1136:     #   reasoning fine and have no /responses route, so they keep pre-existing\n1137:     #   behavior (bridge only on an explicit reasoning_effort).\n1138:     # - Azure AI Foundry's OpenAI v1 hosts (azure_ai provider) enforce it later in the series:\n1139:     #   an explicit effort with function tools is rejected from gpt-5.6 on, and the unset\n1140:     #   effort only from gpt-6 on (gpt-5.6 serves tools with reasoning silently off), so the\n1141:     #   azure_ai gate keys on those measured boundaries instead of gpt-5.4+.\n1142:     # - Older GPT-5 names (e.g. ``gpt-5``, ``gpt-5.1``): bridge only when a reasoning\n1143:     #   summary alias is present with ``reasoning_effort`` (tools alone stay on chat).\n1144:     has_function_tool: Final = any(\n1145:         (\n1146:             tool.get(\"type\") == \"function\" and (isinstance(tool.get(\"function\"), dict) or \"name\" in tool)\n1147:             if isinstance(tool, dict)",
+   "related_files": [],
+   "three_piece": {
+    "asked": "(PR-derived transcript: the original request is not public.)",
+    "understood": "fix(responses): keep gpt-5.4/5.5 tool calls on chat and merge bridged tool calls into one choice\n\n## TLDR\n\nProblem this solves:\n\n- gpt-5.4+ tool calls come back in `choices[1]`, separate from the text\n- Clients reading only `choices[0]` (e.g. Google ADK) never see the tool call\n- gpt-5.4/5.5 tools requests get sent to the Responses API when they don't need to be\n\nHow it solves it:\n\n- Unset `reasoning_effort` on gpt-5.4/5.5 stays on Chat Completions again\n- The unset-effort bridge now kicks in only from gpt-5.6, where Chat Completions rejects it\n- Bridged responses put the tool calls on the same choice as the text\n\nIntentional product change: for gpt-5.4 and gpt-5.5 with function tools and no `reasoning_effort` on OpenAI or Azure, the proxy calls `/chat/completions` instead of `/responses`, which is what 1.96.0 did. When a Responses reply has text plus tool calls, the client now gets one choice with `finish_reason: \"tool_calls\"` where it used to get a `stop` text choice followed by a separate tool-call choice\n\n## User Flow\n\nBefore: an agent app sends a tools request through the proxy and the tool call lands in a second choice the app ignores\n\n1. The app sends POST https://litellm-domain/v1/chat/completions with `model: azure/gpt-5.4-mini`, one function tool, and no `reasoning_effort`\n2. The response has 2 choices: `choices[0]` holds the text \"Let me check the weather.\" with `finish_reason: \"stop\"`\n3. `choices[1]` holds the `get_weather` call with `finish_reason: \"tool_calls\"`\n4. The app reads only `choices[0]`, sees a finished answer, and never runs the tool\n\nAfter: the same request returns the text and the tool call together, so the app runs the tool\n\n1. The app sends the same POST https://litellm-domain/v1/chat/completions\n2. The response has 1 choice with the text and the `get_weather` call, `finish_reason: \"tool_calls\"`\n3. The app reads `choices[0]`, runs `get_weather`, and continues the conversation; gpt-5.6+ requests (still sent to Responses) come back the same way\n\n## Affected release\n\nRegression in v1.97.0, still present in v1.103.2 and on main\n\n## Linear ticket\n\nResolves LIT-9182\n\n## Pre-Submission checklist\n\n**Please complete all items before asking a LiteLLM maintainer to review your PR**\n\n- [x] I have added meaningful tests\n- [x] The handful of test files covering my change pass locally, e.g. `uv run pytest tests/unit/<your_test_file>.py -v`. Leave the suites (`make test-unit-*`, `make test-unit`) to CI: it finishes in ~15 minutes where a laptop",
+    "happened": "Production report: our gpt-5.5 deployment sets the reasoning effort through litellm_params.extra_body ({reasoning_effort: low}). Since the latest main build, every POST /v1/chat/completions that includes a function tool comes back HTTP 400: \"Function tools with reasoning_effort are not supported for gpt-5.5 in /v1/chat/completions\". The same requests returned tool calls before the upgrade.\n\n  at responses_api_bridge_check (litellm/main.py:1127)\n  1127: # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n\nWritten by transcript edit L4 (apply_patch):\n-    #   server-side), and Chat Completions rejects function tools whenever reasoning is\n-    #   on (\"Function tools with reasoning_effort are not supported ... use\n-    #   /v1/responses or set reasoning_effort to 'none'\"), so only an explicit\n-    #   ``\"none\"`` keeps the request chat-servable. Custom (grammar) tools are served\n-    #   natively by Chat Completions with reasoning on, so custom-only requests stay on\n-    #   chat and keep their native custom tool_call response shape.\n+    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n+    #   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;\n+    #   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).\n+    # - Custom (grammar) tools are served natively by Chat Completions with reasoning on,\n+    #   so custom-only requests stay on chat and keep their native custom tool_call response shape.\n     # - The UNSET-effort arm only fires against endpoints known to enforce that\n     #   constraint (any api.openai.com host, or Azure OpenAI where api_base is"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L4)",
+     "text": "L1 [user] (PR-derived transcript: the original request is not public.)\nL2 [assistant] fix(responses): keep gpt-5.4/5.5 tool calls on chat and merge bridged tool calls into one choice\nL2| \nL2| ## TLDR\nL2| \nL2| Problem this solves:\nL2| \nL2| - gpt-5.4+ tool calls come back in `choices[1]`, separate from the text\nL2| - Clients reading only `choices[0]` (e.g. Google ADK) never see the tool call\nL2| - gpt-5.4/5.5 tools requests get sent to the Responses API when they don't need to be\nL2| \nL2| How it solves it:\nL2| \nL2| - Unset `reasoning_effort` on gpt-5.4/5.5 stays on Chat Completions again\nL2| - The unset-effort bridge now kicks in only from gpt-5.6, where Chat Completions rejects it\nL2| - Bridged responses put the tool calls on the same choice as the text\nL2| \nL2| Intentional product change: for gpt-5.4 and gpt-5.5 with function tools and no `reasoning_effort` on OpenAI or Azure, the proxy calls `/chat/completions` instead of `/responses`, which is what 1.96.0 did. When a Responses reply has text plus tool calls, the client now gets one choice with `finish_reason: \"tool_calls\"` where it used to get a `stop` text choice followed by a separate tool-call choice\nL2| \nL2| ## User Flow\nL2| \nL2| Before: an agent app sends a tools request through the proxy and the tool call lands in a second choice the app ignores\nL2| \nL2| 1. The app sends POST https://litellm-domain/v1/chat/completions with `model: azure/gpt-5.4-mini`, one function tool, and no `reasoning_effort`\nL2| 2. The response has 2 choices: `choices[0]` holds the text \"Let me check the weather.\" with `finish_reason: \"stop\"`\nL2| 3. `choices[1]` holds the `get_weather` call with `finish_reason: \"tool_calls\"`\nL2| 4. The app reads only `choices[0]`, sees a finished answer, and never runs the tool\nL2| \nL2| After: the same request returns the text and the tool call together, so the app runs the tool\nL2| \nL2| 1. The app sends the same POST https://litellm-domain/v1/chat/completions\nL2| 2. The response has 1 choice with the text and the `get_weather` call, `finish_reason: \"tool_calls\"`\nL2| 3. The app reads `choices[0]`, runs `get_weather`, and continues the conversation; gpt-5.6+ requests (still sent to Responses) come back the same way\nL2| \nL2| ## Affected release\nL2| \nL2| Regression in v1.97.0, still present in v1.103.2 and on main\nL2| \nL2| ## Linear ticket\nL2| \nL2| Resolves LIT-9182\nL2| \nL2| ## Pre-Submission checklist\nL2| \nL2| **Please complete all items before asking a LiteLLM maintainer to review your PR**\nL2| \nL2| - [x] I have added meaningful tests\nL2| - [x] The handful of test files covering my change pass locally, e.g. `uv run pytest tests/unit/<your_test_file>.py -v`. Leave the suites (`make test-unit-*`, `make test-unit`) to CI: it finishes in ~15 minutes where a laptop takes an hour or more\nL2| - [ ] My PR passes all required CI/CD checks (e.g., lint, schema.d.ts sync check, etc.)\nL2| - [x] My PR's scope is as isolated as possible; it only solves 1 specific problem\nL2| - [ ] I have received a Greptile **Confidence Score of at least 4/5** before requesting a maintainer review (Greptile reviews automatically once the PR is opened; only comment `@greptileai` to re-request a review after pushing changes)\nL2| \nL2| ## Delays in PR merge?\nL2| \nL2| If you're seeing a delay in your PR being merged, ping the LiteLLM Team on [Slack (#pr-review)](https://join.slack.com/t/litellmossslack/shared_invite/zt-3o7nkuyfr-p_kbNJj8taRfXGgQI1~YyA).\nL2| \nL2| ## Screenshots / Proof of Fix\nL2| \nL2| Real OpenAI and Azure calls through a local proxy, with the merge base on port 16764 and the PR head on port 16765. Both configs list `openai/gpt-5.4-mini`, `openai/gpt-5.5`, `openai/gpt-5.6` and `azure/gpt-5.4-nano` (api_version `2025-04-01-preview`). Azure has no gpt-5.4-mini deployment in our test accounts, so gpt-5.4-nano stands in for it. Every case sends the same body, with only the model changing:\nL2| \nL2| ```bash\nL2| curl -s http://localhost:$PORT/v1/chat/completions -H \"Authorization: Bearer $LITELLM_MASTER_KEY\" -H \"Content-Type: application/json\" -d '{\nL2|   \"model\": \"'$MODEL'\",\nL2|   \"messages\": [{\"role\": \"user\", \"content\": \"What is the weather in Paris? Say one sentence then call the tool.\"}],\nL2|   \"tools\": [{\"type\": \"function\", \"function\": {\"name\": \"get_weather\", \"description\": \"Get the weather for a city.\",\nL2|     \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}, \"required\": [\"city\"]}}}]\nL2| }' | jq -c '[.choices[] | {index, finish_reason, content: .message.content, tools: [.message.tool_calls[]?.function.name]}]'\nL2| ```\nL2| \nL2| The upstream route column comes from a forwarding recorder sitting between the proxy and the provider\nL2| \nL2| ### Before (a292fd409f)\nL2| \nL2| #### openai/gpt-5.4-mini\nL2| \nL2| 1. `PORT=16764 MODEL=openai/gpt-5.4-mini`. Upstream route: `POST /v1/responses`\nL2| 2. `[{\"index\":0,\"finish_reason\":\"stop\",\"content\":\"The weather in Paris is:\",\"tools\":[]},{\"index\":1,\"finish_reason\":\"tool_calls\",\"content\":null,\"tools\":[\"get_weather\"]}]`\nL2| \nL2| #### openai/gpt-5.5\nL2| \nL2| 1. `PORT=16764 MODEL=openai/gpt-5.5`. Upstream route: `POST /v1/responses`\nL2| 2. `[{\"index\":0,\"finish_reason\":\"stop\",\"content\":\"I’ll check the current weather in Paris now.\",\"tools\":[]},{\"index\":1,\"finish_reason\":\"tool_calls\",\"content\":null,\"tools\":[\"get_weather\"]}]`\nL2| \nL2| #### azure/gpt-5.4-nano\nL2| \nL2| 1. `PORT=16764 MODEL=azure/gpt-5.4-nano`. Upstream route: `POST /openai/responses?api-version=2025-04-01-preview`\nL2| 2. `[{\"index\":0,\"finish_reason\":\"stop\",\"content\":\"I’ll check the current weather in Paris now.\",\"tools\":[]},{\"index\":1,\"finish_reason\":\"tool_calls\",\"content\":null,\"tools\":[\"get_weather\"]}]`\nL2| \nL2| #### openai/gpt-5.6 (still bridged)\nL2| \nL2| 1. `PORT=16764 MODEL=openai/gpt-5.6`. Upstream route: `POST /v1/responses`\nL2| 2. `[{\"index\":0,\"finish_reason\":\"stop\",\"content\":\"I’ll check the current weather in Paris.\",\"tools\":[]},{\"index\":1,\"finish_reason\":\"tool_calls\",\"content\":null,\"tools\":[\"get_weather\"]}]`\nL2| \nL2| ### After (444ac3bfe3)\nL2| \nL2| #### openai/gpt-5.4-mini\nL2| \nL2| 1. `PORT=16765 MODEL=openai/gpt-5.4-mini`. Upstream route: `POST /v1/chat/completions`\nL2| 2. `[{\"index\":0,\"finish_reason\":\"tool_calls\",\"content\":\"Paris weather right now:\",\"tools\":[\"get_weather\"]}]`\nL2| \nL2| #### openai/gpt-5.5\nL2| \nL2| 1. `PORT=16765 MODEL=openai/gpt-5.5`. Upstream route: `POST /v1/chat/completions`\nL2| 2. `[{\"index\":0,\"finish_reason\":\"tool_calls\",\"content\":\"I’ll check the current weather in Paris now.\",\"tools\":[\"get_weather\"]}]`\nL2| \nL2| #### azure/gpt-5.4-nano\nL2| \nL2| 1. `PORT=16765 MODEL=azure/gpt-5.4-nano`. Upstream route: `POST /openai/deployments/gpt-5.4-nano/chat/completions?api-version=2025-04-01-preview`\nL2| 2. `[{\"index\":0,\"finish_reason\":\"tool_calls\",\"content\":\"It’s currently unknown to me—I'll check now.\",\"tools\":[\"get_weather\"]}]`\nL2| \nL2| #### openai/gpt-5.6 (still bridged)\nL2| \nL2| 1. `PORT=16765 MODEL=openai/gpt-5.6`. Upstream route: `POST /v1/responses`\nL2| 2. `[{\"index\":0,\"finish_reason\":\"tool_calls\",\"content\":\"I’ll check the current weather in Paris.\",\"tools\":[\"get_weather\"]}]`\nL2| \nL2| The tip 408ab26583 differs from 444ac3bfe3 only by renaming one local variable. Streaming gpt-5.6, `/v1/messages` with an OpenAI gpt-5.4-mini backend, and `reasoning_effort: \"low\"` on gpt-5.4-mini were A/B'd the same way. The stream and `/v1/messages` output were unchanged, and explicit `low` still goes to `/responses` and now returns one merged choice\nL2| \nL2| ### Admin UI\nL2| \nL2| The Playground can't attach an arbitrary function tool, so the UI check uses the Logs page for the same curl requests against openai/gpt-5.4-mini\nL2| \nL2| 1. Open http://localhost:16764/ui/ (base) and http://127.0.0.1:16765/ui/ (head), and turn on Admin Settings > Logging Settings > Store Prompts in Spend Logs\nL2| 2. Send the curl above with `MODEL=openai/gpt-5.4-mini` to each proxy\nL2| 3. Open /ui/logs/, click the gpt-5.4-mini row, and expand Tools: base shows the tool as not called, head shows `get_weather` called\nL2| \nL2| | Before | After |\nL2| |---|---|\nL2| | ![Base gpt-5.4-mini Tools](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvNTQxOTdmMWUtYTMwZS00NWJhLThmY2QtZmU3MTZhZmQ3YTI4IiwiaWF0IjoxNzkwOTg4NTIwLCJleHAiOjE3OTE1OTMzMjAsIm9yZ19pZCI6Im9yZy01OGRkYmIxNGNjNjk0NGI2ODRmODFlOTQxOWFmZThiZSIsImZpbGVuYW1lIjoiYmFzZS1ncHQtNS40LW1pbmktdG9vbHMucG5nIn0.l39PaYzy_hPQQfVJW0Sl70S4Z9RpGa1h5WpytS0E5oo) | ![Head gpt-5.4-mini Tools](https://app.devin.ai/api/presigned_proxy?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjpudWxsLCJidWNrZXRfbmFtZSI6ImRldmluYXR0YWNobWVudHMiLCJidWNrZXRfa2V5IjoiYXR0YWNobWVudHNfcHJpdmF0ZS9vcmctNThkZGJiMTRjYzY5NDRiNjg0ZjgxZTk0MTlhZmU4YmUvYTFjOWUwZmUtNzViNS00OGVmLTkxMWYtNGZmNTM1YjU0Mzg3IiwiaWF0IjoxNzkwOTg4NTIwLCJleHAiOjE3OTE1OTMzMjAsIm9yZ19pZCI6Im9yZy01OGRkYmIxNGNjNjk0NGI2ODRmODFlOTQxOWFmZThiZSIsImZpbGVuYW1lIjoiaGVhZC1ncHQtNS40LW1pbmktdG9vbHMucG5nIn0.CE0WLEFX9rqvEoTxau79ACySqr0kwwsAQ5EvfAux67A) |\nL2| \nL2| For calls that still go through Responses (gpt-5.6), Logs stores the provider's native `output[]` rather than the choices the client got, so its Tools summary says not called on both base and head. That view predates this PR\nL2| \nL2| Integration tests use GPT-6 names (`gpt-6-astra`, `gpt-6-luna`, `gpt-6-sol`, `gpt-6.1-sol`) against a scripted upstream; gpt-5.4, 5.5 and 5.6 routing is covered by the `responses_api_bridge_check` unit tests in `tests/unit/test_main.py`. On the merge base and with the converter merge block removed, 8 of 22 integration tests in `tests/integration/providers/test_openai_chat_wire.py` and `tests/integration/providers/test_responses_bridge_incomplete.py` go red: the four Azure GPT-6 unset-effort bridge cases, the OpenAI custom-base `low` effort bridge case, and the three merged-choice cases. All 22 pass at the head\nL2| \nL2| ## Type\nL2| \nL2| 🐛 Bug Fix\nL2| \nL2| ## Caveats (if any)\nL2| \nL2| ### Medium\nL2| \nL2| - gpt-5.4/5.5 tools requests now bill as Chat Completions, not Responses\nL2|   - In one-request samples, chat reported more prompt tokens (145 vs 63) for the same request\nL2| \nL2| ### Low\nL2| \nL2| - A Responses reply with several message items still yields several text choices\nL2|   - Tool calls attach to the last one; this path predates the PR\nL2| - Azure gpt-5.4-mini itself wasn't called live; gpt-5.4-nano stood in for it\nL2| \nL2| Link to Devin session: https://app.devin.ai/sessions/2a6f2ed8194643a4b482ff127c8c6b30\nL2| Open in Devin Desktop: https://app.devin.ai/desktop/session/2a6f2ed8194643a4b482ff127c8c6b30?variant=devin\nL2| Requested by: @kerry-berri\nL2| \nL2| <!-- CURSOR_SUMMARY -->\nL2| ---\nL2| \nL2| > [!NOTE]\nL2| > **Medium Risk**\nL2| > Changes default upstream routing and chat response shape for GPT-5 tool calls on OpenAI/Azure; behavior is intentional but affects agent clients and billing (chat vs Responses).\nL2| > \nL2| > **Overview**\nL2| > **Restores gpt-5.4/5.5 function-tool routing to Chat Completions** when `reasoning_effort` is omitted (or `\"none\"`), instead of auto-bridging to the Responses API. On OpenAI/Azure hosts that enforce the reasoning+tools rule, **unset effort now triggers bridging only from gpt-5.6+**; explicit non-`none` effort still routes to Responses from gpt-5.4+.\nL2| > \nL2| > **Merges bridged Responses output into a single chat choice** when a reply has assistant text (and optional reasoning) plus function calls: tool calls attach to the last text choice with `finish_reason: \"tool_calls\"`, so clients that only read `choices[0]` see the tools. Custom OpenAI `api_base` backends keep chat routing without unset-effort bridging.\nL2| > \nL2| > Tests cover routing matrices (Azure/OpenAI, gpt-5.4–6), stream merging, and the responses→chat converter (including reasoning fields).\nL2| > \nL2| > <sup>Reviewed by [Cursor Bugbot](https://cursor.com/bugbot) for commit ecb927a68d6aca08cadba3f8cb9fd9b564b9db36. Bugbot is set up for automated code reviews on this repo. Configure [here](https://www.cursor.com/dashboard/bugbot).</sup>\nL2| <!-- /CURSOR_SUMMARY -->\nL3 [tool] TOOL: apply_patch {\"path\":\"litellm/completion_extras/litellm_responses_transformation/transformation.py\"}\nL3| CODE_WRITTEN: {\"path\":\"litellm/completion_extras/litellm_responses_transformation/transformation.py\"}\nL3| --- a/litellm/completion_extras/litellm_responses_transformation/transformation.py\nL3| +++ b/litellm/completion_extras/litellm_responses_transformation/transformation.py\nL3| @@ -187,7 +187,7 @@ def _reasoning_items_from_output_items(output_items: Sequence[object]) -> tuple[\nL3|  \nL3|  \nL3|  def _as_chat_reasoning_items(\nL3| -    reasoning_items: Sequence[_BuiltReasoningItem],\nL3| +    reasoning_items: Sequence[_BuiltReasoningItem | ChatCompletionReasoningItem],\nL3|  ) -> list[ChatCompletionReasoningItem] | None:\nL3|      if not reasoning_items:\nL3|          return None\nL3| @@ -784,7 +784,32 @@ def _convert_response_output_to_choices(\nL3|              else:\nL3|                  pass  # don't fail request if item in list is not supported\nL3|  \nL3| -        # If we accumulated tool calls, create a single choice with all of them\nL3| +        if accumulated_tool_calls and choices:\nL3| +            last_choice: Final = choices[-1]\nL3| +            last_reasoning_content: Final = getattr(last_choice.message, \"reasoning_content\", None)\nL3| +            last_reasoning_items: Final = getattr(last_choice.message, \"reasoning_items\", None)\nL3| +            merged_reasoning_content: Final = (\nL3| +                \" \".join(value for value in (last_reasoning_content, reasoning_content) if value) or None\nL3| +            )\nL3| +            merged_reasoning_items: Final = _as_chat_reasoning_items(\nL3| +                (\nL3| +                    *(last_reasoning_items or ()),\nL3| +                    *(() if p\nL4 [tool] TOOL: apply_patch {\"path\":\"litellm/main.py\"}\nL4| CODE_WRITTEN: {\"path\":\"litellm/main.py\"}\nL4| --- a/litellm/main.py\nL4| +++ b/litellm/main.py\nL4| @@ -1120,14 +1120,11 @@ def responses_api_bridge_check(\nL4|      # ``reasoningSummary`` in ``extra_body``) must be bridged; Chat Completions rejects\nL4|      # those keys.\nL4|      #\nL4| -    # - gpt-5.4+: FUNCTION tools with reasoning active must be bridged. OpenAI enables\nL4| -    #   reasoning by default for these models (unset reasoning_effort means medium\nL4| -    #   server-side), and Chat Completions rejects function tools whenever reasoning is\nL4| -    #   on (\"Function tools with reasoning_effort are not supported ... use\nL4| -    #   /v1/responses or set reasoning_effort to 'none'\"), so only an explicit\nL4| -    #   ``\"none\"`` keeps the request chat-servable. Custom (grammar) tools are served\nL4| -    #   natively by Chat Completions with reasoning on, so custom-only requests stay on\nL4| -    #   chat and keep their native custom tool_call response shape.\nL4| +    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\nL4| +    #   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;\nL4| +    #   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).\nL4| +    # - Custom (grammar) tools are served natively by Chat Completions with reasoning on,\nL4| +    #   so custom-only requests stay on chat and keep their native custom tool_call response shape.\nL4|      # - The UNSET-effort arm only fires against endpoints known to enforce that\nL4|      #   constraint (any api.openai.com host, or Azure OpenA\nL5 [tool] TOOL: apply_patch {\"path\":\"tests/integration/providers/test_openai_chat_wire.py\"}\nL5| CODE_WRITTEN: {\"path\":\"tests/integration/providers/test_openai_chat_wire.py\"}\nL5| --- a/tests/integration/providers/test_openai_chat_wire.py\nL5| +++ b/tests/integration/providers/test_openai_chat_wire.py\nL5| @@ -1,5 +1,6 @@\nL5|  import json\nL5|  import uuid\nL5| +from itertools import chain\nL5|  from typing import Final\nL5|  \nL5|  import pytest\nL5| @@ -8,6 +9,7 @@\nL5|  from pydantic import JsonValue, TypeAdapter\nL5|  \nL5|  _BACKEND: Final = \"gpt-5.4-mini\"\nL5| +_GPT_6_MODELS: Final = (\"gpt-6-astra\", \"gpt-6-luna\", \"gpt-6-sol\", \"gpt-6.1-sol\")\nL5|  _API_KEY: Final = \"synthetic-openai-key\"\nL5|  _PROMPT: Final = \"Summarize this conversation in one sentence.\"\nL5|  _JSON_OBJECT: Final = TypeAdapter(dict[str, JsonValue])\nL5| @@ -26,6 +28,38 @@ def _completion(identity: str, content: str) -> bytes:\nL5|      ).encode()\nL5|  \nL5|  \nL5| +def _tool_completion(model_name: str) -> bytes:\nL5| +    return json.dumps(\nL5| +        {\nL5| +            \"id\": \"chatcmpl-weather\",\nL5| +            \"object\": \"chat.completion\",\nL5| +            \"created\": 1,\nL5| +            \"model\": model_name,\nL5| +            \"choices\": [\nL5| +                {\nL5| +                    \"index\": 0,\nL5| +                    \"message\": {\nL5| +                        \"role\": \"assistant\",\nL5| +                        \"content\": \"Let me check the weather.\",\nL5| +                        \"tool_calls\": [\nL5| +                            {\nL5| +                                \"id\": \"call_1\",\nL5| +                                \"type\": \"function\",\nL5| +                                \"function\": {\nL5| +                                    \"name\": \"get_weather\",\nL5| +                                    \nL6 [tool] TOOL: apply_patch {\"path\":\"tests/integration/providers/test_responses_bridge_incomplete.py\"}\nL6| CODE_WRITTEN: {\"path\":\"tests/integration/providers/test_responses_bridge_incomplete.py\"}\nL6| --- a/tests/integration/providers/test_responses_bridge_incomplete.py\nL6| +++ b/tests/integration/providers/test_responses_bridge_incomplete.py\nL6| @@ -194,3 +194,381 @@ def respond(request: Request) -> Reply:\nL6|          assert len(tuple(request for request in wire.drain() if request.method == \"POST\")) == 1\nL6|          assert body[\"content\"] == [{\"type\": \"text\", \"text\": \"ok\"}], response.text\nL6|          assert body[\"usage\"][\"input_tokens\"] == 9 and body[\"usage\"][\"output_tokens\"] == 1, response.text\nL6| +\nL6| +\nL6| +def test_chat_over_responses_deployment_merges_message_and_function_call(gateway: Gateway) -> None:\nL6| +    identity: Final = \"responses-bridge-\" + uuid.uuid4().hex\nL6| +\nL6| +    def respond(request: Request) -> Reply:\nL6| +        if request.method == \"GET\" and request.target == \"/v1/models\":\nL6| +            return Reply(body=b'{\"object\":\"list\",\"data\":[]}')\nL6| +        assert request.method == \"POST\" and request.target == \"/responses\", request.target\nL6| +        return Reply(\nL6| +            body=json.dumps(\nL6| +                {\nL6| +                    \"id\": \"resp_weather\",\nL6| +                    \"object\": \"response\",\nL6| +                    \"created_at\": 1789788253,\nL6| +                    \"status\": \"completed\",\nL6| +                    \"model\": \"gpt-6-sol\",\nL6| +                    \"output\": [\nL6| +                        {\nL6| +                            \"type\": \"message\",\nL6| +                            \"id\": \"msg_weather\",\nL6| +                            \"status\": \"comple\nL7 [tool] TOOL: apply_patch {\"path\":\"tests/unit/completion_extras/litellm_responses_transformation/test_completion_extras_litellm_responses_transformation_transformation.py\"}\nL7| CODE_WRITTEN: {\"path\":\"tests/unit/completion_extras/litellm_responses_transformation/test_completion_extras_litellm_responses_transformation_transformation.py\"}\nL7| --- a/tests/unit/completion_extras/litellm_responses_transformation/test_completion_extras_litellm_responses_transformation_transformation.py\nL7| +++ b/tests/unit/completion_extras/litellm_responses_transformation/test_completion_extras_litellm_responses_transformation_transformation.py\nL7| @@ -7,6 +7,15 @@\nL7|  \nL7|  import httpx\nL7|  import pytest\nL7| +from openai.types.responses import (\nL7| +    ResponseFunctionToolCall,\nL7| +    ResponseOutputMessage,\nL7| +    ResponseOutputText,\nL7| +)\nL7| +from openai.types.responses.response_reasoning_item import (\nL7| +    ResponseReasoningItem,\nL7| +    Summary,\nL7| +)\nL7|  \nL7|  import litellm\nL7|  from litellm.completion_extras.litellm_responses_transformation.transformation import (\nL7| @@ -3307,6 +3316,148 @@ def test_convert_response_output_generic_pydantic_message_item():\nL7|      assert choices[0].finish_reason == \"stop\"\nL7|  \nL7|  \nL7| +def test_convert_response_output_merges_message_reasoning_and_function_call() -> None:\nL7| +    message: Final = ResponseOutputMessage(\nL7| +        id=\"msg_weather\",\nL7| +        content=[\nL7| +            ResponseOutputText(\nL7| +                annotations=[\nL7| +                    {\nL7| +                        \"type\": \"url_citation\",\nL7| +                        \"start_index\": 0,\nL7| +                        \"end_index\": 5,\nL7| +                        \"title\": \"Forecast\",\nL7| +                        \"url\": \"https://example.com/forecast\",\nL7| +                    }\nL7| +        "
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that gpt-5.4 and gpt-5.5 default reasoning_effort to \"none\", but the production deployment explicitly sets reasoning_effort to \"low\" in extra_body, which triggers the explicit-effort bridge path.",
+  "why_it_breaks": "The comment states that gpt-5.4/5.5 default to \"none\" and only unset effort bridges from gpt-5.6+, but the production deployment passes reasoning_effort: \"low\" explicitly in extra_body. This explicit non-none effort matches the \"active explicit reasoning_effort\" condition in line 1127, causing gpt-5.5 requests to bridge to /v1/responses where Chat Completions rejects function tools with reasoning_effort, producing the HTTP 400 error.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 4,
+    "quote": "gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "litellm/main.py",
+    "line": 1128,
+    "quote": "#   gpt-5.4. gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 4,
+    "quote": "# - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "litellm/main.py",
+    "line": 1127,
+    "quote": "# - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 2
+ }
+}

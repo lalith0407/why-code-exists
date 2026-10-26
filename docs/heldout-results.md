@@ -1,3 +1,5 @@
+> Historical development notes; linked run outputs are not included in the public repo.
+
 # Held-out results (frozen code, tag generalize-frozen, one run each, no code changes)
 
 Criteria: docs/heldout-success-criteria.md (written before running). LLM ledger: 83 → 100 calls (+17 incl. one run killed mid-way and re-run).
