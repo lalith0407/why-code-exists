@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that a near-zero derivative (slope) indicates convergence, but for a very short time period the derivative can be legitimately small even when NPV is far from zero, causing premature exit before finding the root.",
+ "why_it_breaks": "For a 10-day period, times are ~0.027 years, making the derivative dnpv extremely small (proportional to time) even at the correct rate. The slope check at line 57 exits early with rate=0.1, which gives npv\u22480.027 (far above the 1e-3 threshold at line 65), so the function returns None and IRR displays as n/a.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 219,
+   "quote": "+    def npv(rate: float) -> float:\n+        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts,",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 42,
+   "quote": "    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 57,
+   "quote": "        if abs(slope) < 1e-12:",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 65,
+   "quote": "    if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 3,
+ "verified_transcript_quotes": 1
+}

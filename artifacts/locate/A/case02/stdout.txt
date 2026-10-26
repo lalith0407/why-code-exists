@@ -1,0 +1,6 @@
+stage: ok
+provider: nemotron
+frame: lib/actions/feedback.ts:106
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that the `findUnique` check for an existing vote would always return a deterministic result, not accounting for a race condition where two concurrent requests could both pass the `findUnique` check before either writes, causing both to attempt `create` and trigger the unique constraint violation.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case02/report.html

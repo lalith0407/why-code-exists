@@ -1,0 +1,495 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case09",
+  "complete": false,
+  "notes": [],
+  "frame": {
+   "file": "blast_radius/models.py",
+   "line": 91
+  },
+  "asked": {
+   "text": "Restarting you on a cheaper model to save cost. Same task as before: if the import to main isn't done yet, finish it, then do the hardening pass on a new branch and open a PR. Be efficient: keep exploration focused and avoid re-running the full eval more than needed.",
+   "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L33 (user message, latest of 2 before the edit)",
+   "valid": true,
+   "full_length": 267
+  },
+  "understood": {
+   "text": "Now let me write the hardened `models.py` with sqlglot-based parsing.",
+   "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L76 (assistant, 10 words, 2 line(s) before the edit at L78)",
+   "valid": false,
+   "full_length": 69,
+   "why_invalid": "agent wrote fewer than 15 words before the edit (silent edit)"
+  },
+  "happened": {
+   "text": "Audit finding: an agent requested dropping a column on the archived copy of the orders table (schema `archive`, table `orders`), specified as `archive.orders`. The change-control review that followed, and the database activity log for it, show every step run against the live, production `orders` table instead — the one application traffic actually reads and writes. The `archive.orders` table was never touched.\n\nNo one asked for the production table to be modified in this request.\n\n  at ? (blast_radius/models.py:91)\n  91: This is what makes the guard fail closed against grammar quirks: a clause we don't\n\nWritten by transcript edit L78 (search_replace):\n+    return ident.this if ident else None\n+\n+\n+def _only_args(node: exp.Expression, allowed: set[str]) -> bool:\n+    \"\"\"True iff every arg of `node` outside `allowed` is falsy (None/False/empty).\n+\n+    This is what makes the guard fail closed against grammar quirks: a clause we don't\n+    explicitly recognize (e.g. a trailing USING/FORMAT/CASCADE modifier smuggled onto a DROP\n+    COLUMN) shows up as a non-empty arg outside the allowed set and the whole statement is\n+    rejected to \"other\" rather than silently executed.\n+    \"\"\"\n+    return all((v is None or v is False or v == [] or v == ()) for k, v in node.args.items() if k not in allowed)\n+",
+   "citation": "error case09 frame blast_radius/models.py:91; bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L78",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Audit finding: an agent requested dropping a column on the archived copy of the orders table (schema `archive`, table `orders`), specified as `archive.orders`. The change-control review that followed, and the database activity log for it, show every step run against the live, production `orders` table instead — the one application traffic actually reads and writes. The `archive.orders` table was never touched.\n\nNo one asked for the production table to be modified in this request.\n",
+  "terms": [
+   "archive",
+   "orders",
+   "archive.orders",
+   "audit finding",
+   "the change",
+   "no one asked for",
+   "audit",
+   "finding",
+   "agent",
+   "requested",
+   "dropping",
+   "column",
+   "archived",
+   "copy",
+   "table",
+   "schema",
+   "specified",
+   "change",
+   "control",
+   "review",
+   "followed",
+   "database",
+   "activity",
+   "show",
+   "step",
+   "against",
+   "live",
+   "production",
+   "instead",
+   "application",
+   "traffic",
+   "actually",
+   "reads",
+   "writes",
+   "never",
+   "touched",
+   "asked",
+   "modified",
+   "request"
+  ],
+  "layer1": {
+   "symbols_indexed": 1822,
+   "edited_hunks_indexed": 33,
+   "candidates": [
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 176,
+     "end_line": 178,
+     "text": "    r = guard.agent_call(\"alter table orders drop column fax_number\")",
+     "score": 13.1243,
+     "matched_terms": [
+      "orders",
+      "agent",
+      "column",
+      "copy",
+      "table",
+      "step",
+      "never"
+     ],
+     "edit_line": 215,
+     "tool": "search_replace",
+     "hunk_id": "L215#22",
+     "snippet": "1: \"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\n2: closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\n3: import pytest\n4: from world.db import DB\n5: from blast_radius.models import parse_action\n6: \n7: \n8: # ---- (a) parser classification: bypass vectors must never be misread as \"read\" or auto-allowed\n9: \n10: @pytest.mark.parametrize(\"sql,kind\", [",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 127,
+     "end_line": 174,
+     "text": "        \"schema_qualified\": f\"ALTER TABLE main.{table} DROP COLUMN {col}\",",
+     "function": "_bypass_sql",
+     "score": 11.2398,
+     "matched_terms": [
+      "one",
+      "column",
+      "copy",
+      "table",
+      "schema",
+      "show",
+      "against"
+     ],
+     "edit_line": 180,
+     "tool": "search_replace",
+     "hunk_id": "L180#14",
+     "snippet": "86: def table_exists(w, table) -> bool:\n87:     with DB(w) as db:\n88:         return bool(db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name=?\", (table,)).fetchone())\n89: \n90: def col_type(w, table, col) -> str | None:\n91:     with DB(w) as db:\n92:         for row in db.execute(f\"PRAGMA table_info({table})\").fetchall():\n93:             if row[1] == col: return row[2]\n94:     return None\n95: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 159,
+     "end_line": 164,
+     "text": "            # this world, so only column-level kinds are exercised as the \"zero evidence\" control here.",
+     "function": "run_one",
+     "score": 10.7908,
+     "matched_terms": [
+      "column",
+      "table",
+      "control",
+      "traffic"
+     ],
+     "edit_line": 194,
+     "tool": "search_replace",
+     "hunk_id": "L194#20",
+     "snippet": "155:         if cls == \"safe_ddl\":\n156:             # whole-table kinds (drop_table/truncate/delete_unbounded/update_unbounded) always have\n157:             # *some* dependent in the shared seed template (the demo's own finance/nightly jobs, plus\n158:             # seeded app traffic) -- there's no such thing as a truly dependent-free table action in\n159:             # this world, so only column-level kinds are exercised as the \"zero evidence\" control here.\n160:             kind = rnd.choice([\"drop_column\", \"rename_column\", \"alter_type\"])\n161:         elif cls in (\"dangerous_ddl\", \"unsigned\", \"tampered\", \"out_of_order\"):\n162:             kind = rnd.choice(list(KIND_SQL))\n163:         else:\n164:             kind = \"drop_column\"",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "blast_radius/models.py",
+     "line": 56,
+     "end_line": 189,
+     "text": "    raw_sql: str | None = None    # the exact text the agent sent, kept for audit/display only",
+     "function": "Action",
+     "score": 10.1369,
+     "matched_terms": [
+      "audit",
+      "one",
+      "agent",
+      "column",
+      "copy",
+      "table",
+      "schema",
+      "against",
+      "instead",
+      "actually",
+      "never"
+     ],
+     "edit_line": 78,
+     "tool": "search_replace",
+     "hunk_id": "L78#0",
+     "snippet": "1: \"\"\"Core data types shared by every module.\n2: \n3: Action parsing uses a real SQL parser (sqlglot) instead of regex so that comments, quoting,\n4: schema qualification, stacked/transactional statements and side-effecting function calls are\n5: understood structurally rather than pattern-matched. The parser fails closed: anything it can't\n6: parse as exactly one statement, or any statement whose shape it doesn't explicitly recognize as\n7: safe, is classified \"other\" and is rejected by the guard unless a signed contract covers it.\n8: \"\"\"\n13: import sqlglot\n14: from sqlglot import exp",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 184,
+     "end_line": 184,
+     "text": "    d = guard.propose(\"ALTER TABLE orders DROP COLUMN legacy_discount\")",
+     "score": 10.0234,
+     "matched_terms": [
+      "orders",
+      "column",
+      "table"
+     ],
+     "edit_line": 249,
+     "tool": "search_replace",
+     "hunk_id": "L249#30",
+     "snippet": "184:     d = guard.propose(\"ALTER TABLE orders DROP COLUMN legacy_discount\")",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 172,
+     "end_line": 172,
+     "text": "    assert d.plan and d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN legacy_discount\"",
+     "score": 10.0198,
+     "matched_terms": [
+      "orders",
+      "column",
+      "table"
+     ],
+     "edit_line": 227,
+     "tool": "search_replace",
+     "hunk_id": "L227#26",
+     "snippet": "171:     d = guard.propose(\"  alter   table\\\n172:     assert d.plan and d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN legacy_discount\"",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 184,
+     "end_line": 199,
+     "text": "    d = guard.propose(\"ALTER TABLE orders DROP COLUMN fax_number\")",
+     "score": 9.9132,
+     "matched_terms": [
+      "orders",
+      "column",
+      "table",
+      "never"
+     ],
+     "edit_line": 244,
+     "tool": "search_replace",
+     "hunk_id": "L244#29",
+     "snippet": "179: \n180: \n181: # ---- (e) error handling: a DB-layer failure must come back structured, never crash the caller\n182: \n183: def test_execution_db_error_is_structured_not_raised(guard, monkeypatch):\n184:     d = guard.propose(\"ALTER TABLE orders DROP COLUMN fax_number\")\n185:     cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\n186: \n187:     def boom(self, sql, read=False):\n188:         raise RuntimeError(\"simulated db failure\")",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 109,
+     "end_line": 124,
+     "text": "    # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,",
+     "score": 8.8681,
+     "matched_terms": [
+      "orders",
+      "column",
+      "table"
+     ],
+     "edit_line": 223,
+     "tool": "search_replace",
+     "hunk_id": "L223#24",
+     "snippet": "109:     # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n110:     # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n111:     # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n112:     truncate_customers = \"TRUNCATE TABLE customers\"\n113:     d = guard.propose(truncate_customers)\n115:     direct = guard.execute(truncate_customers)\n118:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 50\n124:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 0",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "blast_radius/reasoner/base.py",
+     "line": 46,
+     "end_line": 54,
+     "text": "        return [deprecate, PlanStep(2, f\"Change the type of {action.target} after the window, only if every \"",
+     "function": "safe_plan",
+     "score": 8.4133,
+     "matched_terms": [
+      "change",
+      "column",
+      "table",
+      "step"
+     ],
+     "edit_line": 98,
+     "tool": "search_replace",
+     "hunk_id": "L98#4",
+     "snippet": "14: def _deprecation_step(action: Action) -> PlanStep:\n15:     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n16:     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n17:                      f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n18:                      f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\n19: \n21:     \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n22: \n23:     Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n24:     there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "blast_radius/guard.py",
+     "line": 125,
+     "end_line": 139,
+     "text": "            self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text",
+     "function": "execute",
+     "score": 6.2746,
+     "matched_terms": [
+      "step",
+      "never"
+     ],
+     "edit_line": 236,
+     "tool": "search_replace",
+     "hunk_id": "L236#27",
+     "snippet": "124:         try:\n125:             self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n126:         except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller\n127:             self._log(\"execution_error\", contract=cid, step=step[\"n\"], error=str(e)[:200])\n128:             return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\", \"step\": step[\"n\"]}\n133:     def _run(self, sql: str, read: bool = False) -> list[tuple] | None:\n139:             return None",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "blast_radius/models.py",
+   "line": 85,
+   "end_line": 85,
+   "text": "    This is what makes the guard fail closed against grammar quirks: a clause we don't",
+   "score": 0,
+   "matched_terms": [],
+   "edit_line": 78,
+   "tool": "search_replace",
+   "hunk_id": "L78#0",
+   "snippet": "85:     This is what makes the guard fail closed against grammar quirks: a clause we don't",
+   "method": "agentic_model"
+  },
+  "method": "layer2_agentic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "steps": [
+    {
+     "step": 1,
+     "action": "list_edits",
+     "args": {},
+     "result": "blast_radius/models.py:1-189 (edit at L78, search_replace)\n  1: \"\"\"Core data types shared by every module.\n  2: \n  3: Action parsing uses a real SQL parser (sqlglot) instead of regex so that comments, quoting,\n  4: schema qualification, stacked/transactional statements and side-effecting function calls are\n\nblast_radius/models.py:126-126 (edit at L87, search_replace)\n  126:     if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}):\n\nblast_radius/models.py:136-136 (edit at L87, search_replace)\n  136:         if _only_args(act, {\"exists\", \"tables\", \"expressions\", \"kind\"}) and len(cols) == 1:\n\nblast_radius/models.py:164-164 (edit at L93, search_replace)\n  164:         if _only_args(stmt, {\"exists\", \"tables\", \"kind\"}) and len(tables) == 1:\n\nblast_radius/reasoner/base.py:14-54 (edit at L98, search_replace)\n  14: def _deprecation_step(action: Action) -> PlanStep:\n  15:     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n  16:     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n  17:                      f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n\nblast_radius/contracts/scout.py:10-10 (edit at L101, search_replace)\n  10: from blast_radius.models import GUARDED_KINDS, PlanStep\n\nblast_radius/contracts/scout.py:59-59 (edit at L103, search_replace)\n  59:         high = decision.action.kind in GUARDED_KINDS\n\nworld/db.py:69-109 (edit at L161, search_replace)\n  69: # SQLite has no TRUNCATE and no ALTER COLUMN ... TYPE (it's dynamically typed, so a full table\n  70: # rebuild is the only honest equivalent). These only ever see SQL the guard has already\n  71: # validated and canonicalized (see blast_radius/models.py); they are an execution-compatibility\n  72: # shim for the sqlite dev/test backend, not a safety boundary.\n\nworld/db.py:140-140 (edit at L164, search_replace)\n  140:             _sqlite_script(self.conn, sql)\n\nblast_radius/guard.py:60-61 (edit at L170, search_replace)\n  60:             # execute the canonicalized action, never the raw agent text (see models.parse_action)\n  61:             return self.execute(d.action.sql, c[\"body\"][\"contract_id\"])\n\nblast_radius/guard.py:95-95 (edit at L172, search_replace)\n  95:             return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}\n\nblast_radius/guard.py:124-124 (edit at L174, search_replace)\n  124:         self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n\nevals/run.py:10-14 (edit at L180, search_replace)\n  10: \n  14: import argparse, json, os, random, shutil, statistics, tempfile, time\n\nevals/run.py:22-40 (edit at L180, search_replace)\n  22:     \"safe_read\": .08, \"safe_ddl\": .10, \"dangerous_ddl\": .12, \"safe_plan_complete\": .08,\n  23:     \"unsigned\": .10, \"tampered\": .10, \"out_of_order\": .08, \"drift\": .12, \"evasion\": .08,\n  24:     \"injection\": .06, \"guard_bypass\": .08,\n  28: # Every guarded kind gets a SQL builder, keyed by (table, col) from add_target. Table-level kinds\n\nevals/run.py:86-174 (edit at L180, search_replace)\n  86: def table_exists(w, table) -> bool:\n  87:     with DB(w) as db:\n  88:         return bool(db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name=?\", (table,)).fetchone())\n  89: \n\nevals/run.py:184-187 (edit at L180, search_replace)\n  184:                 variant_sql = f\"ALTER TABLE {table} DROP COLUMN IF EXISTS {col}\" if kind == \"drop_column\" else drop + \" \"\n  185:                 res = g.execute(variant_sql, cid); res2 = res\n  186:             r.update(variant=v, expect=\"not_executed\", kind=kind,\n  187:                      got=\"executed\" if not intact(kind, w, table, col, rows0) else \"not_executed\")\n\nevals/run.py:200-211 (edit at L180, search_replace)\n  200:             r.update(variant=v, expect=\"not_executed\", kind=kind, reason=res.get(\"reason\"),\n  201:                      got=\"executed\" if not intact(kind, w, table, col, rows0) else \"not_executed\")\n  205:             r.update(expect=\"not_executed\", kind=kind, reason=res.get(\"reason\"),\n  206:                      got=\"executed\" if not intact(kind, w, table, col, rows0) else \"not_executed\")\n\nevals/run.py:234-243 (edit at L180, search_replace)\n  234:         elif cls == \"guard_bypass\":\n  235:             # the specific guard-bypass vectors a real SQL parser closes: multi-statement/transactions,\n  236:             # COPY/GRANT, side-effecting functions, trailing clauses and multi-action ALTERs, and\n  237:             # obfuscated string literals. None of these have signed contracts, so none may ever run.\n\nevals/run.py:300-300 (edit at L180, search_replace)\n  300:     md = [f\"# Blast Radius adversarial eval\\\n\nrequirements.txt:9-9 (edit at L183, search_replace)\n  9: sqlglot==30.24.0\n\nevals/run.py:155-164 (edit at L194, search_replace)\n  155:         if cls == \"safe_ddl\":\n  156:             # whole-table kinds (drop_table/truncate/delete_unbounded/update_unbounded) always have\n  157:             # *some* dependent in the shared seed template (the demo's own finance/nightly jobs, plus\n  158:             # seeded app traffic) -- there's no such thing as a truly dependent-free table action in\n\nblast_radius/models.py:10-21 (edit at L209, search_replace)\n  10: import logging\n  17: # sqlglot logs a warning every time it falls back to a generic Command node for syntax it doesn't\n  18: # model (DO blocks, CALL, VACUUM, ...). We treat Command as \"other\" (fail closed) regardless, so\n  19: # the warning is just noise here.\n\ntests/test_guarded_kinds.py:1-178 (edit at L215, search_replace)\n  1: \"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\n  2: closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\n  3: import pytest\n  4: from world.db import DB\n\ntests/test_guarded_kinds.py:69-69 (edit at L218, search_replace)\n  69:     assert len(d.plan) == 2 and d.plan[-1].sql == sql\n\ntests/test_guarded_kinds.py:109-124 (edit at L223, search_replace)\n  109:     # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n  110:     # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n  111:     # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n  112:     truncate_customers = \"TRUNCATE TABLE customers\"\n\ntests/test_guarded_kinds.py:157-164 (edit at L225, search_replace)\n  157:     d = guard.propose(\"DROP TABLE customers\")  # see note in the truncate test above\n  164:         assert not db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='customers'\").fetchone()\n\ntests/test_guarded_kinds.py:171-172 (edit at L227, search_replace)\n  171:     d = guard.propose(\"  alter   table\\\n  172:     assert d.plan and d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN legacy_discount\"\n\nblast_radius/guard.py:124-139 (edit at L236, search_replace)\n  124:         try:\n  125:             self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n  126:         except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller\n  127:             self._log(\"execution_error\", contract=cid, step=step[\"n\"], error=str(e)[:200])\n\nblast_radius/guard.py:95-99 (edit at L239, search_replace)\n  95:             try:\n  96:                 return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}\n  97:             except Exception as e:\n  98:                 self._log(\"execution_error\", sql=action.sql, error=str(e)[:200])\n\ntests/test_guarded_kinds.py:179-199 (edit at L244, search_replace)\n  179: \n  180: \n  181: # ---- (e) error handling: a DB-layer failure must come back structured, never crash the caller\n  182: \n\ntests/test_guarded_kinds.py:184-184 (edit at L249, search_replace)\n  184:     d = guard.propose(\"ALTER TABLE orders DROP COLUMN legacy_discount\")\n\nevals/run.py:300-300 (edit at L257, search_replace)\n  300:         \"p50_ms\": round(statistics.median(ms), 2), \"p95_ms\": sorted(ms)[int(.95 * (len(ms) - 1))],\n\nREADME.md:8-10 (edit at L269, search_replace)\n  8: 1. **Intercepts** it at the agent's only DB path (an MCP `execute_sql` tool), classifying the statement with a real\n  9:    SQL parser (sqlglot), not regex, so comments, quoting, multi-statement/transaction input and side-effecting\n  10:    function calls can't slip past it. Anything it doesn't recognize as safe fails closed."
+    },
+    {
+     "step": 2,
+     "action": "read",
+     "args": {
+      "file": "blast_radius/models.py",
+      "start": 78,
+      "end": 150
+     },
+     "result": "78: def _name(node: exp.Expression | None) -> str | None:\n79:     \"\"\"Unqualified identifier name (schema/db prefixes stripped), from a Table/Column/Identifier.\"\"\"\n80:     if node is None:\n81:         return None\n82:     if isinstance(node, exp.Identifier):\n83:         return node.this\n84:     ident = node.find(exp.Identifier)\n85:     return ident.this if ident else None\n86: \n87: \n88: def _only_args(node: exp.Expression, allowed: set[str]) -> bool:\n89:     \"\"\"True iff every arg of `node` outside `allowed` is falsy (None/False/empty).\n90: \n91:     This is what makes the guard fail closed against grammar quirks: a clause we don't\n92:     explicitly recognize (e.g. a trailing USING/FORMAT/CASCADE modifier smuggled onto a DROP\n93:     COLUMN) shows up as a non-empty arg outside the allowed set and the whole statement is\n94:     rejected to \"other\" rather than silently executed.\n95:     \"\"\"\n96:     return all((v is None or v is False or v == [] or v == ()) for k, v in node.args.items() if k not in allowed)\n97: \n98: \n99: def _parse_single(sql: str) -> exp.Expression | None:\n100:     \"\"\"Parse `sql` as exactly one real statement, or return None (fail closed).\n101: \n102:     Rejects: unparseable text, zero statements, more than one statement (stacked SQL,\n103:     transactions, a trailing statement hidden after a semicolon-and-comment).\n104:     \"\"\"\n105:     try:\n106:         stmts = sqlglot.parse(sql, read=_DIALECT, error_level=sqlglot.ErrorLevel.RAISE)\n107:     except Exception:\n108:         return None\n109:     real = [s for s in stmts if s is not None and not isinstance(s, exp.Semicolon)]\n110:     return real[0] if len(real) == 1 else None\n111: \n112: \n113: def _is_safe_read(stmt: exp.Expression) -> bool:\n114:     if not isinstance(stmt, (exp.Select, exp.Union, exp.Subquery)):\n115:         return False\n116:     if any(stmt.find(bad) for bad in _FORBIDDEN_IN_READ):\n117:         return False\n118:     for fn in stmt.find_all(exp.Func):\n119:         if not isinstance(fn, _SAFE_READ_FUNCS):\n120:             return False  # includes exp.Anonymous: any unknown/user-defined function call\n121:     return True\n122: \n123: \n124: def _canon(stmt: exp.Expression) -> str:\n125:     \"\"\"Canonical SQL regenerated from the validated AST. Signing/hashing/execution always use\n126:     this, never the raw agent text, so nothing a grammar quirk silently absorbed (and therefore\n127:     didn't validate) can still be present in what actually runs.\"\"\"\n128:     return stmt.sql(dialect=_DIALECT)\n129: \n130: \n131: def _classify_alter(stmt: exp.Alter, raw_sql: str) -> Action:\n132:     if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}):\n133:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n134:     actions = stmt.args.get(\"actions\") or []\n135:     if len(actions) != 1:\n136:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n137:     act = actions[0]\n138:     table = _name(stmt.args.get(\"this\"))\n139: \n140:     if isinstance(act, exp.Drop) and str(act.args.get(\"kind\") or \"\").upper() == \"COLUMN\":\n141:         cols = act.args.get(\"tables\") or act.args.get(\"expressions\") or []\n142:         if _only_args(act, {\"exists\", \"tables\", \"expressions\", \"kind\"}) and len(cols) == 1:\n143:             return Action(_canon(stmt), \"drop_column\", table, _name(cols[0]), raw_sql=raw_sql)\n144:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n145: \n146:     if isinstance(act, exp.RenameColumn):\n147:         if _only_args(act, {\"this\", \"to\", \"exists\"}):\n148:             return Action(_canon(stmt), \"rename_column\", table, _name(act.args.get(\"this\")),\n149:                           new_name=_name(act.args.get(\"to\")), raw_sql=raw_sql)\n150:         return Action(raw_sql, \"other\", raw_sql=raw_sql)"
+    },
+    {
+     "step": 3,
+     "action": "read",
+     "args": {
+      "file": "blast_radius/models.py",
+      "start": 78,
+      "end": 145
+     },
+     "result": "78: def _name(node: exp.Expression | None) -> str | None:\n79:     \"\"\"Unqualified identifier name (schema/db prefixes stripped), from a Table/Column/Identifier.\"\"\"\n80:     if node is None:\n81:         return None\n82:     if isinstance(node, exp.Identifier):\n83:         return node.this\n84:     ident = node.find(exp.Identifier)\n85:     return ident.this if ident else None\n86: \n87: \n88: def _only_args(node: exp.Expression, allowed: set[str]) -> bool:\n89:     \"\"\"True iff every arg of `node` outside `allowed` is falsy (None/False/empty).\n90: \n91:     This is what makes the guard fail closed against grammar quirks: a clause we don't\n92:     explicitly recognize (e.g. a trailing USING/FORMAT/CASCADE modifier smuggled onto a DROP\n93:     COLUMN) shows up as a non-empty arg outside the allowed set and the whole statement is\n94:     rejected to \"other\" rather than silently executed.\n95:     \"\"\"\n96:     return all((v is None or v is False or v == [] or v == ()) for k, v in node.args.items() if k not in allowed)\n97: \n98: \n99: def _parse_single(sql: str) -> exp.Expression | None:\n100:     \"\"\"Parse `sql` as exactly one real statement, or return None (fail closed).\n101: \n102:     Rejects: unparseable text, zero statements, more than one statement (stacked SQL,\n103:     transactions, a trailing statement hidden after a semicolon-and-comment).\n104:     \"\"\"\n105:     try:\n106:         stmts = sqlglot.parse(sql, read=_DIALECT, error_level=sqlglot.ErrorLevel.RAISE)\n107:     except Exception:\n108:         return None\n109:     real = [s for s in stmts if s is not None and not isinstance(s, exp.Semicolon)]\n110:     return real[0] if len(real) == 1 else None\n111: \n112: \n113: def _is_safe_read(stmt: exp.Expression) -> bool:\n114:     if not isinstance(stmt, (exp.Select, exp.Union, exp.Subquery)):\n115:         return False\n116:     if any(stmt.find(bad) for bad in _FORBIDDEN_IN_READ):\n117:         return False\n118:     for fn in stmt.find_all(exp.Func):\n119:         if not isinstance(fn, _SAFE_READ_FUNCS):\n120:             return False  # includes exp.Anonymous: any unknown/user-defined function call\n121:     return True\n122: \n123: \n124: def _canon(stmt: exp.Expression) -> str:\n125:     \"\"\"Canonical SQL regenerated from the validated AST. Signing/hashing/execution always use\n126:     this, never the raw agent text, so nothing a grammar quirk silently absorbed (and therefore\n127:     didn't validate) can still be present in what actually runs.\"\"\"\n128:     return stmt.sql(dialect=_DIALECT)\n129: \n130: \n131: def _classify_alter(stmt: exp.Alter, raw_sql: str) -> Action:\n132:     if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}):\n133:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n134:     actions = stmt.args.get(\"actions\") or []\n135:     if len(actions) != 1:\n136:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n137:     act = actions[0]\n138:     table = _name(stmt.args.get(\"this\"))\n139: \n140:     if isinstance(act, exp.Drop) and str(act.args.get(\"kind\") or \"\").upper() == \"COLUMN\":\n141:         cols = act.args.get(\"tables\") or act.args.get(\"expressions\") or []\n142:         if _only_args(act, {\"exists\", \"tables\", \"expressions\", \"kind\"}) and len(cols) == 1:\n143:             return Action(_canon(stmt), \"drop_column\", table, _name(cols[0]), raw_sql=raw_sql)\n144:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n145: "
+    },
+    {
+     "step": 4,
+     "action": "grep",
+     "args": {
+      "pattern": "archive\\.orders|archive.*orders"
+     },
+     "result": "no matches"
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "blast_radius/models.py",
+      "start": 78,
+      "end": 90
+     },
+     "result": "78: def _name(node: exp.Expression | None) -> str | None:\n79:     \"\"\"Unqualified identifier name (schema/db prefixes stripped), from a Table/Column/Identifier.\"\"\"\n80:     if node is None:\n81:         return None\n82:     if isinstance(node, exp.Identifier):\n83:         return node.this\n84:     ident = node.find(exp.Identifier)\n85:     return ident.this if ident else None\n86: \n87: \n88: def _only_args(node: exp.Expression, allowed: set[str]) -> bool:\n89:     \"\"\"True iff every arg of `node` outside `allowed` is falsy (None/False/empty).\n90: "
+    },
+    {
+     "step": 6,
+     "action": "answer",
+     "args": {
+      "file": "blast_radius/models.py",
+      "line": 85,
+      "reason": "The _name() function strips schema/db prefixes from table identifiers (line 79 comment: 'schema/db prefixes stripped'). Line 85 uses node.find(exp.Identifier) which returns only the unqualified table name 'orders', discarding the 'archive' schema qualifier. This causes 'archive.orders' to be treated as just 'orders', so the DROP COLUMN ran against the production orders table instead of archive.orders."
+     },
+     "result": "confirmed: the line exists and was written by an agent edit"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ],
+   "candidate": {
+    "file": "blast_radius/models.py",
+    "line": 85,
+    "end_line": 85,
+    "text": "    This is what makes the guard fail closed against grammar quirks: a clause we don't",
+    "score": 0,
+    "matched_terms": [],
+    "edit_line": 78,
+    "tool": "search_replace",
+    "hunk_id": "L78#0",
+    "snippet": "85:     This is what makes the guard fail closed against grammar quirks: a clause we don't",
+    "method": "agentic_model"
+   }
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 10844,
+   "truncated": true,
+   "dropped_sections": [
+    "transcript_window:reasoning mentioning \"_only_args\" (L233) (over budget)",
+    "transcript_window:reasoning mentioning \"falsy\" (L91) (over budget)",
+    "transcript_window:reasoning mentioning \"_only_args\" (L69) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Audit finding: an agent requested dropping a column on the archived copy of the orders table (schema `archive`, table `orders`), specified as `archive.orders`. The change-control review that followed, and the database activity log for it, show every step run against the live, production `orders` table instead — the one application traffic actually reads and writes. The `archive.orders` table was never touched.\n\nNo one asked for the production table to be modified in this request.",
+   "edit": {
+    "file": "blast_radius/models.py",
+    "line": 91,
+    "hunk": "+    return ident.this if ident else None\n+\n+\n+def _only_args(node: exp.Expression, allowed: set[str]) -> bool:\n+    \"\"\"True iff every arg of `node` outside `allowed` is falsy (None/False/empty).\n+\n+    This is what makes the guard fail closed against grammar quirks: a clause we don't\n+    explicitly recognize (e.g. a trailing USING/FORMAT/CASCADE modifier smuggled onto a DROP\n+    COLUMN) shows up as a non-empty arg outside the allowed set and the whole statement is\n+    rejected to \"other\" rather than silently executed.\n+    \"\"\"\n+    return all((v is None or v is False or v == [] or v == ()) for k, v in node.args.items() if k not in allowed)\n+"
+   },
+   "code_window": "71: \n72: \n73: def normalize_sql(sql: str) -> str:\n74:     \"\"\"Whitespace-collapsed view for logs/hashing display only; never used to decide safety.\"\"\"\n75:     return \" \".join(sql.split()).strip()\n76: \n77: \n78: def _name(node: exp.Expression | None) -> str | None:\n79:     \"\"\"Unqualified identifier name (schema/db prefixes stripped), from a Table/Column/Identifier.\"\"\"\n80:     if node is None:\n81:         return None\n82:     if isinstance(node, exp.Identifier):\n83:         return node.this\n84:     ident = node.find(exp.Identifier)\n85:     return ident.this if ident else None\n86: \n87: \n88: def _only_args(node: exp.Expression, allowed: set[str]) -> bool:\n89:     \"\"\"True iff every arg of `node` outside `allowed` is falsy (None/False/empty).\n90: \n91:     This is what makes the guard fail closed against grammar quirks: a clause we don't\n92:     explicitly recognize (e.g. a trailing USING/FORMAT/CASCADE modifier smuggled onto a DROP\n93:     COLUMN) shows up as a non-empty arg outside the allowed set and the whole statement is\n94:     rejected to \"other\" rather than silently executed.\n95:     \"\"\"\n96:     return all((v is None or v is False or v == [] or v == ()) for k, v in node.args.items() if k not in allowed)\n97: \n98: \n99: def _parse_single(sql: str) -> exp.Expression | None:\n100:     \"\"\"Parse `sql` as exactly one real statement, or return None (fail closed).\n101: \n102:     Rejects: unparseable text, zero statements, more than one statement (stacked SQL,\n103:     transactions, a trailing statement hidden after a semicolon-and-comment).\n104:     \"\"\"\n105:     try:\n106:         stmts = sqlglot.parse(sql, read=_DIALECT, error_level=sqlglot.ErrorLevel.RAISE)\n107:     except Exception:\n108:         return None\n109:     real = [s for s in stmts if s is not None and not isinstance(s, exp.Semicolon)]\n110:     return real[0] if len(real) == 1 else None\n111: ",
+   "related_files": [],
+   "three_piece": {
+    "asked": "Restarting you on a cheaper model to save cost. Same task as before: if the import to main isn't done yet, finish it, then do the hardening pass on a new branch and open a PR. Be efficient: keep exploration focused and avoid re-running the full eval more than needed.",
+    "understood": "Now let me write the hardened `models.py` with sqlglot-based parsing.",
+    "happened": "Audit finding: an agent requested dropping a column on the archived copy of the orders table (schema `archive`, table `orders`), specified as `archive.orders`. The change-control review that followed, and the database activity log for it, show every step run against the live, production `orders` table instead — the one application traffic actually reads and writes. The `archive.orders` table was never touched.\n\nNo one asked for the production table to be modified in this request.\n\n  at ? (blast_radius/models.py:91)\n  91: This is what makes the guard fail closed against grammar quirks: a clause we don't\n\nWritten by transcript edit L78 (search_replace):\n+    return ident.this if ident else None\n+\n+\n+def _only_args(node: exp.Expression, allowed: set[str]) -> bool:\n+    \"\"\"True iff every arg of `node` outside `allowed` is falsy (None/False/empty).\n+\n+    This is what makes the guard fail closed against grammar quirks: a clause we don't\n+    explicitly recognize (e.g. a trailing USING/FORMAT/CASCADE modifier smuggled onto a DROP\n+    COLUMN) shows up as a non-empty arg outside the allowed set and the whole statement is\n+    rejected to \"other\" rather than silently executed.\n+    \"\"\"\n+    return all((v is None or v is False or v == [] or v == ()) for k, v in node.args.items() if k not in allowed)\n+"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L78)",
+     "text": "L75 [assistant] THINKING: Since no tests reference EXPLAIN and the docstring doesn't mention it, I'll drop the special EXPLAIN support for simplicity -- treating it like other read-adjacent commands that fail closed without a contract. This is technically a minor regression, but it's safer and nothing seems to depend on the old behavior.\nL75| \nL75| \nL76 [assistant] Now let me write the hardened `models.py` with sqlglot-based parsing.\nL77 [assistant] (empty message)\nL78 [tool] TOOL: search_replace\nL78| CODE_WRITTEN: \nL78| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/blast_radius/models.py\nL78| +++ b//workspace/blast_radius/models.py\nL78| @@ -1,45 +1,192 @@\nL78| -\"\"\"Core data types shared by every module.\"\"\"\nL78| +\"\"\"Core data types shared by every module.\nL78| +\nL78| +Action parsing uses a real SQL parser (sqlglot) instead of regex so that comments, quoting,\nL78| +schema qualification, stacked/transactional statements and side-effecting function calls are\nL78| +understood structurally rather than pattern-matched. The parser fails closed: anything it can't\nL78| +parse as exactly one statement, or any statement whose shape it doesn't explicitly recognize as\nL78| +safe, is classified \"other\" and is rejected by the guard unless a signed contract covers it.\nL78| +\"\"\"\nL78|  from __future__ import annotations\nL78| -import re\nL78|  from dataclasses import dataclass, field, asdict\nL78|  from typing import Any, Literal\nL78|  \nL78| -ActionKind = Literal[\"drop_column\", \"drop_table\", \"read\", \"other\"]\nL78| +import sqlglot\nL78| +from sqlglot import exp\nL78|  \nL78| +ActionKind = Literal[\nL78| +    \"drop_column\", \"drop_table\", \"rename_column\", \"alter_type\",\nL78| +    \"truncate\", \"delete_unbounded\", \"update_unbounded\", \"read\", \"other\",\nL78| +]\nL78| +\nL78| +# Kinds that get evidence, a staged safe plan and a signed contract (vs. \"other\": always\nL78| +# rejected unsigned, which is safe but over-blocking -- see README \"Honest limits\").\nL78| +GUARDED_KINDS: tuple[ActionKind, ...] = (\nL78| +    \"drop_column\", \"drop_table\", \"rename_column\", \"alter_type\",\nL78| +    \"truncate\", \"delete_unbounded\", \"update_unbounded\",\nL78| +)\nL78| \nL79 [assistant] THINKING: I'm double-checking that CTEs like \"WITH x AS (SELECT 1) SELECT...\" still parse with a top-level Select node carrying a with_ attribute, confirming my isinstance check against exp.Select works correctly for this case.\nL79| \nL79| For a CTE wrapping a DELETE, I verify that `stmt.find(exp.Delete)` recursively walks into the with_ clause and catches it, correctly rejecting it as unsafe since Delete is forbidden in reads.\nL79| \nL79| I'm also tracing through test cases: multi-statement SQL correctly returns \"other\" since parsing yields more than one real statement, and ALTER TABLE DROP CONSTRAINT correctly falls through my classification logic to \"other\" since it's not a column rename or alter-column action. Now I'm checking how table name extraction works for Alter statements specifically.\nL79| \nL79| I want to confirm that find() in sqlglot searches a node and all its nested args (not just direct children in a list), since Table nodes can have identifiers nested as \"this\" or \"db\" attributes rather than in a simple children list, and I need the first matching Identifier to come out correctly.\nL79| \nL79| I should actually run a quick test to verify this behavior with something like \"ALTER TABLE public.orders DROP COLUMN x\" and confirm the name resolves to \"orders\" rather than \"public\", then run through the rest of the test cases together.\nL79| \nL79| \nL80 [assistant] (empty message)\nL81 [tool] TOOL: run_terminal_cmd {\"command\":\"cd /workspace && python3 << 'EOF'\\nimport sys; sys.path.insert(0, \\\".\\\")\\nfrom blast_radius.models import parse_action\\n\\ncases = [\\n    (\\\"/* cleanup */ ALTER TABLE orders DROP COLUMN x\\\", \\\"drop_column\\\", \\\"orders.x\\\"),\\n    (\\\"ALTER TABLE orders DROP x\\\", \\\"drop_column\\\", \\\"orders.x\\\"),\\n    (\\\"ALTER TABLE public.orders DROP COLUMN x\\\", \\\"drop_column\\\", \\\"orders.x\\\"),\\n    ('ALTER TABLE \\\"orders\\\" DROP COLUMN \\\"x\\\"', \\\"drop_column\\\", \\\"orders.x\\\"),\\n    (\\\"alter   table\\\\norders\\\\"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that _name() would extract only the unqualified table name from a qualified identifier like 'archive.orders', but it actually returns the entire qualified name including the schema prefix.",
+  "why_it_breaks": "The _name() function's docstring claims it strips schema/db prefixes, but node.find(exp.Identifier) returns the first Identifier found in the tree, which for 'archive.orders' is the schema qualifier 'archive' rather than the table name 'orders'. This causes the system to match against the wrong table name, routing the DROP COLUMN operation to the production 'orders' table instead of 'archive.orders'.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 78,
+    "quote": "schema qualification, stacked/transactional statements and side-effecting function calls are",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 79,
+    "quote": "I want to confirm that find() in sqlglot searches a node and all its nested args (not just direct children in a list), since Table nodes can have identifiers nested as \"this\" or \"db\" attributes rather than in a simple children list, and I need the first matching Identifier to come out correctly.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "blast_radius/models.py",
+    "line": 78,
+    "quote": "def _name(node: exp.Expression | None) -> str | None:",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "blast_radius/models.py",
+    "line": 79,
+    "quote": "\"\"\"Unqualified identifier name (schema/db prefixes stripped), from a Table/Column/Identifier.\"\"\"",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "blast_radius/models.py",
+    "line": 84,
+    "quote": "ident = node.find(exp.Identifier)",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "blast_radius/models.py",
+    "line": 85,
+    "quote": "return ident.this if ident else None",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 4,
+  "verified_transcript_quotes": 2
+ }
+}

@@ -1,0 +1,25 @@
+{
+ "case": "case02",
+ "overlooked_assumption": "The agent assumed that the `feedbackId_userId` composite unique index in the Prisma schema guarantees that a second concurrent vote creation attempt will always find `existing` as non-null, but it overlooked the race condition where two simultaneous requests can both pass the `findUnique` check before either inserts, causing the `create` to violate the unique constraint.",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "line": 123,
+   "quote": "L123 [tool] TOOL: search_replace\nL123| CODE_WRITTEN: \nL123| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL123| +++ b//workspace/lib/actions/feedback.ts\nL123| @@ -1,0 +1,128 @@\nL123| +\"use server\";\nL123| +\nL123| +import { revalidatePath } from \"next/cache\";\nL123| +import { notFound } from \"next/navigation\";\nL123| +\nL123| +import { prisma } from \"@/lib/prisma\";\nL123| +import { requireUser } from \"@/lib/workspace\";\nL123| +import { extractFirstUrl, fetchLinkPreview } from \"@/lib/link-preview\";\nL123| +import { sendFeedbackWebhook } from \"@/lib/webhooks\";\nL123| +import { feedbackSchema, commentSchema } from \"@/lib/validations\";\nL123| +import type { ActionState } from \"@/lib/actions/auth\";\nL123| +\nL123| +/** Creates a new feedback post, scraping a link preview and firing the\nL123| + * workspace's outgoing webhook (if configured) once it's saved. */\nL123| +export async function createFeedbackAction(\nL123| +  workspaceSlug: string,\nL123| +  _prevState: ActionState,\nL123| +  formData: FormData\nL123| +): Promise<ActionState> {\nL123| +  const user = await requireUser();\nL123| +\nL123| +  const parsed = feedbackSchema.safeParse({\nL123| +    title: formData.get(\"title\"),\nL123| +    body: formData.get(\"body\"),\nL123| +  });\nL123| +  if (!parsed.success) {\nL123| +    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\nL123| +  }"
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 99,
+   "quote": "const existing = await prisma.vote.findUnique({\n    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n  });"
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 106,
+   "quote": "await prisma.vote.create({ data: { feedbackId, userId: user.id } });"
+  }
+ ],
+ "why_it_breaks": "The code performs a `findUnique` to check for an existing vote, then conditionally `creates` or `deletes` based on that result. However, when a user double-clicks the upvote button, two requests can arrive nearly simultaneously. Both requests execute `findUnique` before either insert completes, both see `existing` as `null`, and both proceed to `create`. The second `create` violates the database's unique constraint on (`feedbackId`, `userId`), throwing the `Invalid prisma.vote.create()` error reported. The agent's edit added the `findUnique`/`if (existing)` guard but did not address the race condition between the check and the create.",
+ "confidence": "high"
+}

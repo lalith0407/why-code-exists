@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that stop-loss orders would be classified as hard triggers and bypass the trade gate, but the _trade_reason helper only classifies orders without ensuring they are exempt from minimum trade size or cooldown checks.",
+ "why_it_breaks": "The agent created _forced_stops to identify stop-loss positions and _trade_reason to classify orders as 'stop', but never implemented the logic to treat 'stop' reasons as hard triggers that bypass the trade gate's minimum size and cooldown checks, causing the AAA stop-loss order to be rejected internally instead of executing.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5790,
+   "quote": "the final trade gate will block orders when the gap is below the floor unless the reason is a hard trigger.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 313,
+   "quote": "def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 322,
+   "quote": "if average > 0 and price <= average * (1.0 - stop_pct):",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5790,
+   "quote": "A `_trade_reason` helper is being added to classify each order as a stop, cap reduction, drawdown, or rebalance.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 2
+}

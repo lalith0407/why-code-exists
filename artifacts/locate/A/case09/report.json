@@ -1,0 +1,403 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case09",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "tests/test_guarded_kinds.py",
+   "line": 176
+  },
+  "asked": {
+   "text": "HOLD: do not merge the pass-2 bundle commits yet. The user wants to weigh in first. Finish the import and your own hardening branch, and leave the pass-2 commits unapplied until told.",
+   "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L131 (user message, latest of 4 before the edit)",
+   "valid": true,
+   "full_length": 183
+  },
+  "understood": {
+   "text": "Now that tests are passing, I want to write a new test file covering parse_action classification for the new kinds, full end-to-end flows for each (propose, evidence, safer_plan, approve, execute deprecate step, execute final action, verify effect), and a drift test on one kind like truncate to confirm the re-check mechanism generalizes.\n\nI also need bypass vector tests covering comments, quoting, transactions, COPY, GRANT, and function side-effects to confirm they're all rejected, plus a direct test of the sqlite retype/truncate shim. Let me get started writing these.",
+   "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L213 (assistant, 87 words, 2 line(s) before the edit at L215)",
+   "valid": true,
+   "full_length": 575
+  },
+  "happened": {
+   "text": "Audit finding: an agent requested dropping a column on the archived copy of the orders table (schema `archive`, table `orders`), specified as `archive.orders`. The change-control review that followed, and the database activity log for it, show every step run against the live, production `orders` table instead — the one application traffic actually reads and writes. The `archive.orders` table was never touched.\n\nNo one asked for the production table to be modified in this request.\n\n  at ? (tests/test_guarded_kinds.py:176)\n  176: r = guard.agent_call(\"alter table orders drop column fax_number\")\n\nWritten by transcript edit L215 (search_replace):\n+def test_contract_step_sql_is_canonical_not_raw_agent_text(guard):\n+    d = guard.propose(\"  alter   table\\\n+    assert d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN fax_number\"\n+\n+\n+def test_auto_approved_safe_drop_executes_canonical_sql(guard, world):\n+    r = guard.agent_call(\"alter table orders drop column fax_number\")\n+    assert r[\"status\"] == \"executed\"\n+    assert \"fax_number\" not in _cols(world)",
+   "citation": "error case09 frame tests/test_guarded_kinds.py:176; bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L215",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 215,
+    "quote": "L215 [tool] TOOL: search_replace\nL215| CODE_WRITTEN: \nL215| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL215| +++ b//workspace/tests/test_guarded_kinds.py\nL215| @@ -1,0 +1,178 @@\nL215| +\"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\nL215| +closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\nL215| +import pytest\nL215| +from world.db import DB\nL215| +from blast_radius.models import parse_action\nL215| +\nL215| +\nL215| +# ---- (a) parser classification: bypass vectors must never be misread as \"read\" or auto-allowed\nL215| +\nL215| +@pytest.mark.parametrize(\"sql,kind\", [\nL215| +    (\"ALTER TABLE orders RENAME COLUMN legacy_discount TO discount\", \"rename_column\"),\nL215| +    (\"ALTER TABLE orders ALTER COLUMN legacy_discount TYPE TEXT\", \"alter_type\"),\nL215| +    (\"TRUNCATE TABLE orders\", \"truncate\"),\nL215| +    (\"DELETE FROM orders\", \"delete_unbounded\"),\nL215| +    (\"UPDATE orders SET total_cents = 0\", \"update_unbounded\"),\nL215| +    (\"DELETE FROM orders WHERE id = 1\", \"other\"),               # bounded: safe but over-blocked\nL215| +    (\"UPDATE orders SET total_cents = 0 WHERE id = 1\", \"other\"),  # bounded: safe but over-blocked\nL215| +    (\"COPY orders TO PROGRAM 'rm -rf /'\", \"other\"),\nL215| +    (\"GRANT ALL ON orders TO foo\", \"other\"),\nL215| +    (\"REVOKE ALL ON orders FROM foo\", \"other\"),\nL215| +    (\"CALL my_proc()\", \"other\"),\nL215| +    (\"DO $$ BEGIN EXECUTE 'DROP TABLE orders'; END $$;\", \"other\"),\nL215| +    (\"VACUUM orders\", \"other\"),\nL215| +    (\"MERGE INTO orders USING x ON (1=1) WHEN MATCHED THEN DELETE\", \"other\"),\nL215| +    (\"BEGIN; ALTER TABLE orders DROP COLUMN x;\nL216 [assistant] THINKING: I notice that no-op replace call in the rename_column test assertion is pointless since it just equals the original SQL, so I should simplify that line. Then I should actually run the tests to confirm my assumptions hold.\nL216| \nL216| \nL217 [assistant] (empty message)\nL218 [tool] TOOL: search_replace\nL218| CODE_WRITTEN: \nL218| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/tests/test_guarded_kinds.py\nL218| +++ b//workspace/tests/test_guarded_kinds.py\nL218| @@ -66,7 +66,7 @@\nL218|      assert d.verdict == \"safer_plan\"\nL218|      assert d.action.kind == \"rename_column\" and d.action.new_name == new_name\nL218|      assert {e.reader for e in d.evidence if e.source != \"repo_grep\"} >= {\"finance_dashboard\", \"nightly_revenue_job\"}\nL218| -    assert len(d.plan) == 2 and d.plan[-1].sql == sql.replace(\"ALTER TABLE orders ALTER\", \"ALTER TABLE orders ALTER\")\nL218| +    assert len(d.plan) == 2 and d.plan[-1].sql == sql\nL218|  \nL218|  \nL218|  def test_rename_column_signed_and_executed_after_conditions_hold(guard, world):\"}]},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Audit finding: an agent requested dropping a column on the archived copy of the orders table (schema `archive`, table `orders`), specified as `archive.orders`. The change-control review that followed, and the database activity log for it, show every step run against the live, production `orders` table instead — the one application traffic actually reads and writes. The `archive.orders` table was never touched.\n\nNo one asked for the production table to be modified in this request.\n",
+  "terms": [
+   "archive",
+   "orders",
+   "archive.orders",
+   "audit finding",
+   "the change",
+   "no one asked for",
+   "audit",
+   "finding",
+   "agent",
+   "requested",
+   "dropping",
+   "column",
+   "archived",
+   "copy",
+   "table",
+   "schema",
+   "specified",
+   "change",
+   "control",
+   "review",
+   "followed",
+   "database",
+   "activity",
+   "show",
+   "step",
+   "against",
+   "live",
+   "production",
+   "instead",
+   "application",
+   "traffic",
+   "actually",
+   "reads",
+   "writes",
+   "never",
+   "touched",
+   "asked",
+   "modified",
+   "request"
+  ],
+  "layer1": {
+   "symbols_indexed": 1822,
+   "edited_hunks_indexed": 33,
+   "candidates": [
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 176,
+     "end_line": 178,
+     "text": "    r = guard.agent_call(\"alter table orders drop column fax_number\")",
+     "score": 13.1243,
+     "matched_terms": [
+      "orders",
+      "agent",
+      "column",
+      "copy",
+      "table",
+      "step",
+      "never"
+     ],
+     "edit_line": 215,
+     "tool": "search_replace",
+     "hunk_id": "L215#22",
+     "snippet": "1: \"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\n2: closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\n3: import pytest\n4: from world.db import DB\n5: from blast_radius.models import parse_action\n6: \n7: \n8: # ---- (a) parser classification: bypass vectors must never be misread as \"read\" or auto-allowed\n9: \n10: @pytest.mark.parametrize(\"sql,kind\", [",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 127,
+     "end_line": 174,
+     "text": "        \"schema_qualified\": f\"ALTER TABLE main.{table} DROP COLUMN {col}\",",
+     "function": "_bypass_sql",
+     "score": 11.2398,
+     "matched_terms": [
+      "one",
+      "column",
+      "copy",
+      "table",
+      "schema",
+      "show",
+      "against"
+     ],
+     "edit_line": 180,
+     "tool": "search_replace",
+     "hunk_id": "L180#14",
+     "snippet": "86: def table_exists(w, table) -> bool:\n87:     with DB(w) as db:\n88:         return bool(db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name=?\", (table,)).fetchone())\n89: \n90: def col_type(w, table, col) -> str | None:\n91:     with DB(w) as db:\n92:         for row in db.execute(f\"PRAGMA table_info({table})\").fetchall():\n93:             if row[1] == col: return row[2]\n94:     return None\n95: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 159,
+     "end_line": 164,
+     "text": "            # this world, so only column-level kinds are exercised as the \"zero evidence\" control here.",
+     "function": "run_one",
+     "score": 10.7908,
+     "matched_terms": [
+      "column",
+      "table",
+      "control",
+      "traffic"
+     ],
+     "edit_line": 194,
+     "tool": "search_replace",
+     "hunk_id": "L194#20",
+     "snippet": "155:         if cls == \"safe_ddl\":\n156:             # whole-table kinds (drop_table/truncate/delete_unbounded/update_unbounded) always have\n157:             # *some* dependent in the shared seed template (the demo's own finance/nightly jobs, plus\n158:             # seeded app traffic) -- there's no such thing as a truly dependent-free table action in\n159:             # this world, so only column-level kinds are exercised as the \"zero evidence\" control here.\n160:             kind = rnd.choice([\"drop_column\", \"rename_column\", \"alter_type\"])\n161:         elif cls in (\"dangerous_ddl\", \"unsigned\", \"tampered\", \"out_of_order\"):\n162:             kind = rnd.choice(list(KIND_SQL))\n163:         else:\n164:             kind = \"drop_column\"",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "blast_radius/models.py",
+     "line": 56,
+     "end_line": 189,
+     "text": "    raw_sql: str | None = None    # the exact text the agent sent, kept for audit/display only",
+     "function": "Action",
+     "score": 10.1369,
+     "matched_terms": [
+      "audit",
+      "one",
+      "agent",
+      "column",
+      "copy",
+      "table",
+      "schema",
+      "against",
+      "instead",
+      "actually",
+      "never"
+     ],
+     "edit_line": 78,
+     "tool": "search_replace",
+     "hunk_id": "L78#0",
+     "snippet": "1: \"\"\"Core data types shared by every module.\n2: \n3: Action parsing uses a real SQL parser (sqlglot) instead of regex so that comments, quoting,\n4: schema qualification, stacked/transactional statements and side-effecting function calls are\n5: understood structurally rather than pattern-matched. The parser fails closed: anything it can't\n6: parse as exactly one statement, or any statement whose shape it doesn't explicitly recognize as\n7: safe, is classified \"other\" and is rejected by the guard unless a signed contract covers it.\n8: \"\"\"\n13: import sqlglot\n14: from sqlglot import exp",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 184,
+     "end_line": 184,
+     "text": "    d = guard.propose(\"ALTER TABLE orders DROP COLUMN legacy_discount\")",
+     "score": 10.0234,
+     "matched_terms": [
+      "orders",
+      "column",
+      "table"
+     ],
+     "edit_line": 249,
+     "tool": "search_replace",
+     "hunk_id": "L249#30",
+     "snippet": "184:     d = guard.propose(\"ALTER TABLE orders DROP COLUMN legacy_discount\")",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 172,
+     "end_line": 172,
+     "text": "    assert d.plan and d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN legacy_discount\"",
+     "score": 10.0198,
+     "matched_terms": [
+      "orders",
+      "column",
+      "table"
+     ],
+     "edit_line": 227,
+     "tool": "search_replace",
+     "hunk_id": "L227#26",
+     "snippet": "171:     d = guard.propose(\"  alter   table\\\n172:     assert d.plan and d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN legacy_discount\"",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 184,
+     "end_line": 199,
+     "text": "    d = guard.propose(\"ALTER TABLE orders DROP COLUMN fax_number\")",
+     "score": 9.9132,
+     "matched_terms": [
+      "orders",
+      "column",
+      "table",
+      "never"
+     ],
+     "edit_line": 244,
+     "tool": "search_replace",
+     "hunk_id": "L244#29",
+     "snippet": "179: \n180: \n181: # ---- (e) error handling: a DB-layer failure must come back structured, never crash the caller\n182: \n183: def test_execution_db_error_is_structured_not_raised(guard, monkeypatch):\n184:     d = guard.propose(\"ALTER TABLE orders DROP COLUMN fax_number\")\n185:     cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\n186: \n187:     def boom(self, sql, read=False):\n188:         raise RuntimeError(\"simulated db failure\")",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 109,
+     "end_line": 124,
+     "text": "    # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,",
+     "score": 8.8681,
+     "matched_terms": [
+      "orders",
+      "column",
+      "table"
+     ],
+     "edit_line": 223,
+     "tool": "search_replace",
+     "hunk_id": "L223#24",
+     "snippet": "109:     # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n110:     # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n111:     # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n112:     truncate_customers = \"TRUNCATE TABLE customers\"\n113:     d = guard.propose(truncate_customers)\n115:     direct = guard.execute(truncate_customers)\n118:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 50\n124:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 0",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "blast_radius/reasoner/base.py",
+     "line": 46,
+     "end_line": 54,
+     "text": "        return [deprecate, PlanStep(2, f\"Change the type of {action.target} after the window, only if every \"",
+     "function": "safe_plan",
+     "score": 8.4133,
+     "matched_terms": [
+      "change",
+      "column",
+      "table",
+      "step"
+     ],
+     "edit_line": 98,
+     "tool": "search_replace",
+     "hunk_id": "L98#4",
+     "snippet": "14: def _deprecation_step(action: Action) -> PlanStep:\n15:     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n16:     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n17:                      f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n18:                      f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\n19: \n21:     \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n22: \n23:     Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n24:     there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "blast_radius/guard.py",
+     "line": 125,
+     "end_line": 139,
+     "text": "            self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text",
+     "function": "execute",
+     "score": 6.2746,
+     "matched_terms": [
+      "step",
+      "never"
+     ],
+     "edit_line": 236,
+     "tool": "search_replace",
+     "hunk_id": "L236#27",
+     "snippet": "124:         try:\n125:             self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n126:         except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller\n127:             self._log(\"execution_error\", contract=cid, step=step[\"n\"], error=str(e)[:200])\n128:             return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\", \"step\": step[\"n\"]}\n133:     def _run(self, sql: str, read: bool = False) -> list[tuple] | None:\n139:             return None",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "tests/test_guarded_kinds.py",
+   "line": 176,
+   "end_line": 178,
+   "text": "    r = guard.agent_call(\"alter table orders drop column fax_number\")",
+   "score": 13.1243,
+   "matched_terms": [
+    "orders",
+    "agent",
+    "column",
+    "copy",
+    "table",
+    "step",
+    "never"
+   ],
+   "edit_line": 215,
+   "tool": "search_replace",
+   "hunk_id": "L215#22",
+   "snippet": "1: \"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\n2: closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\n3: import pytest\n4: from world.db import DB\n5: from blast_radius.models import parse_action\n6: \n7: \n8: # ---- (a) parser classification: bypass vectors must never be misread as \"read\" or auto-allowed\n9: \n10: @pytest.mark.parametrize(\"sql,kind\", [",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 10692,
+   "truncated": false,
+   "dropped_sections": []
+  },
+  "prompt_user": {
+   "symptom": "Audit finding: an agent requested dropping a column on the archived copy of the orders table (schema `archive`, table `orders`), specified as `archive.orders`. The change-control review that followed, and the database activity log for it, show every step run against the live, production `orders` table instead — the one application traffic actually reads and writes. The `archive.orders` table was never touched.\n\nNo one asked for the production table to be modified in this request.",
+   "edit": {
+    "file": "tests/test_guarded_kinds.py",
+    "line": 176,
+    "hunk": "+def test_contract_step_sql_is_canonical_not_raw_agent_text(guard):\n+    d = guard.propose(\"  alter   table\\\n+    assert d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN fax_number\"\n+\n+\n+def test_auto_approved_safe_drop_executes_canonical_sql(guard, world):\n+    r = guard.agent_call(\"alter table orders drop column fax_number\")\n+    assert r[\"status\"] == \"executed\"\n+    assert \"fax_number\" not in _cols(world)"
+   },
+   "code_window": "156: def test_drop_table_safe_plan_and_execution(guard, world):\n157:     d = guard.propose(\"DROP TABLE customers\")  # see note in the truncate test above\n158:     assert d.action.kind == \"drop_table\" and d.verdict == \"safer_plan\"\n159:     cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\n160:     guard.execute(d.plan[0].sql, cid)\n161:     final = guard.execute(d.plan[1].sql, cid)\n162:     assert final[\"status\"] == \"executed\"\n163:     with DB(world) as db:\n164:         assert not db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='customers'\").fetchone()\n165: \n166: \n167: # ---- canonicalization: what's signed/hashed/executed is re-derived from the parsed AST, not the\n168: # raw agent text, so a trailing clause a grammar quirk might silently absorb can never survive\n169: \n170: def test_contract_step_sql_is_canonical_not_raw_agent_text(guard):\n171:     d = guard.propose(\"  alter   table\\norders\\tdrop column   legacy_discount  \")\n172:     assert d.plan and d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN legacy_discount\"\n173: \n174: \n175: def test_auto_approved_safe_drop_executes_canonical_sql(guard, world):\n176:     r = guard.agent_call(\"alter table orders drop column fax_number\")\n177:     assert r[\"status\"] == \"executed\"\n178:     assert \"fax_number\" not in _cols(world)\n179: \n180: \n181: # ---- (e) error handling: a DB-layer failure must come back structured, never crash the caller\n182: \n183: def test_execution_db_error_is_structured_not_raised(guard, monkeypatch):\n184:     d = guard.propose(\"ALTER TABLE orders DROP COLUMN legacy_discount\")\n185:     cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\n186: \n187:     def boom(self, sql, read=False):\n188:         raise RuntimeError(\"simulated db failure\")\n189:     monkeypatch.setattr(\"blast_radius.guard.Guard._run\", boom)\n190:     r = guard.execute(d.plan[0].sql, cid)\n191:     assert r[\"status\"] == \"error\" and \"simulated db failure\" in r[\"reason\"]\n192: \n193: \n194: def test_read_db_error_is_structured_not_raised(guard, monkeypatch):\n195:     def boom(self, sql, read=False):\n196:         raise RuntimeError(\"simulated read failure\")",
+   "related_files": [],
+   "three_piece": {
+    "asked": "HOLD: do not merge the pass-2 bundle commits yet. The user wants to weigh in first. Finish the import and your own hardening branch, and leave the pass-2 commits unapplied until told.",
+    "understood": "Now that tests are passing, I want to write a new test file covering parse_action classification for the new kinds, full end-to-end flows for each (propose, evidence, safer_plan, approve, execute deprecate step, execute final action, verify effect), and a drift test on one kind like truncate to confirm the re-check mechanism generalizes.\n\nI also need bypass vector tests covering comments, quoting, transactions, COPY, GRANT, and function side-effects to confirm they're all rejected, plus a direct test of the sqlite retype/truncate shim. Let me get started writing these.",
+    "happened": "Audit finding: an agent requested dropping a column on the archived copy of the orders table (schema `archive`, table `orders`), specified as `archive.orders`. The change-control review that followed, and the database activity log for it, show every step run against the live, production `orders` table instead — the one application traffic actually reads and writes. The `archive.orders` table was never touched.\n\nNo one asked for the production table to be modified in this request.\n\n  at ? (tests/test_guarded_kinds.py:176)\n  176: r = guard.agent_call(\"alter table orders drop column fax_number\")\n\nWritten by transcript edit L215 (search_replace):\n+def test_contract_step_sql_is_canonical_not_raw_agent_text(guard):\n+    d = guard.propose(\"  alter   table\\\n+    assert d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN fax_number\"\n+\n+\n+def test_auto_approved_safe_drop_executes_canonical_sql(guard, world):\n+    r = guard.agent_call(\"alter table orders drop column fax_number\")\n+    assert r[\"status\"] == \"executed\"\n+    assert \"fax_number\" not in _cols(world)"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L215)",
+     "text": "L212 [tool] TOOL: run_terminal_cmd {\"command\":\"cd /workspace && python3 -m pytest -q 2>&1 | tail -10\",\"is_background\":false}\nL213 [assistant] THINKING: Now that tests are passing, I want to write a new test file covering parse_action classification for the new kinds, full end-to-end flows for each (propose, evidence, safer_plan, approve, execute deprecate step, execute final action, verify effect), and a drift test on one kind like truncate to confirm the re-check mechanism generalizes.\nL213| \nL213| I also need bypass vector tests covering comments, quoting, transactions, COPY, GRANT, and function side-effects to confirm they're all rejected, plus a direct test of the sqlite retype/truncate shim. Let me get started writing these.\nL213| \nL213| \nL214 [assistant] (empty message)\nL215 [tool] TOOL: search_replace\nL215| CODE_WRITTEN: \nL215| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL215| +++ b//workspace/tests/test_guarded_kinds.py\nL215| @@ -1,0 +1,178 @@\nL215| +\"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\nL215| +closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\nL215| +import pytest\nL215| +from world.db import DB\nL215| +from blast_radius.models import parse_action\nL215| +\nL215| +\nL215| +# ---- (a) parser classification: bypass vectors must never be misread as \"read\" or auto-allowed\nL215| +\nL215| +@pytest.mark.parametrize(\"sql,kind\", [\nL215| +    (\"ALTER TABLE orders RENAME COLUMN legacy_discount TO discount\", \"rename_column\"),\nL215| +    (\"ALTER TABLE orders ALTER COLUMN legacy_discount TYPE TEXT\", \"alter_type\"),\nL215| +    (\"TRUNCATE TABLE orders\", \"truncate\"),\nL215| +    (\"DELETE FROM orders\", \"delete_unbounded\"),\nL215| +    (\"UPDATE orders SET total_cents = 0\", \"update_unbounded\"),\nL215| +    (\"DELETE FROM orders WHERE id = 1\", \"other\"),               # bounded: safe but over-blocked\nL215| +    (\"UPDATE orders SET total_cents = 0 WHERE id = 1\", \"other\"),  # bounded: safe but over-blocked\nL215| +    (\"COPY orders TO PROGRAM 'rm -rf /'\", \"other\"),\nL215| +    (\"GRANT ALL ON orders TO foo\", \"other\"),\nL215| +    (\"REVOKE ALL ON orders FROM foo\", \"other\"),\nL215| +    (\"CALL my_proc()\", \"other\"),\nL215| +    (\"DO $$ BEGIN EXECUTE 'DROP TABLE orders'; END $$;\", \"other\"),\nL215| +    (\"VACUUM orders\", \"other\"),\nL215| +    (\"MERGE INTO orders USING x ON (1=1) WHEN MATCHED THEN DELETE\", \"other\"),\nL215| +    (\"BEGIN; ALTER TABLE orders DROP COLUMN x;\nL216 [assistant] THINKING: I notice that no-op replace call in the rename_column test assertion is pointless since it just equals the original SQL, so I should simplify that line. Then I should actually run the tests to confirm my assumptions hold.\nL216| \nL216| \nL217 [assistant] (empty message)\nL218 [tool] TOOL: search_replace\nL218| CODE_WRITTEN: \nL218| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/tests/test_guarded_kinds.py\nL218| +++ b//workspace/tests/test_guarded_kinds.py\nL218| @@ -66,7 +66,7 @@\nL218|      assert d.verdict == \"safer_plan\"\nL218|      assert d.action.kind == \"rename_column\" and d.action.new_name == new_name\nL218|      assert {e.reader for e in d.evidence if e.source != \"repo_grep\"} >= {\"finance_dashboard\", \"nightly_revenue_job\"}\nL218| -    assert len(d.plan) == 2 and d.plan[-1].sql == sql.replace(\"ALTER TABLE orders ALTER\", \"ALTER TABLE orders ALTER\")\nL218| +    assert len(d.plan) == 2 and d.plan[-1].sql == sql\nL218|  \nL218|  \nL218|  def test_rename_column_signed_and_executed_after_conditions_hold(guard, world):\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":1,\"linesAdded\":1}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that \"alter table orders drop column fax_number\" targets the default/schema-qualified table \"orders\" without considering that the request explicitly specified no schema prefix, and the system routed it to the production table instead of the archive table.",
+  "why_it_breaks": "The agent's test `test_auto_approved_safe_drop_executes_canonical_sql` at line 176 submits `alter table orders drop column fax_number` without a schema prefix. The guard's SQL canonicalization (as shown in the existing test at line 170-172) normalizes this to `ALTER TABLE orders DROP COLUMN fax_number`, which targets the production `orders` table in the default schema. The agent overlooked that the original audit bug involved a request explicitly qualified as `archive.orders` — the system has no mechanism to distinguish between unqualified `orders` and schema-qualified `archive.orders`, so the unqualified request always hits the production table. The test passes against production, but the real-world scenario where a user intends the archive table is silently broken.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 215,
+    "quote": "L215 [tool] TOOL: search_replace\nL215| CODE_WRITTEN: \nL215| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL215| +++ b//workspace/tests/test_guarded_kinds.py\nL215| @@ -1,0 +1,178 @@\nL215| +\"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\nL215| +closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\nL215| +import pytest\nL215| +from world.db import DB\nL215| +from blast_radius.models import parse_action\nL215| +\nL215| +\nL215| +# ---- (a) parser classification: bypass vectors must never be misread as \"read\" or auto-allowed\nL215| +\nL215| +@pytest.mark.parametrize(\"sql,kind\", [\nL215| +    (\"ALTER TABLE orders RENAME COLUMN legacy_discount TO discount\", \"rename_column\"),\nL215| +    (\"ALTER TABLE orders ALTER COLUMN legacy_discount TYPE TEXT\", \"alter_type\"),\nL215| +    (\"TRUNCATE TABLE orders\", \"truncate\"),\nL215| +    (\"DELETE FROM orders\", \"delete_unbounded\"),\nL215| +    (\"UPDATE orders SET total_cents = 0\", \"update_unbounded\"),\nL215| +    (\"DELETE FROM orders WHERE id = 1\", \"other\"),               # bounded: safe but over-blocked\nL215| +    (\"UPDATE orders SET total_cents = 0 WHERE id = 1\", \"other\"),  # bounded: safe but over-blocked\nL215| +    (\"COPY orders TO PROGRAM 'rm -rf /'\", \"other\"),\nL215| +    (\"GRANT ALL ON orders TO foo\", \"other\"),\nL215| +    (\"REVOKE ALL ON orders FROM foo\", \"other\"),\nL215| +    (\"CALL my_proc()\", \"other\"),\nL215| +    (\"DO $$ BEGIN EXECUTE 'DROP TABLE orders'; END $$;\", \"other\"),\nL215| +    (\"VACUUM orders\", \"other\"),\nL215| +    (\"MERGE INTO orders USING x ON (1=1) WHEN MATCHED THEN DELETE\", \"other\"),\nL215| +    (\"BEGIN; ALTER TABLE orders DROP COLUMN x;\nL216 [assistant] THINKING: I notice that no-op replace call in the rename_column test assertion is pointless since it just equals the original SQL, so I should simplify that line. Then I should actually run the tests to confirm my assumptions hold.\nL216| \nL216| \nL217 [assistant] (empty message)\nL218 [tool] TOOL: search_replace\nL218| CODE_WRITTEN: \nL218| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/tests/test_guarded_kinds.py\nL218| +++ b//workspace/tests/test_guarded_kinds.py\nL218| @@ -66,7 +66,7 @@\nL218|      assert d.verdict == \"safer_plan\"\nL218|      assert d.action.kind == \"rename_column\" and d.action.new_name == new_name\nL218|      assert {e.reader for e in d.evidence if e.source != \"repo_grep\"} >= {\"finance_dashboard\", \"nightly_revenue_job\"}\nL218| -    assert len(d.plan) == 2 and d.plan[-1].sql == sql.replace(\"ALTER TABLE orders ALTER\", \"ALTER TABLE orders ALTER\")\nL218| +    assert len(d.plan) == 2 and d.plan[-1].sql == sql\nL218|  \nL218|  \nL218|  def test_rename_column_signed_and_executed_after_conditions_hold(guard, world):\"}]},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "tests/test_guarded_kinds.py",
+    "line": 176,
+    "quote": "r = guard.agent_call(\"alter table orders drop column fax_number\")\n",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that the SQL text \"alter table orders drop column fax_number\" would be parsed and canonicalized to target the default 'orders' table without considering an explicit schema prefix like 'archive.orders'.",
+  "why_it_breaks": "The agent's test case at line 176 passes the raw SQL \"alter table orders drop column fax_number\" to guard.agent_call(). The guard's internal parsing and canonicalization step strips whitespace and lowercases keywords but does not strip or handle a schema prefix. When the SQL is later executed, the system resolves \"orders\" to the production table because no schema qualification was present, and the guard has no logic to interpret or respect a schema like 'archive.orders'. The test was written without a schema prefix, so the agent overlooked the case where an explicit schema is given, causing the execution to target the wrong table.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "tests/test_guarded_kinds.py",
+    "line": 176,
+    "quote": "r = guard.agent_call(\"alter table orders drop column fax_number\")",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 215,
+    "quote": "L215 [tool] TOOL: search_replace\nL215| CODE_WRITTEN: \nL215| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL215| +++ b//workspace/tests/test_guarded_kinds.py\nL215| @@ -1,0 +1,178 @@\nL215| +\"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\nL215| +closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\nL215| +import pytest\nL215| +from world.db import DB\nL215| +from blast_radius.models import parse_action\nL215| +\nL215| +\nL215| +# ---- (a) parser classification: bypass vectors must never be misread as \"read\" or auto-allowed\nL215| +\nL215| +@pytest.mark.parametrize(\"sql,kind\", [\nL215| +    (\"ALTER TABLE Orders RENAME COLUMN legacy_discount TO discount\", \"rename_column\"),\nL215| +    (\"ALTER TABLE Orders ALTER COLUMN legacy_discount TYPE TEXT\", \"alter_type\"),\nL215| +    (\"TRUNCATE TABLE orders\", \"truncate\"),\nL215| +    (\"DELETE FROM orders\", \"delete_unbounded\"),\nL215| +    (\"UPDATE orders SET total_cents = 0\", \"update_unbounded\"),\nL215| +    (\"DELETE FROM orders WHERE id = 1\", \"other\"),               # bounded: safe but over-blocked\nL215| +    (\"UPDATE orders SET total_cents = 0 WHERE id = 1\", \"other\"),  # bounded: safe but over-blocked\nL215| +    (\"COPY orders TO PROGRAM 'rm -rf /'\", \"other\"),\nL215| +    (\"GRANT ALL ON orders TO foo\", \"other\"),\nL215| +    (\"REVOKE ALL ON orders FROM foo\", \"other\"),\nL215| +    (\"CALL my_proc()\", \"other\"),\nL215| +    (\"DO $$ BEGIN EXECUTE 'DROP TABLE orders'; END $$;\", \"other\"),\nL215| +    (\"VACUUM orders\", \"other\"),\nL215| +    (\"MERGE INTO orders USING x ON (1=1) WHEN MATCHED THEN DELETE\", \"other\"),\nL215| +    (\"BEGIN; ALTER TABLE orders DROP COLUMN x;\nL216 [assistant] THINKING: I notice that no-op replace call in the rename_column test assertion is pointless since it just equals the original SQL, so I should simplify that line. Then I should actually run the tests to confirm my assumptions hold.\nL216| \nL216| \nL217 [assistant] (empty message)\nL218 [tool] TOOL: search_replace\nL218| CODE_WRITTEN: \nL218| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/tests/test_guarded_kinds.py\nL218| +++ b//workspace//workspace/tests/test_guarded_kinds.py\nL218| @@ -66,7 +66,7 @@\nL218|      assert d.verdict == \"safer_plan\"\nL218|      assert d.action.kind == \"rename_column\" and d.action.new_name == new_name\nL218|      assert {e.reader for e in d.evidence if e.source != \"repo_grep\"} >= {\"finance_dashboard\", \"nightly_revenue_job\"}\nL218| -    assert len(d.plan) == 2 and d.plan[-1].sql == sql.replace(\"ALTER TABLE orders ALTER\", \"ALTER TABLE orders ALTER\")\nL218| +    assert len(d.plan) == 2 and d.plan[-1].sql == sql\nL218|  \nL218|  \nL218|  def test_rename_column_signed_and_executed_after_conditions_hold(guard, world):\"}]},{\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}}",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ }
+}

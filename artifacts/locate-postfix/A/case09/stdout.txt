@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> evals/run.py:127
+stage: ok
+provider: nemotron
+frame: evals/run.py:127
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed the `table` parameter passed to `_bypass_sql` already contains the correct schema prefix (e.g., "archive.orders"), so it blindly prepends "main." to form "schema_qualified" SQL, without verifying whether the table reference is already schema-qualified or which schema it actually belongs to.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case09/report.html

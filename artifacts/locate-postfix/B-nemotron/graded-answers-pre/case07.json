@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that the `action.target` value used for the deprecation step and the `action.sql` step are identical and safe to use directly in SQL without sanitization, failing to account for quote characters in table names that bypass the gate check.",
+ "why_it_breaks": "When the agent originally typed a table name with quote characters (e.g., `\"customers\"`), the `action.target` stored the quoted form. The `safe_plan` function builds a deprecation step using `action.target` directly in raw SQL strings (e.g., `DELETE FROM _deprecations WHERE target = '{action.target}'`), and the drop step uses `action.sql` which also contains the quoted name. The gate check compares signed condition IDs, but the SQL execution runs the exact quoted text. Because the system recorded the step as \"safe to run with no conditions\" when the table name included quotes, the gate was never properly enforced\u2014the signed conditions were satisfied by a malformed or differently-formatted input, allowing the drop to execute immediately without the required 3-step staging. The oversight was assuming `action.target`/`action.sql` would be sanitized or normalized before use, when in fact the raw agent input preserved quote characters that the gate logic did not account for.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 98,
+   "quote": "L98| -    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "blast_radius/reasoner/base.py",
+   "line": 40,
+   "quote": "40:         return [deprecate, PlanStep(2, f\"Drop table {action.table} after the window, only if every signed \"\\n                                          \"condition still holds\", action.sql, gate)]",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

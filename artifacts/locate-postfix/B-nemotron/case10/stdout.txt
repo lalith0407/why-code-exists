@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/mcp_servers/risk_tools.py:27
+stage: ok
+provider: nemotron
+frame: src/ta/mcp_servers/risk_tools.py:27
+status: unverified (code quotes 3, transcript quotes 0)
+overlooked_assumption: _meta_for assumes every security has a sleeve and sector assigned, but newly added securities may have None values, causing _name_cap to return the wrong cap percentage (single_high_risk_pct instead of single_core_pct) and bypass the 15% hard cap.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-nemotron/case10/report.html

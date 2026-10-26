@@ -1,0 +1,690 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "ta-stop-loss-blocked",
+    "timestamp": "2026-10-25T04:09:42.111Z",
+    "severity": "critical",
+    "service": "trading-agent-system",
+    "message": "Stop-loss did not execute: AAA is down -30% from average cost and the order builder emitted a full stop-loss sell (reason 'stop'), but the order never filled; the guard dropped it. Guard notes: [\"min hold blocked sell of AAA\"]",
+    "frames": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 242,
+        "function": "guard_orders"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout4-stop-minhold/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "repo"
+    }
+  },
+  "frame": {
+    "file": "src/ta/harness/caps.py",
+    "line": 242,
+    "function": "guard_orders"
+  },
+  "language": "python",
+  "provenance": {
+    "file": "src/ta/harness/caps.py",
+    "function": "guard_orders",
+    "frame_line": 242,
+    "later_edits": [
+      {
+        "edit_line": 3514,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": "             notes.append(f\"day trade blocked for {order.ticker}\")\n             continue\n+        if order.side == \"buy\":\n+            exited = portfolio.exit_sessions.get(order.ticker)\n+            if exited is not None and fill_session - exited < caps.reentry_sessions:\n+                notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n+                continue\n         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n             continue"
+      },
+      {
+        "edit_line": 8931,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": " \n \n+def equal_weight_targets(\n+    names: list[str],\n+    meta: dict[str, NameMeta],\n+    caps: RiskCaps,\n+) -> dict[str, float]:\n+    \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n+    priced = [name for name in names if name in meta and meta[name].price > 0]\n+    if not priced:\n+        return {}\n+    share = 1.0 / len(priced)\n+    return {name: min(share, _name_cap(meta[name], caps)) for name in priced}\n+"
+      }
+    ],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 108,
+      "tool": "search_replace",
+      "fn_range": [
+        155,
+        201
+      ],
+      "frame_line_in_range": false,
+      "hunk_excerpt": "+\n+\n+def guard_orders(\n+    orders: list[OrderIntent],\n+    portfolio: Portfolio,\n+    meta: dict[str, NameMeta],\n+    caps: RiskCaps,\n+    *,\n+    fill_session: int,\n+    fill_date: date,\n+    prices: dict[str, float],\n+    equity: float,\n+) -> tuple[list[OrderIntent], list[str]]:\n+    \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n+\n+    Cap-driven sells are allowed inside the minimum hold. The weight cap itself is",
+      "fn_text": "def guard_orders(\n    orders: list[OrderIntent],\n    portfolio: Portfolio,\n    meta: dict[str, NameMeta],\n    caps: RiskCaps,\n    *,\n    fill_session: int,\n    fill_date: date,\n    prices: dict[str, float],\n    equity: float,\n) -> tuple[list[OrderIntent], list[str]]:\n    \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n\n    Cap-driven sells are allowed inside the minimum hold. The weight cap itself is\n    applied by :func:`enforce_caps` before orders are built.\n    \"\"\"\n    notes: list[str] = []\n    buys = {order.ticker for order in orders if order.side == \"buy\"}\n    drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n    halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n    quarter = _quarter(fill_date)\n    swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n    kept: list[OrderIntent] = []\n    for order in orders:\n        if order.side == \"hold\" or order.notional <= 0:\n            continue\n        if order.side == \"sell\" and order.ticker in buys:\n            notes.append(f\"day trade blocked for {order.ticker}\")\n            continue\n        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n            continue\n        if order.side == \"sell\" and order.reason != \"cap_reduction\":\n            lot = portfolio.positions.get(order.ticker)\n            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\n                continue\n            if (\n                lot is not None\n                and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n                and fill_session - lot.entry_session < caps.swing_hold_sessions\n                and swings_this_quarter >= caps.swing_trades_per_quarter\n            ):\n                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n                continue\n        kept.append(order)\n    return kept, notes"
+    },
+    "reasoning_before": {
+      "line": 102,
+      "words": 5251,
+      "silent": false,
+      "excerpt": "The next components to build are caps, portfolio, gateway, and tools.\n\nToolContext is being designed as the central context object for tool execution. The build order is portfolio and costs first, then caps, then tools, then gateway. Portfo"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The code currently blocks all sell orders (except 'cap_reduction') that violate the minimum hold sessions, which incorrectly includes stop-loss orders with reason 'stop'. A fix must specifically allow stop-loss sells to bypass this check, or change the condition to exclude 'stop' reason orders. [fix: Change the condition in guard_orders from `order.reason != \"cap_reduction\"` to `order.reason not in [\"cap_reduction\", \"stop\"]` or add a separate condition to exclude stop-loss orders from the min hold block.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "repo",
+    "root": "/workspace/trading-agent-system"
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T19:38:48.856Z",
+  "workspace": {
+    "root": "/workspace/trading-agent-system",
+    "origin": "repo",
+    "notes": [
+      "python: repo virtualenv /workspace/trading-agent-system/.venv/bin/python"
+    ],
+    "framework_shims": [],
+    "database": null,
+    "python": "/workspace/trading-agent-system/.venv/bin/python"
+  },
+  "code_under_test": {
+    "source": "repo:src/ta/harness/caps.py:L242-293",
+    "text": "def guard_orders(\n    orders: list[OrderIntent],\n    portfolio: Portfolio,\n    meta: dict[str, NameMeta],\n    caps: RiskCaps,\n    *,\n    fill_session: int,\n    fill_date: date,\n    prices: dict[str, float],\n    equity: float,\n) -> tuple[list[OrderIntent], list[str]]:\n    \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n\n    Cap-driven sells are allowed inside the minimum hold. The weight cap itself is\n    applied by :func:`enforce_caps` before orders are built.\n    \"\"\"\n    notes: list[str] = []\n    buys = {order.ticker for order in orders if order.side == \"buy\"}\n    drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n    halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n    quarter = _quarter(fill_date)\n    swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n    kept: list[OrderIntent] = []\n    for order in orders:\n        if order.side == \"hold\" or order.notional <= 0:\n            continue\n        if order.side == \"sell\" and order.ticker in buys:\n            notes.append(f\"day trade blocked for {order.ticker}\")\n            continue\n        if order.side == \"buy\":\n            exited = portfolio.exit_sessions.get(order.ticker)\n            if exited is not None and fill_session - exited < caps.reentry_sessions:\n                notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n                continue\n        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n            continue\n        if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n            lot = portfolio.positions.get(order.ticker)\n            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\n                continue\n            if (\n                lot is not None\n                and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n                and fill_session - lot.entry_session < caps.swing_hold_sessions\n                and swings_this_quarter >= caps.swing_trades_per_quarter\n            ):\n                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n                continue\n        kept.append(order)\n    return kept, notes"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that sell orders with reason other than 'cap_reduction' should be blocked if the holding period is less than the minimum hold sessions, so the code skips such sell orders by continuing the loop when fill_session - lot.entry_session < caps.min_hold_sessions.",
+        "evidence_line": "if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that day trades (selling a ticker that was bought in the same orders list) should be blocked, so the code skips sell orders for tickers that appear in buys.",
+        "evidence_line": "if order.side == \"sell\" and order.ticker in buys:",
+        "explains_error": false
+      },
+      {
+        "cause": "The agent assumed that high-risk buys should be halted during a drawdown halt, so the code skips buy orders with sleeve 'high_risk' when drawdown is below the threshold.",
+        "evidence_line": "if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+        "explains_error": false
+      }
+    ],
+    "chosen_cause": "The agent assumed that sell orders with reason other than 'cap_reduction' should be blocked if the holding period is less than the minimum hold sessions, so the code skips such sell orders by continuing the loop when fill_session - lot.entry_session < caps.min_hold_sessions.",
+    "claim": "The agent assumed that sell orders with reason other than 'cap_reduction' should be blocked if the holding period is less than the minimum hold sessions, so the code drops stop-loss sell orders that violate the min hold rule, causing the stop-loss not to execute.",
+    "mechanism": "The code block in guard_orders: if order.side == \"sell\" and order.reason != \"cap_reduction\": lot = portfolio.positions.get(order.ticker) if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions: notes.append(f\"min hold blocked sell of {order.ticker}\") continue causes all sells except cap_reduction reason to be blocked if min hold not met, including stop-loss sells which have reason 'stop'.",
+    "belief_quote": "Cap-driven sells are allowed inside the minimum hold. The weight cap itself is applied by :func:`enforce_caps` before orders are built.",
+    "belief_quote_source": "code",
+    "concept": "incorrect-order-filtering",
+    "language_framework": "python",
+    "correct_rule": "Stop-loss sell orders should not be blocked by the minimum hold period restriction; only discretionary sells should be blocked by min hold.",
+    "cited_lines": [
+      "if order.side == \"sell\" and order.reason != \"cap_reduction\":",
+      "    lot = portfolio.positions.get(order.ticker)",
+      "    if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:",
+      "        notes.append(f\"min hold blocked sell of {order.ticker}\")"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed that day trades should be blocked, so sell orders for tickers bought in the same batch are dropped.",
+        "why_rejected": "This does not explain the stop-loss sell being blocked with reason 'stop', as the error message indicates the guard dropped the stop-loss sell due to min hold, not day trade."
+      },
+      {
+        "cause": "The agent assumed that high-risk buys should be halted during drawdown, so high-risk buy orders are dropped.",
+        "why_rejected": "This affects buy orders, not sell orders, and does not explain the stop-loss sell being blocked."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 280,
+        "text": "lot = portfolio.positions.get(order.ticker)"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 281,
+        "text": "if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 282,
+        "text": "notes.append(f\"min hold blocked sell of {order.ticker}\")"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "incorrect-order-filtering",
+    "hits": []
+  },
+  "tests": {
+    "setup": "from datetime import date\n\nm = app(\"src/ta/harness/caps.py\")\nfrom ta.models import OrderIntent\nfrom ta.sim.portfolio import Portfolio, Lot\nfrom ta.config import RiskCaps\n\ncaps = RiskCaps(min_hold_sessions=5, swing_hold_sessions=20, swing_trades_per_quarter=2, reentry_sessions=5, drawdown_halt_high_risk=-0.20)\n\nbook = Portfolio(cash=1000.0, peak_equity=1000.0)\nbook.positions[\"AAA\"] = Lot(qty=10, cost=100, entry_session=10)\nbook.swing_exits = [date(2024, 3, 1), date(2024, 3, 2)]\nbook.exit_sessions = {\"AAA\": 5}\n\nmeta = {\"AAA\": m.NameMeta(ticker=\"AAA\", sleeve=\"core\", sector=\"Information Technology\", price=10)}\n\nfill_session = 12\nfill_date = date(2024, 3, 4)\nprices = {\"AAA\": 10}\n\nequity = 700\n\n# Orders for reproduction test include a stop-loss sell with reason 'stop' that should not be blocked by min_hold\norders_repro = [\n    OrderIntent(ticker=\"AAA\", side=\"sell\", notional=300, reason=\"stop\"),  # stop-loss sell\n    OrderIntent(ticker=\"AAA\", side=\"buy\", notional=300, reason=\"rebalance\"),\n]\n\n# Orders for decoy test 1: discretionary sell blocked by min_hold\norders_decoy1 = [\n    OrderIntent(ticker=\"AAA\", side=\"sell\", notional=300, reason=\"rebalance\"),  # discretionary sell\n]\n\n# Orders for decoy test 2: cap_reduction sell allowed despite min_hold\norders_decoy2 = [\n    OrderIntent(ticker=\"AAA\", side=\"sell\", notional=300, reason=\"cap_reduction\"),  # forced sell allowed\n]\n",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: stop-loss sell blocked by min_hold causes stop-loss not to execute",
+        "role": "reproduction",
+        "asserts": "harm_observed(len(kept) == 0 and any('min hold blocked sell' in note for note in notes), \"stop-loss sell was blocked by min_hold and dropped\")",
+        "body": "arranged()\nout, notes = m.guard_orders(\n    orders_repro,\n    book,\n    meta,\n    caps,\n    fill_session=fill_session,\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity,\n)\nrecord(\"kept\", [(o.ticker, o.side, o.notional, o.reason) for o in out])\nrecord(\"notes\", notes)\nharm_observed(len(out) == 0 and any(\"min hold blocked sell\" in note for note in notes), \"stop-loss sell was blocked by min_hold and dropped\")"
+      },
+      {
+        "name": "decoy: discretionary sell blocked by min_hold is correctly dropped",
+        "role": "decoy",
+        "asserts": "check(len(kept) == 0 and any('min hold blocked sell' in notes for notes in notes), \"discretionary sell blocked by min_hold is dropped\")",
+        "body": "arranged()\nout, notes = m.guard_orders(\n    orders_decoy1,\n    book,\n    meta,\n    caps,\n    fill_session=fill_session,\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity,\n)\nrecord(\"kept\", [(o.ticker, o.side, o.notional, o.reason) for o in out])\nrecord(\"notes\", notes)\ncheck(len(out) == 0 and any(\"min hold blocked sell\" in note for note in notes), \"discretionary sell blocked by min_hold is dropped\")"
+      },
+      {
+        "name": "decoy: cap_reduction sell allowed despite min_hold is kept",
+        "role": "decoy",
+        "asserts": "check(len(kept) == 1 and kept[0].reason == 'cap_reduction', \"cap_reduction sell is allowed despite min_hold\")",
+        "body": "arranged()\nout, notes = m.guard_orders(\n    orders_decoy2,\n    book,\n    meta,\n    caps,\n    fill_session=fill_session,\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity,\n)\nrecord(\"kept\", [(o.ticker, o.side, o.notional, o.reason) for o in out])\nrecord(\"notes\", notes)\nkept = out\ncheck(len(kept) == 1 and kept[0].reason == \"cap_reduction\", \"cap_reduction sell is allowed despite min_hold\")"
+      }
+    ],
+    "trace": {
+      "file": "src/ta/harness/caps.py",
+      "function": "guard_orders"
+    },
+    "tests_sha256": "fd82c4bf3521b67bfcf52413ef553700ec3b206191514e1cec6a0131684e8f2a",
+    "frozen_at": "2026-10-25T19:39:10.718Z",
+    "harness_sha256": "e9d7292f7d7551009c9be3a0e47868a812db4be7102d45ca4cf687e587603358",
+    "harness_repairs": [
+      {
+        "setup_changed": true,
+        "stubs": [],
+        "failure": "harness rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      }
+    ],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": []
+    },
+    "reproduction_sha256": "55c587328055a9a3421cb47fc52c676e03482547edacd65192ac450241dadc2e",
+    "setup_probe": [
+      {
+        "ok": false,
+        "error": "rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      },
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"kept_orders\",\"value\":[[\"AAA\",\"buy\",300,\"rebalance\"]]},{\"name\":\"notes\",\"value\":[\"day trade blocked for AAA\"]}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "        if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\", \"stop\"}:\n            lot = portfolio.positions.get(order.ticker)\n            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\n                continue\n            if (\n                lot is not None\n                and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n                and fill_session - lot.entry_session < caps.swing_hold_sessions\n                and swings_this_quarter >= caps.swing_trades_per_quarter\n            ):\n                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n                continue",
+    "file": "src/ta/harness/caps.py",
+    "changed_lines": 2,
+    "diff": "+        if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\", \"stop\"}:\n-        if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n             lot = portfolio.positions.get(order.ticker)\n             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:",
+    "rationale": "The original code blocks all sell orders except those with reason 'cap_reduction' or 'holdings_cap' if the minimum hold period is not met. This incorrectly blocks stop-loss sell orders (reason 'stop'), preventing them from executing. The fix is to exclude 'stop' from the min hold blocking condition, allowing stop-loss sells to proceed regardless of holding period.",
+    "attempts": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "changed_lines": 2
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: stop-loss sell blocked by min_hold causes stop-loss not to execute",
+          "role": "reproduction",
+          "pass": false,
+          "error": "AssertionError: harmful outcome not observed: stop-loss sell was blocked by min_hold and dropped | File \"/workspace/trading-agent-system/.wce/1655145-mvo8edk7-jx0p4d/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcome not observed: \" + msg)",
+          "stack": "Traceback (most recent call last):\n  File \"/workspace/trading-agent-system/.wce/1655145-mvo8edk7-jx0p4d/t0.py\", line 83, in <module>\n    asyncio.run(_wce_main())\n    ~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 195, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/base_events.py\", line 725, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/workspace/trading-agent-system/.wce/1655145-mvo8edk7-jx0p4d/t0.py\", line 80, in _wce_main\n    harm_observed(len(out) == 0 and any(\"min hold blocked sell\" in note for note in notes), \"stop-loss sell was blocked by min_hold and dropped\")\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/trading-agent-system/.wce/1655145-mvo8edk7-jx0p4d/t0.py\", line 10, in harm_observed\n    raise AssertionError(\"harmful outcome not observed: \" + msg)\nAssertionError: harmful outcome not observed: stop-loss sell was blocked by min_hold and dropped\n",
+          "recorded": [
+            {
+              "name": "kept",
+              "value": [
+                [
+                  "AAA",
+                  "buy",
+                  300,
+                  "rebalance"
+                ]
+              ]
+            },
+            {
+              "name": "notes",
+              "value": [
+                "day trade blocked for AAA"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: discretionary sell blocked by min_hold is correctly dropped",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept",
+              "value": []
+            },
+            {
+              "name": "notes",
+              "value": [
+                "min hold blocked sell of AAA"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: cap_reduction sell allowed despite min_hold is kept",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept",
+              "value": [
+                [
+                  "AAA",
+                  "sell",
+                  300,
+                  "cap_reduction"
+                ]
+              ]
+            },
+            {
+              "name": "notes",
+              "value": []
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 597,
+      "tree": "/workspace/trading-agent-system"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: stop-loss sell blocked by min_hold causes stop-loss not to execute",
+          "role": "reproduction",
+          "pass": false,
+          "error": "AssertionError: harmful outcome not observed: stop-loss sell was blocked by min_hold and dropped | File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17b/heldout4-stop-minhold/app-patched/.wce/1655145-mvo8ee0x-152ak6/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcom",
+          "stack": "Traceback (most recent call last):\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17b/heldout4-stop-minhold/app-patched/.wce/1655145-mvo8ee0x-152ak6/t0.py\", line 83, in <module>\n    asyncio.run(_wce_main())\n    ~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 195, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/base_events.py\", line 725, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17b/heldout4-stop-minhold/app-patched/.wce/1655145-mvo8ee0x-152ak6/t0.py\", line 80, in _wce_main\n    harm_observed(len(out) == 0 and any(\"min hold blocked sell\" in note for note in notes), \"stop-loss sell was blocked by min_hold and dropped\")\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17b/heldout4-stop-minhold/app-patched/.wce/1655145-mvo8ee0x-152ak6/t0.py\", line 10, in harm_observed\n    raise AssertionError(\"harmful outcome not observed: \" + msg)\nAssertionError: harmful outcome not observed: stop-loss sell was blocked by min_hold and dropped\n",
+          "recorded": [
+            {
+              "name": "kept",
+              "value": [
+                [
+                  "AAA",
+                  "buy",
+                  300,
+                  "rebalance"
+                ]
+              ]
+            },
+            {
+              "name": "notes",
+              "value": [
+                "day trade blocked for AAA"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: discretionary sell blocked by min_hold is correctly dropped",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept",
+              "value": []
+            },
+            {
+              "name": "notes",
+              "value": [
+                "min hold blocked sell of AAA"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: cap_reduction sell allowed despite min_hold is kept",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept",
+              "value": [
+                [
+                  "AAA",
+                  "sell",
+                  300,
+                  "cap_reduction"
+                ]
+              ]
+            },
+            {
+              "name": "notes",
+              "value": []
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 631,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17b/heldout4-stop-minhold/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "conditional block for sell orders with non-cap_reduction reason",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if order.side == \"sell\" and order.reason != \"cap_reduction\":\\n            lot = portfolio.positions.get(order.ticker)\\n            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\\n                continue",
+        "quote_verified": true
+      },
+      {
+        "element": "min_hold_sessions check within the conditional block",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\\n                continue",
+        "quote_verified": true
+      },
+      {
+        "element": "notes appended when min hold condition is met",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "notes.append(f\"min hold blocked sell of {order.ticker}\")\\n                continue",
+        "quote_verified": true
+      },
+      {
+        "element": "continue statement that skips the order when min hold is violated",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "continue",
+        "quote_verified": true
+      },
+      {
+        "element": "order.side == \"sell\" condition",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if order.side == \"sell\" and order.reason != \"cap_reduction\":",
+        "quote_verified": true
+      },
+      {
+        "element": "order.reason != \"cap_reduction\" condition",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "order.reason != \"cap_reduction\"",
+        "quote_verified": true
+      }
+    ],
+    "reason": "6 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 280,
+        "text": "lot = portfolio.positions.get(order.ticker)"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 281,
+        "text": "if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 282,
+        "text": "notes.append(f\"min hold blocked sell of {order.ticker}\")"
+      }
+    ],
+    "patch_file": "src/ta/harness/caps.py",
+    "patch_touched_lines": [
+      279
+    ],
+    "overlap": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 280,
+        "text": "lot = portfolio.positions.get(order.ticker)"
+      }
+    ],
+    "cause_gate": {
+      "harm_condition": "The test passes when `len(kept) == 0` AND at least one note contains 'min hold blocked sell'. This means the stop-loss sell was blocked by the min_hold rule and all orders were dropped.",
+      "alternative_defect": "The min_hold guard only checks `lot.entry_session` but does not verify that the position is actually open and valid. If the position was already closed or reduced earlier, `lot` could be stale or None, and the guard might incorrectly block a sell or incorrectly allow it. Alternatively, the guard could be blocking sells for the wrong reason (e.g., confusing min_hold with swing-trade cap logic).",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The test checks that a stop-loss sell is blocked by the min_hold rule and dropped. The cited lines (lot lookup, min_hold comparison, and the note append) are exactly what cause that outcome. If the cited lines behaved correctly per the claim, the test would pass; if they were changed to skip the min_hold check, the test would fail because the sell would not be blocked. The production error confirms the stop-loss sell was dropped due to the min_hold note, matching the test's required outcome."
+    },
+    "rival": {
+      "status": "unavailable",
+      "proposal": {
+        "rival_cause": "The code checks `order.reason != \"cap_reduction\"` to decide whether to apply the minimum hold rule, but stop-loss orders with reason \"stop\" are intentionally allowed to bypass this guard to enable immediate risk mitigation, so the guard incorrectly applies the min_hold_sessions check to all non-cap_reduction reasons.",
+        "rival_rule": "If the order's reason is \"stop\", skip the minimum hold session check and allow the sell to proceed regardless of how recently the position was opened.",
+        "rival_location": "the condition `if order.side == \"sell\" and order.reason != \"cap_reduction\":` in guard_orders"
+      },
+      "attempts": [
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged"
+      ]
+    },
+    "claim_causes": [
+      "The code currently blocks all sell orders (except 'cap_reduction') that violate the minimum hold sessions, which incorrectly includes stop-loss orders with reason 'stop'. A fix must specifically allow stop-loss sells to bypass this check, or change the condition to exclude 'stop' reason orders. [fix: Change the condition in guard_orders from `order.reason != \"cap_reduction\"` to `order.reason not in [\"cap_reduction\", \"stop\"]` or add a separate condition to exclude stop-loss orders from the min hold block.]"
+    ]
+  },
+  "verdict": "not_reproduced",
+  "reasons": [
+    "reproduction test FAILS on the original code (AssertionError: harmful outcome not observed: stop-loss sell was blocked by min_hold and dropped | File \"/workspace/trading-agent-system/.wce/1655145-mvo8edk7-jx0p4d/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcome not observed: \" + msg)): the claimed bug was not reproduced",
+    "reproduction test fails on the patch (AssertionError: harmful outcome not observed: stop-loss sell was blocked by min_hold and dropped | File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17b/heldout4-stop-minhold/app-patched/.wce/1655145-mvo8ee0x-152ak6/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcom): correcting the belief removes the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function src/ta/harness/caps.py:guard_orders",
+    "patch changes the cited line(s) src/ta/harness/caps.py:280",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: not checked (unavailable)",
+    "mechanism gate (nemotron): consistent (6 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T19:39:35.466Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T19:39:35.466Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "ta-stop-loss-blocked",
+            "ts": "2026-10-25T04:09:42.111Z",
+            "severity": "critical",
+            "service": "trading-agent-system",
+            "message": "Stop-loss did not execute: AAA is down -30% from average cost and the order builder emitted a full stop-loss sell (reason 'stop'), but the order never filled; the guard dropped it. Guard notes: [\"min hold blocked sell of AAA\"]",
+            "frame_index": 0,
+            "frame_file": "src/ta/harness/caps.py",
+            "frame_line": 242,
+            "frame_function": "guard_orders",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout4-stop-minhold/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 3773,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 4,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 5,
+            "tool": "read_file",
+            "at": "2026-10-12T00:23:38.996Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript + git log"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

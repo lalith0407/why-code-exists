@@ -1,0 +1,31 @@
+{
+ "overlooked_assumption": "The agent assumed the `table` parameter passed to `_bypass_sql` was already schema-qualified (e.g., `archive.orders`), so it prepended `main.` to form `main.archive.orders`, but the caller passed just `orders` without a schema prefix, causing the generated SQL to target `main.orders` (production) instead of `archive.orders`.",
+ "why_it_breaks": "The `_bypass_sql` function constructs `schema_qualified` SQL by hard\u2011coding `main.` as the schema prefix (`f\"ALTER TABLE main.{table} DROP COLUMN {col}\"`). When the caller invokes it with `table=\"orders\"` (no schema prefix), the generated SQL becomes `ALTER TABLE main.orders DROP COLUMN col`, which targets the production `main.orders` table. The agent\u2019s assumption that the table name would always include a schema qualifier (like `archive.orders`) was wrong\u2014callers pass bare table names, and the `main.` prefix silently redirects the operation to the live database.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 180,
+   "quote": "Writes evals/results/latest.json + latest.md. Synthetic scenarios over our own world: not a real-world benchmark.",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 181,
+   "quote": "I also caught a subtle pre-existing bug: nested double quotes inside a double-quoted f-string accessing the summary's memory key would be a syntax error on Python versions before 3.12. I switched it to single quotes for the dictionary access to keep it compatible across versions.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "evals/run.py",
+   "line": 127,
+   "quote": "\"schema_qualified\": f\"ALTER TABLE main.{table} DROP COLUMN {col}\",",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 2
+}

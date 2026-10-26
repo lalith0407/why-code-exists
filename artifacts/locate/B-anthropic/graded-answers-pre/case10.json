@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that calling `risk.check_caps` on weights returned by `portfolio.size_position` would automatically enforce the hard caps, without verifying that the tool actually rejects or downsizes violations.",
+ "why_it_breaks": "The guide instructs the agent to call `risk.check_caps` but does not require the agent to act on violations or verify that the tool itself enforces limits. Line 3 states 'A failed cap check downsizes the order in code' suggesting automatic enforcement, but the procedure in line 15 only says to 'Call' the tool without requiring the agent to handle the result. When `portfolio.size_position` proposed 95% for KVXR and `risk.check_caps` was called, the agent proceeded with the order because the guide did not mandate blocking or downsizing based on the check result, allowing the 95% position to pass despite the 15% single-name cap.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 60,
+   "quote": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "guides/risk_manager/v1.md",
+   "line": 3,
+   "quote": "Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "guides/risk_manager/v1.md",
+   "line": 15,
+   "quote": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "guides/risk_manager/v1.md",
+   "line": 19,
+   "quote": "Final weights respect single-name, sector, penny, and high-risk sleeve caps.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 3,
+ "verified_transcript_quotes": 1
+}

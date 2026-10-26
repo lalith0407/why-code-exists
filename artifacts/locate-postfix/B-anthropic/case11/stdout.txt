@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/mcp_servers/portfolio_tools.py:314
+stage: ok
+provider: anthropic
+frame: src/ta/mcp_servers/portfolio_tools.py:314
+status: verified (code quotes 2, transcript quotes 2)
+overlooked_assumption: The agent assumed that checking if a ticker is in the forced stops set is sufficient to trigger a stop-loss, but did not verify that the stop-loss check is actually called before order rejection logic.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-anthropic/case11/report.html

@@ -1,0 +1,33 @@
+{
+ "overlooked_assumption": "The agent assumed that setting last_trade_session to a past session (10) and last_decision_on to a past date would prevent the stop order from being classified as a swing trade, but overlooked that the cooldown and minimum-size guards operate independently of the swing-trade classification logic.",
+ "why_it_breaks": "The test sets last_trade_session to session 10 and last_decision_on to 2024-01-01, expecting the stop order to pass through without being blocked by cooldown or minimum-size rules. However, the stop order still executes and is classified as a swing trade because the cooldown guard only checks elapsed sessions since the last trade, and the minimum-size guard only checks notional against $50. The agent overlooked that the swing-trade count increments whenever a position exits regardless of cooldown/minimum flags, so three partial sells in one day breach the quarterly cap of 2.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5941,
+   "quote": "Hard drawdown rules bypass minimum-hold checks. A ~$1.8 one-dollar trim falls below the $50 threshold. Stop tests assert the reason is stop.\nHard drawdown rules bypass minimum-hold checks. A ~$1.8 one-dollar trim falls below the $50 threshold. Stop tests assert the reason is stop.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_churn.py",
+   "line": 285,
+   "quote": "book.last_trade_session[\"AAPL\"] = 10\nbook.last_decision_on[\"AAPL\"] = \"2024-01-01\"\nplanned = plan_orders(_ctx(store, settings, book, 10, days[0]), [\"AAPL\"])",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_churn.py",
+   "line": 289,
+   "quote": "assert sells and sells[0][\"reason\"] == \"stop\"",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

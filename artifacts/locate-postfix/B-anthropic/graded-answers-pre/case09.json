@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that when a table parameter contains a schema qualifier (like 'archive.orders'), it should be replaced with a hardcoded 'main' schema prefix rather than preserving the original schema name.",
+ "why_it_breaks": "When the table parameter is 'archive.orders', the schema_qualified variant generates 'ALTER TABLE main.archive.orders' which is invalid SQL, causing the parser or execution layer to fall back to treating 'orders' as an unqualified table name in the default schema (production), completely ignoring the 'archive' schema prefix that was requested.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 180,
+   "quote": "\"schema_qualified\": f\"ALTER TABLE main.{table} DROP COLUMN {col}\",",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "evals/run.py",
+   "line": 127,
+   "quote": "\"schema_qualified\": f\"ALTER TABLE main.{table} DROP COLUMN {col}\",",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "blast_radius/models.py",
+   "line": 62,
+   "quote": "raw_sql: str | None = None    # the exact text the agent sent, kept for audit/display only",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

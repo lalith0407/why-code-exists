@@ -1,0 +1,8 @@
+{
+ "id": "case09",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "Audit finding: an agent requested dropping a column on the archived copy of the orders table (schema `archive`, table `orders`), specified as `archive.orders`. The change-control review that followed, and the database activity log for it, show every step run against the live, production `orders` table instead — the one application traffic actually reads and writes. The `archive.orders` table was never touched.\n\nNo one asked for the production table to be modified in this request.\n",
+ "frames": []
+}

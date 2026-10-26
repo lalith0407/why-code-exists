@@ -1,0 +1,26 @@
+{
+ "id": "case14",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "ValueError: day is out of range for month\n    at run (/usr/lib/python3.13/asyncio/runners.py:195)\n    at run (/usr/lib/python3.13/asyncio/runners.py:118)\n    at run_until_complete (/usr/lib/python3.13/asyncio/base_events.py:725)\n    at _refresh_macro (src/ta/replay.py:322)\n\nHappened mid-run during an overnight replay job; the replay date at the time was February 29 of a leap year.\n",
+ "frames": [
+  {
+   "file": "usr/lib/python3.13/asyncio/runners.py",
+   "line": 195
+  },
+  {
+   "file": "usr/lib/python3.13/asyncio/runners.py",
+   "line": 118
+  },
+  {
+   "file": "usr/lib/python3.13/asyncio/base_events.py",
+   "line": 725
+  },
+  {
+   "file": "src/ta/replay.py",
+   "line": 322,
+   "function": "_refresh_macro"
+  }
+ ]
+}

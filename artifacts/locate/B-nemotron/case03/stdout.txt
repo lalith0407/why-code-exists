@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/sim/metrics.py:43
+stage: ok
+provider: nemotron
+frame: src/ta/sim/metrics.py:43
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: _xirr assumes cashflows are ordered chronologically from earliest to latest, but the function does not sort them, so when cashflows arrive in non-chronological order the time calculations produce incorrect (possibly negative) values, causing the Newton-Raphson solver to fail and return None (displayed as "n/a").
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-nemotron/case03/report.html

@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> guides/risk_manager/v1.md:15
+stage: ok
+provider: anthropic
+frame: guides/risk_manager/v1.md:15
+status: verified (code quotes 3, transcript quotes 1)
+overlooked_assumption: The agent assumed that calling `risk.check_caps` on weights returned by `portfolio.size_position` would automatically enforce the hard caps, without verifying that the tool actually rejects or downsizes violations.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case10/report.html

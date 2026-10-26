@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> app/w/[slug]/settings/page.tsx:90
+stage: ok
+provider: anthropic
+frame: app/w/[slug]/settings/page.tsx:90
+status: unverified (code quotes 3, transcript quotes 0)
+overlooked_assumption: The agent assumed messages would always be single-line like the example '/pulse feedback Dark mode please', but did not handle multi-line messages where the feedback text contains newlines.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-anthropic/case01/report.html

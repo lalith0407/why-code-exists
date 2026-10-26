@@ -1,0 +1,7 @@
+locate: layer2_agentic -> src/ta/harness/caps.py:288
+stage: ok
+provider: anthropic
+frame: src/ta/harness/caps.py:288
+status: unverified (code quotes 2, transcript quotes 0)
+overlooked_assumption: The agent assumed that checking swings_this_quarter >= cap would block new swing trades, but it only blocks when the count has already reached or exceeded the cap, allowing one extra trade to execute before blocking.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-anthropic/case12/report.html

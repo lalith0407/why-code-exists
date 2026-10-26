@@ -1,0 +1,33 @@
+{
+ "overlooked_assumption": "_meta_for always provides a NameMeta with a valid sleeve and price for every ticker in the weights dict, so enforce_caps can apply the correct cap percentage",
+ "why_it_breaks": "When KVXR has no bar data (first position, no history), _meta_for sets price=0.0. In caps.py, _name_cap checks `meta.price < caps.penny_price_threshold`; with price=0.0 this condition is always true, so the function returns single_high_risk_pct (likely 25% or similar) instead of single_core_pct (15%). The risk check then applies the wrong cap and allows the 95% position to pass without violation.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/risk_tools.py",
+   "line": 22,
+   "quote": "price = 0.0 if bar is None else bar.adj_close",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 29,
+   "quote": "def _name_cap(meta: NameMeta, caps: RiskCaps) -> float:\n    if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\n        return caps.single_high_risk_pct\n    return caps.single_core_pct",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 155,
+   "quote": "L155 [tool] TOOL: search_replace\nL155| CODE_WRITTEN: \nL155| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL155| +++ b//workspace/src/ta/mcp_servers/risk_tools.py\nL155| @@ -1,0 +1,40 @@\nL155| +\"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\nL155| +\nL155| +from __future__ import annotations\nL155| +\nL155| +from typing import Any\nL155| +\nL155| +from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\nL155| +from ta.harness.context import ToolContext\nL155| +from ta.mcp_servers.portfolio_tools import snapshot_state\nL155| +from ta.mcp_servers.registry import tool\nL155| +\nL155| +def _meta_for(ctx: ToolContext, tickers: list[str]) -> dict[str, NameMeta]:\nL155| +    meta: dict[str, NameMeta] = {}\nL155| +    for ticker in tickers:\nL155| +        security = ctx.store.security_by_ticker(ticker)\nL155| +        if security is None:\nL155| +            continue\nL155| +        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\nL155| +        price = 0.0 if bar is None else bar.adj_close\nL155| +        meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nL155| +    return meta\nL155| +\nL155| +\nL155| +@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")\nL155| +def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:\nL155| +    meta = _meta_for(ctx, list(weights))\nL155| +    outcome = enforce_caps(weights, meta, ctx.settings.risk)\nL155| +    return {\nL155| +        \"ok\": outcome.ok,\nL155| +        \"weights\": outcome.weights,",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,897 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case12",
+  "complete": false,
+  "notes": [],
+  "frame": {
+   "file": "rules/exit/v1.yaml",
+   "line": 10
+  },
+  "asked": {
+   "text": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 2870
+  },
+  "understood": {
+   "text": "I will begin by writing the project configuration files, Makefile, and Python source code.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L24 (assistant, 14 words, 24 line(s) before the edit at L48)",
+   "valid": false,
+   "full_length": 90,
+   "why_invalid": "agent wrote fewer than 15 words before the edit (silent edit)"
+  },
+  "happened": {
+   "text": "Compliance rule breach: the fund's swing-trade count for the quarter is now 4, above the documented cap of 2. Before today, 1 swing exit had already been used this quarter.\n\nThree positions (held under the minimum period that would normally classify an exit as a swing trade) were all sold and filled today. None of the three sells were rejected or flagged by the guard; no violation notes were recorded for any of them.\n\n  at ? (rules/exit/v1.yaml:10)\n  10: Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\n\nWritten by transcript edit L48 (search_replace):\n+  - valuation_target\n+  - time_stop\n+blocked:\n+  - trend_chase\n+min_hold_reference: config/risk.yaml\n+notes: >\n+  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\n+  Thesis-break exits are wired in a later phase.",
+   "citation": "error case12 frame rules/exit/v1.yaml:10; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L48",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 48,
+    "quote": "L48 [tool] TOOL: search_replace\nL48| CODE_WRITTEN: \nL48| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL48| +++ b//workspace/rules/exit/v1.yaml\nL48| @@ -1,0 +1,11 @@\nL48| +version: v1\nL48| +discretionary_exits:\nL48| +  - screen_exit\nL48| +  - valuation_target\nL48| +  - time_stop\nL48| +blocked:\nL48| +  - trend_chase\nL48| +min_hold_reference: config/risk.yaml\nL48| +notes: >\nL48| +  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\nL48| +  Thesis-break exits are wired in a later phase.\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":11}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false,\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}",
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 285,
+    "quote": "285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Compliance rule breach: the fund's swing-trade count for the quarter is now 4, above the documented cap of 2. Before today, 1 swing exit had already been used this quarter.\n\nThree positions (held under the minimum period that would normally classify an exit as a swing trade) were all sold and filled today. None of the three sells were rejected or flagged by the guard; no violation notes were recorded for any of them.\n",
+  "terms": [
+   "compliance rule breach",
+   "before today",
+   "three positions",
+   "none of the three",
+   "4",
+   "2",
+   "1",
+   "compliance",
+   "rule",
+   "breach",
+   "fund",
+   "swing",
+   "trade",
+   "count",
+   "quarter",
+   "documented",
+   "today",
+   "exit",
+   "already",
+   "used",
+   "three",
+   "positions",
+   "held",
+   "minimum",
+   "period",
+   "normally",
+   "classify",
+   "sold",
+   "filled",
+   "none",
+   "sells",
+   "rejected",
+   "flagged",
+   "guard",
+   "violation",
+   "notes",
+   "recorded"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "rules/exit/v1.yaml",
+     "line": 10,
+     "end_line": 11,
+     "text": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+     "score": 21.689,
+     "matched_terms": [
+      "exit",
+      "minimum",
+      "sells",
+      "notes"
+     ],
+     "edit_line": 48,
+     "tool": "search_replace",
+     "hunk_id": "L48#11",
+     "snippet": "1: version: v1\n2: discretionary_exits:\n3:   - screen_exit\n4:   - valuation_target\n5:   - time_stop\n6: blocked:\n7:   - trend_chase\n8: min_hold_reference: config/risk.yaml\n9: notes: >\n10:   Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 10,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 9,
+       "text": "notes: >"
+      },
+      {
+       "line": 10,
+       "text": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not."
+      },
+      {
+       "line": 11,
+       "text": "  Thesis-break exits are wired in a later phase."
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 290,
+     "end_line": 201,
+     "text": "                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")",
+     "function": "forced_trims",
+     "score": 21.2595,
+     "matched_terms": [
+      "positions",
+      "none",
+      "swing",
+      "trade",
+      "quarter",
+      "exit",
+      "minimum",
+      "sells",
+      "guard",
+      "notes"
+     ],
+     "edit_line": 108,
+     "tool": "search_replace",
+     "hunk_id": "L108#37",
+     "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 198,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 197,
+       "text": "            ):"
+      },
+      {
+       "line": 198,
+       "text": "                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")"
+      },
+      {
+       "line": 199,
+       "text": "                continue"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "rules/sizing/v1.yaml",
+     "line": 30,
+     "end_line": 29,
+     "text": "  A name inside the minimum hold is not sold unless a hard trigger requires it.",
+     "score": 19.8183,
+     "matched_terms": [
+      "trade",
+      "exit",
+      "minimum",
+      "sold"
+     ],
+     "edit_line": 5830,
+     "tool": "search_replace",
+     "hunk_id": "L5830#759",
+     "snippet": "12: rebalance_weekday: monday\n13: trade_cooldown_sessions: 10\n14: min_trade_dollars: 50\n15: min_trade_pct: 0.01\n16: high_conviction_quality: 0.05\n17: stop_loss_pct: 0.20\n20:   The book is rebalanced on rebalance_weekday. Other sessions only trade a hard trigger:\n21:   a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name\n22:   whose quality score clears high_conviction_quality.\n23:   The sizer trades the gap between current weight and target when it exceeds the 5 percentage-point band",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 27,
+     "hunk_start": 12,
+     "context_lines": [
+      {
+       "line": 25,
+       "text": "  A full exit starts a reentry wait. Any fill, including a partial trim or top-up, starts trade_cooldown_sessions."
+      },
+      {
+       "line": 27,
+       "text": "  A name inside the minimum hold is not sold unless a hard trigger requires it."
+      },
+      {
+       "line": 28,
+       "text": "  A trade on a holding that is leaving the book must cite a fact dated after the last decision on that name."
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/memo/render.py",
+     "line": 175,
+     "end_line": 139,
+     "text": "        f\"Rule compliance: {_pct(result.reward.rule_compliance)}.\",",
+     "function": "_cost_lines",
+     "score": 19.1012,
+     "matched_terms": [
+      "compliance",
+      "rule",
+      "none",
+      "used",
+      "held",
+      "guard",
+      "notes"
+     ],
+     "edit_line": 264,
+     "tool": "search_replace",
+     "hunk_id": "L264#92",
+     "snippet": "1: \"\"\"Render an episode. Resolved numbers are labelled as simulator output, not as alpha.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from ta.config import Settings\n6: from ta.models import PerformanceReport\n7: \n8: \n9: def _pct(value: float | None) -> str:\n10:     if value is None:",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 59,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 58,
+       "text": "        f\"Citation accuracy: {_pct(result.reward.citation_accuracy)}.\","
+      },
+      {
+       "line": 59,
+       "text": "        f\"Rule compliance: {_pct(result.reward.rule_compliance)}.\","
+      },
+      {
+       "line": 60,
+       "text": "        f\"Log-verified claim rate: {_pct(result.reward.log_verified_claim_rate)}.\","
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 414,
+     "end_line": 211,
+     "text": "        held = ticker in ctx.portfolio.positions",
+     "function": "_public_portfolio_check",
+     "score": 19.0353,
+     "matched_terms": [
+      "positions",
+      "none",
+      "fund",
+      "trade",
+      "held",
+      "sells",
+      "notes"
+     ],
+     "edit_line": 5643,
+     "tool": "search_replace",
+     "hunk_id": "L5643#744",
+     "snippet": "68: def _rebalance_weekday(ctx: ToolContext) -> str:\n69:     name = str(ctx.settings.sizing_rules.get(\"rebalance_weekday\") or \"monday\").strip().lower()\n70:     if name in _WEEKDAYS:\n71:         return name\n72:     short = {day[:3]: day for day in _WEEKDAYS}\n73:     return short.get(name[:3], \"monday\")\n74: \n75: \n76: def _is_rebalance_day(ctx: ToolContext) -> bool:\n77:     return ctx.as_of.weekday() == _WEEKDAYS.index(_rebalance_weekday(ctx))",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 180,
+     "hunk_start": 68,
+     "context_lines": [
+      {
+       "line": 174,
+       "text": "    wanted = set(selected or [])"
+      },
+      {
+       "line": 180,
+       "text": "        held = ticker in ctx.portfolio.positions"
+      },
+      {
+       "line": 181,
+       "text": "        if held and not _hard(order):"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/memo/render.py",
+     "line": 36,
+     "end_line": 64,
+     "text": "            \"This is a recorded replay. Claude judged tool output that the tools had already fetched. \"",
+     "function": "_mode_copy",
+     "score": 19.0108,
+     "matched_terms": [
+      "none",
+      "already",
+      "used",
+      "held",
+      "recorded"
+     ],
+     "edit_line": 1887,
+     "tool": "search_replace",
+     "hunk_id": "L1887#294",
+     "snippet": "32: def _mode_copy(mode: str) -> tuple[str, str, str]:\n33:     if mode == \"anthropic\":\n34:         return (\n35:             \"This is a recorded replay. Claude judged tool output that the tools had already fetched. \"\n36:             \"It is not evidence of edge.\",\n37:             \"Mode: `anthropic`. Claude is called for the analyst, bull, and bear judgements. \"\n38:             \"Retrieval and arithmetic stay in the tools.\",\n39:             \"Agent (Claude)\",\n40:         )\n41:     if mode == \"rules\":",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 35,
+     "hunk_start": 32,
+     "context_lines": [
+      {
+       "line": 34,
+       "text": "        return ("
+      },
+      {
+       "line": 35,
+       "text": "            \"This is a recorded replay. Claude judged tool output that the tools had already fetched. \""
+      },
+      {
+       "line": 36,
+       "text": "            \"It is not evidence of edge.\","
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 152,
+     "end_line": 223,
+     "text": "def sector_breach(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> str | None:",
+     "function": "sector_breach",
+     "score": 18.8197,
+     "matched_terms": [
+      "breach",
+      "none",
+      "count",
+      "already",
+      "held",
+      "filled"
+     ],
+     "edit_line": 8931,
+     "tool": "search_replace",
+     "hunk_id": "L8931#1083",
+     "snippet": "139: def equal_weight_targets(\n140:     names: list[str],\n141:     meta: dict[str, NameMeta],\n142:     caps: RiskCaps,\n143: ) -> dict[str, float]:\n144:     \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n145:     priced = [name for name in names if name in meta and meta[name].price > 0]\n146:     if not priced:\n147:         return {}\n148:     share = 1.0 / len(priced)",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 152,
+     "hunk_start": 139,
+     "context_lines": [
+      {
+       "line": 151,
+       "text": ""
+      },
+      {
+       "line": 152,
+       "text": "def sector_breach(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> str | None:"
+      },
+      {
+       "line": 153,
+       "text": "    totals: dict[str, float] = defaultdict(float)"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 0,
+     "end_line": 112,
+     "text": "    Cap-driven sells still go out during the hold. The fill guard applies the same",
+     "function": "_order_key",
+     "score": 17.9883,
+     "matched_terms": [
+      "positions",
+      "none",
+      "minimum",
+      "sells",
+      "guard",
+      "notes"
+     ],
+     "edit_line": 2468,
+     "tool": "search_replace",
+     "hunk_id": "L2468#357",
+     "snippet": "59: def _order_key(ticker: str, side: str) -> str:\n60:     return f\"{ticker}|{side}\"\n61: \n62: \n63: def apply_churn_rules(ctx: ToolContext, orders: list[dict[str, Any]], equity: float) -> tuple[list[dict[str, Any]], list[str]]:\n64:     \"\"\"Drop sells the minimum hold forbids, repeats of unfilled orders, and trades past the turnover cap.\n65: \n66:     Cap-driven sells still go out during the hold. The fill guard applies the same\n67:     hold again, so a decision cannot keep printing a sell the simulator will reject.\n68:     \"\"\"",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 66,
+     "hunk_start": 59,
+     "context_lines": [
+      {
+       "line": 65,
+       "text": ""
+      },
+      {
+       "line": 66,
+       "text": "    Cap-driven sells still go out during the hold. The fill guard applies the same"
+      },
+      {
+       "line": 67,
+       "text": "    hold again, so a decision cannot keep printing a sell the simulator will reject."
+      }
+     ],
+     "anchor": "unanchored"
+    },
+    {
+     "file": "src/ta/mcp_servers/screen_tools.py",
+     "line": 35,
+     "end_line": 117,
+     "text": "    if minimum is not None:",
+     "function": "_checks",
+     "score": 17.0161,
+     "matched_terms": [
+      "rule",
+      "none",
+      "fund",
+      "minimum",
+      "rejected"
+     ],
+     "edit_line": 609,
+     "tool": "search_replace",
+     "hunk_id": "L609#132",
+     "snippet": "1: \"\"\"Versioned screen. Extra names are screened. Nothing is auto-passed.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from typing import Any\n6: \n7: from ta.harness.context import ToolContext\n8: from ta.mcp_servers.fund import compute_ratio_block\n9: from ta.mcp_servers.registry import tool\n10: from ta.models import Security",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 32,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 31,
+       "text": "    minimum = rules.get(\"min_quality_score\")"
+      },
+      {
+       "line": 32,
+       "text": "    if minimum is not None:"
+      },
+      {
+       "line": 33,
+       "text": "        quality = block.get(\"quality_score\")"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "rules/sizing/v1.yaml",
+     "line": 26,
+     "end_line": 29,
+     "text": "  The book aims for 8 to 15 names. Names above that count are sold weakest score first,",
+     "score": 16.5236,
+     "matched_terms": [
+      "count",
+      "minimum",
+      "sold"
+     ],
+     "edit_line": 8941,
+     "tool": "search_replace",
+     "hunk_id": "L8941#1089",
+     "snippet": "26:   The book aims for 8 to 15 names. Names above that count are sold weakest score first,\n27:   and that sell is a hard trigger inside the minimum hold. A sector above 35 percent\n28:   loses its weakest name before orders are built. The remaining names stay at equal\n29:   weight. They are not scaled up to fill the sector cap. Names are not invented to fill the floor.",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 26,
+     "hunk_start": 26,
+     "context_lines": [
+      {
+       "line": 26,
+       "text": "  The book aims for 8 to 15 names. Names above that count are sold weakest score first,"
+      },
+      {
+       "line": 27,
+       "text": "  and that sell is a hard trigger inside the minimum hold. A sector above 35 percent"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "rules/exit/v1.yaml",
+    "line": 10,
+    "end_line": 11,
+    "text": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+    "score": 21.689,
+    "matched_terms": [
+     "exit",
+     "minimum",
+     "sells",
+     "notes"
+    ],
+    "edit_line": 48,
+    "tool": "search_replace",
+    "hunk_id": "L48#11",
+    "snippet": "1: version: v1\n2: discretionary_exits:\n3:   - screen_exit\n4:   - valuation_target\n5:   - time_stop\n6: blocked:\n7:   - trend_chase\n8: min_hold_reference: config/risk.yaml\n9: notes: >\n10:   Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 10,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 9,
+      "text": "notes: >"
+     },
+     {
+      "line": 10,
+      "text": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not."
+     },
+     {
+      "line": 11,
+      "text": "  Thesis-break exits are wired in a later phase."
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/ta/harness/caps.py",
+    "line": 290,
+    "end_line": 201,
+    "text": "                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")",
+    "function": "forced_trims",
+    "score": 21.2595,
+    "matched_terms": [
+     "positions",
+     "none",
+     "swing",
+     "trade",
+     "quarter",
+     "exit",
+     "minimum",
+     "sells",
+     "guard",
+     "notes"
+    ],
+    "edit_line": 108,
+    "tool": "search_replace",
+    "hunk_id": "L108#37",
+    "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 198,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 197,
+      "text": "            ):"
+     },
+     {
+      "line": 198,
+      "text": "                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")"
+     },
+     {
+      "line": 199,
+      "text": "                continue"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "rules/sizing/v1.yaml",
+    "line": 30,
+    "end_line": 29,
+    "text": "  A name inside the minimum hold is not sold unless a hard trigger requires it.",
+    "score": 19.8183,
+    "matched_terms": [
+     "trade",
+     "exit",
+     "minimum",
+     "sold"
+    ],
+    "edit_line": 5830,
+    "tool": "search_replace",
+    "hunk_id": "L5830#759",
+    "snippet": "12: rebalance_weekday: monday\n13: trade_cooldown_sessions: 10\n14: min_trade_dollars: 50\n15: min_trade_pct: 0.01\n16: high_conviction_quality: 0.05\n17: stop_loss_pct: 0.20\n20:   The book is rebalanced on rebalance_weekday. Other sessions only trade a hard trigger:\n21:   a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name\n22:   whose quality score clears high_conviction_quality.\n23:   The sizer trades the gap between current weight and target when it exceeds the 5 percentage-point band",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 27,
+    "hunk_start": 12,
+    "context_lines": [
+     {
+      "line": 25,
+      "text": "  A full exit starts a reentry wait. Any fill, including a partial trim or top-up, starts trade_cooldown_sessions."
+     },
+     {
+      "line": 27,
+      "text": "  A name inside the minimum hold is not sold unless a hard trigger requires it."
+     },
+     {
+      "line": 28,
+      "text": "  A trade on a holding that is leaving the book must cite a fact dated after the last decision on that name."
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "rules/exit/v1.yaml",
+   "line": 10,
+   "end_line": 11,
+   "text": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+   "score": 21.689,
+   "matched_terms": [
+    "exit",
+    "minimum",
+    "sells",
+    "notes"
+   ],
+   "edit_line": 48,
+   "tool": "search_replace",
+   "hunk_id": "L48#11",
+   "snippet": "1: version: v1\n2: discretionary_exits:\n3:   - screen_exit\n4:   - valuation_target\n5:   - time_stop\n6: blocked:\n7:   - trend_chase\n8: min_hold_reference: config/risk.yaml\n9: notes: >\n10:   Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 10,
+   "hunk_start": 1,
+   "context_lines": [
+    {
+     "line": 9,
+     "text": "notes: >"
+    },
+    {
+     "line": 10,
+     "text": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not."
+    },
+    {
+     "line": 11,
+     "text": "  Thesis-break exits are wired in a later phase."
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "nemotron",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "swing.*trade|swing.*exit|swing.*count|cap.*2|documented.*cap"
+     },
+     "result": "src/ta/config.py:49: swing_trades_per_quarter: int = 2\nsrc/ta/models.py:143: swing_trades: int\nsrc/ta/sim/metrics.py:128: swing_trades=len(portfolio.swing_exits),\nsrc/ta/sim/portfolio.py:39: swing_exits: list[date] = field(default_factory=list)\nsrc/ta/sim/portfolio.py:267: portfolio.swing_exits.append(bar_date)\nsrc/ta/harness/caps.py:111: if total > caps.sector_pct + 1e-12:\nsrc/ta/harness/caps.py:117: if total > caps.high_risk_sleeve_pct + 1e-12:\nsrc/ta/harness/caps.py:125: if total > caps.penny_total_pct + 1e-12:\nsrc/ta/harness/caps.py:263: swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\nsrc/ta/harness/caps.py:288: and swings_this_quarter >= caps.swing_trades_per_quarter\nsrc/ta/harness/caps.py:290: notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")"
+    },
+    {
+     "step": 2,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 260,
+      "end": 300
+     },
+     "result": "260:     drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n261:     halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n262:     quarter = _quarter(fill_date)\n263:     swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n264:     kept: list[OrderIntent] = []\n265:     for order in orders:\n266:         if order.side == \"hold\" or order.notional <= 0:\n267:             continue\n268:         if order.side == \"sell\" and order.ticker in buys:\n269:             notes.append(f\"day trade blocked for {order.ticker}\")\n270:             continue\n271:         if order.side == \"buy\":\n272:             exited = portfolio.exit_sessions.get(order.ticker)\n273:             if exited is not None and fill_session - exited < caps.reentry_sessions:\n274:                 notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n275:                 continue\n276:         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n277:             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n278:             continue\n279:         if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n280:             lot = portfolio.positions.get(order.ticker)\n281:             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n282:                 notes.append(f\"min hold blocked sell of {order.ticker}\")\n283:                 continue\n284:             if (\n285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue\n292:         kept.append(order)\n293:     return kept, notes\n294: "
+    },
+    {
+     "step": 3,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 280,
+      "end": 292
+     },
+     "result": "280:             lot = portfolio.positions.get(order.ticker)\n281:             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n282:                 notes.append(f\"min hold blocked sell of {order.ticker}\")\n283:                 continue\n284:             if (\n285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue\n292:         kept.append(order)"
+    },
+    {
+     "step": 4,
+     "action": "list_edits",
+     "args": {},
+     "result": "pyproject.toml:1-66 (edit at L26, search_replace)\n  1: [project]\n  2: name = \"trading-agents\"\n  3: version = \"0.1.0\"\n  4: description = \"Long-horizon multi-agent US equity research system. Phase 0 is the simulator, point-in-time data layer, and tamper-evident action log.\"\n\nMakefile:1-15 (edit at L28, search_replace)\n  1: UV ?= $(HOME)/.local/bin/uv\n  2: export PATH := $(HOME)/.local/bin:$(PATH)\n  6: sync:\n  9: demo:\n\n.gitignore:1-13 (edit at L30, search_replace)\n  1: .venv/\n  2: __pycache__/\n  3: *.pyc\n  4: .mypy_cache/\n\n.github/workflows/ci.yml:1-22 (edit at L32, search_replace)\n  1: name: ci\n  3: on:\n  4:   push:\n  5:   pull_request:\n\nconfig/risk.yaml:1-31 (edit at L34, search_replace)\n  1: # Hard risk caps. Immutable to agents and to the guide evolver.\n  2: # Changes require an explicit user edit and a new version hash.\n  3: version: v1\n  4: caps:\n\nconfig/reward.yaml:1-12 (edit at L36, search_replace)\n  1: # Multi-objective reward weights. The scalar is for selection only.\n  2: # Components are always reported separately. A HIGH audit failure zeroes the scalar.\n  3: version: v1\n  4: weights:\n\nconfig/sim.yaml:1-28 (edit at L38, search_replace)\n  1: # Simulator defaults. Phase 0 replays the bundled fixture; it does not hit the network.\n  2: version: v1\n  3: initial_capital: 1000\n  4: contribution_amount: 100\n\nconfig/sources.yaml:1-21 (edit at L40, search_replace)\n  1: # Credentials come from the environment. Nothing in this file is a secret.\n  2: edgar:\n  3:   user_agent_env: SEC_EDGAR_USER_AGENT\n  4:   rate_limit_per_sec: 8\n\nconfig/thesis_topics.yaml:1-15 (edit at L42, search_replace)\n  1: # Scheduled-scan themes for the Thesis Investigator. The investigator itself is Phase 2.\n  2: version: v1\n  3: cadence: weekly\n  4: topics:\n\nrules/screen/v1.yaml:1-23 (edit at L44, search_replace)\n  1: version: v1\n  2: formula_version: ratios-0.1.0\n  3: min_quality_score: 0.0\n  13: require_positive_earnings: true\n\nrules/sizing/v1.yaml:1-19 (edit at L46, search_replace)\n  1: version: v1\n  2: fractional_shares: true\n  3: min_order_notional: 1.0\n  8: contribution_policy: new_cash_toward_underweights\n\nrules/exit/v1.yaml:1-11 (edit at L48, search_replace)\n  1: version: v1\n  2: discretionary_exits:\n  3:   - screen_exit\n  4:   - valuation_target\n\nrules/risk/v1.yaml:1-5 (edit at L50, search_replace)\n  1: version: v1\n  2: source: config/risk.yaml\n  3: notes: >\n  4:   This file records the rule-set version that decisions cite.\n\nrules/anomaly/v1.yaml:1-11 (edit at L52, search_replace)\n  1: version: v1\n  4: lookback_sessions: 60\n  5: return_sigma: 3.0\n  6: windows: [1, 5]\n\nguides/METASKILL.md:1-29 (edit at L54, search_replace)\n  1: # Metaskill (GSO)\n  3: This metaskill is the persistent object. A per-ticker research plan is derived from an agent guide at run time, stored in the action log for audit, and discarded. It is never promoted to a guide.\n  5: The evolver traces the first fault to exactly one section below and edits only that section. An edit is accepted only when `repairs - 2 * regressions > 0` and validation success does not fall, measured by executing `sim.run_ab` on a validation window. Held-out sectors and test windows never propose or accept edits. An LLM may rank candidate edits; it does not decide acceptance.\n  7: ## 1. Read task\n\nguides/orchestrator/v1.md:1-27 (edit at L56, search_replace)\n  1: # Orchestrator guide v1\n  3: The orchestrator produces a RunPlan and routes tasks. It does not analyse securities and it does not size orders.\n  5: ## 1. Read task\n  7: Read the trigger (contribution, schedule, anomaly, or demo), the portfolio state, and the active guide and rule versions.\n\nguides/fundamentals/v1.md:1-27 (edit at L58, search_replace)\n  1: # Fundamentals guide v1\n  3: Interpret ratios that `fund.compute_ratios` already computed. Do not calculate prices, yields, or scores.\n  5: ## 1. Read task\n  7: For the point-in-time universe, read each analysed ticker's end-of-day prices and ratio block as of the run date. Benchmarks and bond proxies are not stock-selection names.\n\nguides/risk_manager/v1.md:1-27 (edit at L60, search_replace)\n  1: # Risk manager guide v1\n  3: Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\n  5: ## 1. Read task\n  7: Read the analyst's selected names, the current portfolio, incoming contribution cash, and the option-gate status.\n\nguides/thesis/v1.md:1-45 (edit at L62, search_replace)\n  1: # Thesis investigator guide v1\n  3: Derive a cited, falsifiable thesis. This guide does not trade and does not size. Pattern notes below are the sections a later GSO loop may edit, one pattern at a time, after enough predictions have resolved.\n  5: ## 1. Read task\n  7: Read the anomaly event or the scheduled topic, the as-of date, and this guide version. If the deterministic decomposition says the move is explained, stop with no thesis.\n\nsrc/ta/data/migrations/001_initial.sql:1-398 (edit at L65, search_replace)\n  1: -- Phase 0 schema. DuckDB first; types map to Postgres\n  2: -- (VARCHAR, DATE, DOUBLE PRECISION, BIGINT). Nested payloads are JSON text\n  3: -- so the later move to JSONB is mechanical.\n  4: -- Point-in-time columns: event_time, available_at, retrieved_at.\n\nsrc/ta/__init__.py:1-3 (edit at L67, search_replace)\n  1: \"\"\"Long-horizon multi-agent investment research system (Phase 0).\"\"\"\n  3: __version__ = \"0.1.0\"\n\nsrc/ta/errors.py:1-34 (edit at L71, search_replace)\n  1: \"\"\"Project exceptions. Leakage and phase gates are control flow the gateway logs.\"\"\"\n  4: class TaError(Exception):\n  5:     \"\"\"Base error for expected failures.\"\"\"\n  8: class ConfigError(TaError):\n\nsrc/ta/ids.py:1-81 (edit at L73, search_replace)\n  1: \"\"\"Identifiers, canonical JSON, and content hashes.\n  3: Log entry hashes use canonical JSON so verify can recompute them from the\n  4: parsed object. Floats are rounded before they enter a hashed payload.\n  5: \"\"\"\n\nsrc/ta/models.py:1-290 (edit at L76, search_replace)\n  1: \"\"\"Pydantic models shared by the harness, tools, simulator, and memo.\"\"\"\n  3: from __future__ import annotations\n  5: from datetime import date, datetime\n  6: from typing import Any, Literal\n\nsrc/ta/config.py:1-255 (edit at L78, search_replace)\n  1: \"\"\"Load versioned YAML config. Secrets are read from the environment by callers.\"\"\"\n  3: from __future__ import annotations\n  5: import os\n  6: from datetime import date\n\nsrc/ta/actionlog/__init__.py:1-8 (edit at L80, search_replace)\n  1: \"\"\"Append-only hash-chained action log.\n  3: The gateway is the only writer. Agents use :class:`LogView`.\n  4: \"\"\"\n  6: from ta.actionlog.writer import ActionLog, LogView\n\nsrc/ta/actionlog/chain.py:1-13 (edit at L82, search_replace)\n  1: \"\"\"Canonical hashing helpers for the action log.\"\"\"\n  3: from __future__ import annotations\n  5: from typing import Any\n  7: from ta.ids import GENESIS, canonical_json, entry_hash, sha256_text\n\nsrc/ta/actionlog/verify.py:1-173 (edit at L85, search_replace)\n  1: \"\"\"Recompute the hash chain and check signed daily roots.\"\"\"\n  3: from __future__ import annotations\n  5: import base64\n  6: import json\n\nsrc/ta/actionlog/writer.py:1-176 (edit at L87, search_replace)\n  1: \"\"\"Harness-owned append-only log writer and the read-only view agents use.\"\"\"\n  3: from __future__ import annotations\n  5: import base64\n  6: import fcntl\n\nsrc/ta/data/__init__.py:1-1 (edit at L90, search_replace)\n  1: \"\"\"DuckDB store, migrations, and fixture seeding.\"\"\"\n\nsrc/ta/data/migrate.py:1-62 (edit at L92, search_replace)\n  1: \"\"\"Apply numbered SQL migrations. Each file may contain many statements.\"\"\"\n  3: from __future__ import annotations\n  5: from pathlib import Path\n  7: import duckdb\n\nsrc/ta/data/fixtures.py:1-430 (edit at L94, search_replace)\n  1: \"\"\"Seeded, survivorship-aware price history for offline replay.\n  3: The generator is a fixed-seed daily model. It is a data fixture, not a forecast.\n  4: The full history is stored in DuckDB; agent queries still have to pass the\n  5: point-in-time filter, which is what makes leakage tests meaningful.\n\nsrc/ta/data/store.py:1-820 (edit at L96, search_replace)\n  1: \"\"\"Thin repository over DuckDB. Agent-facing reads filter on available_at.\"\"\"\n  3: from __future__ import annotations\n  5: from datetime import date, datetime\n  6: from pathlib import Path\n\nsrc/ta/data/edgar.py:1-308 (edit at L99, search_replace)\n  1: \"\"\"SEC EDGAR client.\n  3: Fair-access policy: a declared User-Agent with a contact email is required, and\n  4: the client stays under 10 requests/second. The User-Agent comes from\n  5: ``SEC_EDGAR_USER_AGENT``. Historical replay filters on acceptance time; asking\n\nsrc/ta/data/prices.py:1-245 (edit at L101, search_replace)\n  1: \"\"\"Pluggable end-of-day price adapters.\n  3: ``fixture`` is the offline default. ``yfinance`` and ``stooq`` are free sources.\n  4: ``alpaca`` reads ``ALPACA_API_KEY`` and ``ALPACA_SECRET_KEY`` and is market data\n  5: only (GET). None of these adapters submit orders.\n\nsrc/ta/sim/__init__.py:1-1 (edit at L104, search_replace)\n  1: \"\"\"Point-in-time replay simulator.\"\"\"\n\nsrc/ta/sim/portfolio.py:1-288 (edit at L106, search_replace)\n  1: \"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\n  3: from __future__ import annotations\n  5: from dataclasses import dataclass, field\n  6: from datetime import date\n\nsrc/ta/harness/caps.py:1-293 (edit at L108, search_replace)\n  1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n  3: from __future__ import annotations\n  5: from collections import defaultdict\n  6: from dataclasses import dataclass\n\nsrc/ta/harness/context.py:1-24 (edit at L110, search_replace)\n  1: \"\"\"Per-decision context handed to deterministic tools. It cannot append the log.\"\"\"\n  3: from __future__ import annotations\n  6: from datetime import date\n  7: from pathlib import Path\n\nsrc/ta/harness/permissions.py:1-95 (edit at L112, search_replace)\n  1: \"\"\"Per-agent allow lists. The gateway rejects anything else.\"\"\"\n  3: from __future__ import annotations\n  5: ALLOWED_TOOLS: dict[str, set[str]] = {\n  6:     \"orchestrator\": {"
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 284,
+      "end": 291
+     },
+     "result": "284:             if (\n285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue"
+    },
+    {
+     "step": 6,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 1,
+      "end": 300
+     },
+     "result": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent\n11: from ta.sim.portfolio import Portfolio\n12: \n13: \n14: @dataclass\n15: class NameMeta:\n16:     ticker: str\n17:     sleeve: str\n18:     sector: str\n19:     price: float\n20: \n21: \n22: @dataclass\n23: class CapOutcome:\n24:     ok: bool\n25:     weights: dict[str, float]\n26:     violations: list[dict[str, str]]\n27: \n28: \n29: def _name_cap(meta: NameMeta, caps: RiskCaps) -> float:\n30:     if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\n31:         return caps.single_high_risk_pct\n32:     return caps.single_core_pct\n33: \n34: \n35: def _in_sleeve(meta: NameMeta, caps: RiskCaps) -> bool:\n36:     return meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold\n37: \n38: \n39: def enforce_caps(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> CapOutcome:\n40:     \"\"\"Clip weights in place-copies. Cash is the residual and is unconstrained.\"\"\"\n41:     original = {ticker: max(0.0, float(weight)) for ticker, weight in weights.items() if weight}\n42:     adjusted = dict(original)\n43:     violations: list[dict[str, str]] = []\n44: \n45:     for ticker, weight in original.items():\n46:         if ticker not in meta:\n47:             continue\n48:         limit = _name_cap(meta[ticker], caps)\n49:         if weight > limit + 1e-9:\n50:             violations.append(\n51:                 {\n52:                     \"code\": \"single_name\",\n53:                     \"ticker\": ticker,\n54:                     \"detail\": f\"{ticker} weight {weight:.4f} exceeds {limit:.4f}\",\n55:                 }\n56:             )\n57: \n58:     sectors: dict[str, float] = defaultdict(float)\n59:     for ticker, weight in original.items():\n60:         if ticker in meta:\n61:             sectors[meta[ticker].sector] += weight\n62:     for sector, total in sectors.items():\n63:         if sector and total > caps.sector_pct + 1e-9:\n64:             violations.append(\n65:                 {\n66:                     \"code\": \"sector\",\n67:                     \"ticker\": sector,\n68:                     \"detail\": f\"{sector} weight {total:.4f} exceeds {caps.sector_pct:.4f}\",\n69:                 }\n70:             )\n71: \n72:     sleeve_total = sum(\n73:         weight for ticker, weight in original.items() if ticker in meta and _in_sleeve(meta[ticker], caps)\n74:     )\n75:     if sleeve_total > caps.high_risk_sleeve_pct + 1e-9:\n76:         violations.append(\n77:             {\n78:                 \"code\": \"high_risk_sleeve\",\n79:                 \"ticker\": \"*\",\n80:                 \"detail\": f\"high-risk sleeve {sleeve_total:.4f} exceeds {caps.high_risk_sleeve_pct:.4f}\",\n81:             }\n82:         )\n83: \n84:     penny_total = sum(\n85:         weight\n86:         for ticker, weight in original.items()\n87:         if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n88:     )\n89:     if penny_total > caps.penny_total_pct + 1e-9:\n90:         violations.append(\n91:             {\n92:                 \"code\": \"penny_total\",\n93:                 \"ticker\": \"*\",\n94:                 \"detail\": f\"penny sleeve {penny_total:.4f} exceeds {caps.penny_total_pct:.4f}\",\n95:             }\n96:         )\n97: \n98:     for _ in range(4):\n99:         for ticker in list(adjusted):\n100:             if ticker not in meta:\n101:                 continue\n102:             limit = _name_cap(meta[ticker], caps)\n103:             if adjusted[ticker] > limit:\n104:                 adjusted[ticker] = limit\n105:         by_sector: dict[str, list[str]] = defaultdict(list)\n106:         for ticker in adjusted:\n107:             if ticker in meta:\n108:                 by_sector[meta[ticker].sector].append(ticker)\n109:         for tickers in by_sector.values():\n110:             total = sum(adjusted[ticker] for ticker in tickers)\n111:             if total > caps.sector_pct + 1e-12:\n112:                 scale = caps.sector_pct / total\n113:                 for ticker in tickers:\n114:                     adjusted[ticker] *= scale\n115:         sleeve_names = [ticker for ticker in adjusted if ticker in meta and _in_sleeve(meta[ticker], caps)]\n116:         total = sum(adjusted[ticker] for ticker in sleeve_names)\n117:         if total > caps.high_risk_sleeve_pct + 1e-12:\n118:             scale = caps.high_risk_sleeve_pct / total\n119:             for ticker in sleeve_names:\n120:                 adjusted[ticker] *= scale\n121:         penny_names = [\n122:             ticker for ticker in adjusted if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n123:         ]\n124:         total = sum(adjusted[ticker] for ticker in penny_names)\n125:         if total > caps.penny_total_pct + 1e-12:\n126:             scale = caps.penny_total_pct / total\n127:             for ticker in penny_names:\n128:                 adjusted[ticker] *= scale\n129:         gross = sum(adjusted.values())\n130:         if gross > 1 + 1e-12:\n131:             scale = 1 / gross\n132:             for ticker in adjusted:\n133:                 adjusted[ticker] *= scale\n134: \n135:     cleaned = {ticker: round(weight, 6) for ticker, weight in adjusted.items() if weight > 1e-6}\n136:     return CapOutcome(ok=not violations, weights=cleaned, violations=violations)\n137: \n138: \n139: def equal_weight_targets(\n140:     names: list[str],\n141:     meta: dict[str, NameMeta],\n142:     caps: RiskCaps,\n143: ) -> dict[str, float]:\n144:     \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n145:     priced = [name for name in names if name in meta and meta[name].price > 0]\n146:     if not priced:\n147:         return {}\n148:     share = 1.0 / len(priced)\n149:     return {name: min(share, _name_cap(meta[name], caps)) for name in priced}\n150: \n151: \n152: def sector_breach(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> str | None:\n153:     totals: dict[str, float] = defaultdict(float)\n154:     for ticker, weight in weights.items():\n155:         if ticker not in meta or weight <= 0:\n156:             continue\n157:         sector = meta[ticker].sector\n158:         if sector:\n159:             totals[sector] += weight\n160:     for sector, total in totals.items():\n161:         if total > caps.sector_pct + 1e-9:\n162:             return sector\n163:     return None\n164: \n165: \n166: def fit_book(\n167:     ranked: list[str],\n168:     meta: dict[str, NameMeta],\n169:     caps: RiskCaps,\n170:     max_names: int,\n171: ) -> dict[str, float]:\n172:     \"\"\"Keep the strongest names that fit the count and the sector cap.\n173: \n174:     ``ranked`` is strongest first. An overweight sector loses its weakest name\n175:     and the remaining names stay at equal weight. They are not scaled up to the\n176:     sector cap, and they are not scaled down after the fact.\n177:     \"\"\"\n178:     names = [ticker for ticker in ranked if ticker in meta and meta[ticker].price > 0]\n179:     if max_names > 0:\n180:         names = names[:max_names]\n181:     while names:\n182:         weights = equal_weight_targets(names, meta, caps)\n183:         sector = sector_breach(weights, meta, caps)\n184:         if sector is None:\n185:             return weights\n186:         weakest = next((ticker for ticker in reversed(names) if meta[ticker].sector == sector), None)\n187:         if weakest is None:\n188:             return weights\n189:         names = [ticker for ticker in names if ticker != weakest]\n190:     return {}\n191: \n192: \n193: def forced_trims(\n194:     kept: list[str],\n195:     held: list[str],\n196:     scores: dict[str, float],\n197:     meta: dict[str, NameMeta],\n198:     caps: RiskCaps,\n199:     max_names: int,\n200: ) -> dict[str, str]:\n201:     \"\"\"Held names that cannot stay without breaking the count or the sector cap.\n202: \n203:     Extras are tried strongest first. A name that still fits is left on the\n204:     discretionary path. A name that does not fit is a hard sell: ``holdings_cap``\n205:     when the book is already full, ``cap_reduction`` when its sector would be.\n206:     \"\"\"\n207:     survivors = [ticker for ticker in kept if ticker in meta and meta[ticker].price > 0]\n208:     survivor_set = set(survivors)\n209:     extras = [ticker for ticker in held if ticker not in survivor_set and ticker in meta and meta[ticker].price > 0]\n210:     extras.sort(key=lambda ticker: (-float(scores.get(ticker, -1e9)), ticker))\n211:     reasons: dict[str, str] = {}\n212:     for ticker in extras:\n213:         trial = survivors + [ticker]\n214:         if max_names > 0 and len(trial) > max_names:\n215:             reasons[ticker] = \"holdings_cap\"\n216:             continue\n217:         if sector_breach(equal_weight_targets(trial, meta, caps), meta, caps):\n218:             reasons[ticker] = \"cap_reduction\"\n219:             continue\n220:         survivors.append(ticker)\n221:     return reasons\n222: \n223: \n224: def option_gate_status(equity: float, caps: RiskCaps) -> dict:\n225:     threshold = caps.options_gate_min_equity\n226:     open_gate = bool(caps.options_enabled and equity >= threshold)\n227:     return {\n228:         \"open\": open_gate,\n229:         \"options_enabled\": caps.options_enabled,\n230:         \"equity\": round(equity, 2),\n231:         \"threshold\": threshold,\n232:         \"reason\": None\n233:         if open_gate\n234:         else \"options stay off until the flag is on and equity clears the threshold\",\n235:     }\n236: \n237: \n238: def _quarter(day: date) -> tuple[int, int]:\n239:     return day.year, (day.month - 1) // 3\n240: \n241: \n242: def guard_orders(\n243:     orders: list[OrderIntent],\n244:     portfolio: Portfolio,\n245:     meta: dict[str, NameMeta],\n246:     caps: RiskCaps,\n247:     *,\n248:     fill_session: int,\n249:     fill_date: date,\n250:     prices: dict[str, float],\n251:     equity: float,\n252: ) -> tuple[list[OrderIntent], list[str]]:\n253:     \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n254: \n255:     Cap-driven sells are allowed inside the minimum hold. The weight cap itself is\n256:     applied by :func:`enforce_caps` before orders are built.\n257:     \"\"\"\n258:     notes: list[str] = []\n259:     buys = {order.ticker for order in orders if order.side == \"buy\"}\n260:     drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n261:     halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n262:     quarter = _quarter(fill_date)\n263:     swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n264:     kept: list[OrderIntent] = []\n265:     for order in orders:\n266:         if order.side == \"hold\" or order.notional <= 0:\n267:             continue\n268:         if order.side == \"sell\" and order.ticker in buys:\n269:             notes.append(f\"day trade blocked for {order.ticker}\")\n270:             continue\n271:         if order.side == \"buy\":\n272:             exited = portfolio.exit_sessions.get(order.ticker)\n273:             if exited is not None and fill_session - exited < caps.reentry_sessions:\n274:                 notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n275:                 continue\n276:         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n277:             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n278:             continue\n279:         if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n280:             lot = portfolio.positions.get(order.ticker)\n281:             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n282:                 notes.append(f\"min hold blocked sell of {order.ticker}\")\n283:                 continue\n284:             if (\n285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue\n292:         kept.append(order)\n293:     return kept, notes\n294: "
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 10772,
+   "truncated": false,
+   "dropped_sections": []
+  },
+  "prompt_user": {
+   "symptom": "Compliance rule breach: the fund's swing-trade count for the quarter is now 4, above the documented cap of 2. Before today, 1 swing exit had already been used this quarter.\n\nThree positions (held under the minimum period that would normally classify an exit as a swing trade) were all sold and filled today. None of the three sells were rejected or flagged by the guard; no violation notes were recorded for any of them.",
+   "edit": {
+    "file": "rules/exit/v1.yaml",
+    "line": 10,
+    "hunk": "+  - valuation_target\n+  - time_stop\n+blocked:\n+  - trend_chase\n+min_hold_reference: config/risk.yaml\n+notes: >\n+  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\n+  Thesis-break exits are wired in a later phase."
+   },
+   "code_window": "1: version: v1\n2: discretionary_exits:\n3:   - screen_exit\n4:   - valuation_target\n5:   - time_stop\n6: blocked:\n7:   - trend_chase\n8: min_hold_reference: config/risk.yaml\n9: notes: >\n10:   Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\n11:   Thesis-break exits are wired in a later phase.\n12: ",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "rules/exit/v1.yaml",
+     "line": 10,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 21.689,
+     "method": "deterministic_bm25",
+     "text": "5:   - time_stop\n6: blocked:\n7:   - trend_chase\n8: min_hold_reference: config/risk.yaml\n9: notes: >\n10:   Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\n11:   Thesis-break exits are wired in a later phase.\n12: "
+    },
+    {
+     "label": "candidate 2",
+     "file": "ta/harness/caps.py",
+     "line": 290,
+     "function": "forced_trims",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 21.2595,
+     "method": "deterministic_bm25",
+     "text": "285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue\n292:         kept.append(order)\n293:     return kept, notes\n294: "
+    },
+    {
+     "label": "candidate 3",
+     "file": "rules/sizing/v1.yaml",
+     "line": 30,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 19.8183,
+     "method": "deterministic_bm25",
+     "text": "25:   A full exit starts a reentry wait. Any fill, including a partial trim or top-up, starts trade_cooldown_sessions.\n26:   The book aims for 8 to 15 names. Names above that count are sold weakest score first,\n27:   and that sell is a hard trigger inside the minimum hold. A sector above 35 percent\n28:   loses its weakest name before orders are built. The remaining names stay at equal\n29:   weight. They are not scaled up to fill the sector cap. Names are not invented to fill the floor.\n30:   A name inside the minimum hold is not sold unless a hard trigger requires it.\n31:   A trade on a holding that is leaving the book must cite a fact dated after the last decision on that name.\n32:   Drift in a name that stays selected does not need a new fact.\n33:   An order that matches an unfilled order from an earlier decision is not issued again.\n34:   Gross notionals in one decision cannot exceed max_turnover_pct of equity.\n35: "
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+    "understood": "I will begin by writing the project configuration files, Makefile, and Python source code.",
+    "happened": "Compliance rule breach: the fund's swing-trade count for the quarter is now 4, above the documented cap of 2. Before today, 1 swing exit had already been used this quarter.\n\nThree positions (held under the minimum period that would normally classify an exit as a swing trade) were all sold and filled today. None of the three sells were rejected or flagged by the guard; no violation notes were recorded for any of them.\n\n  at ? (rules/exit/v1.yaml:10)\n  10: Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\n\nWritten by transcript edit L48 (search_replace):\n+  - valuation_target\n+  - time_stop\n+blocked:\n+  - trend_chase\n+min_hold_reference: config/risk.yaml\n+notes: >\n+  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\n+  Thesis-break exits are wired in a later phase."
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L48)",
+     "text": "L45 [assistant] (empty message)\nL46 [tool] TOOL: search_replace\nL46| CODE_WRITTEN: \nL46| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL46| +++ b//workspace/rules/sizing/v1.yaml\nL46| @@ -1,0 +1,8 @@\nL46| +version: v1\nL46| +fractional_shares: true\nL46| +min_order_notional: 1.0\nL46| +rebalance_band: 0.01\nL46| +contribution_policy: new_cash_toward_underweights\nL46| +notes: >\nL46| +  Target weights come from the screened set, then risk.check_caps clips them.\nL46| +  The sizer trades the gap between current weight and target when it exceeds the band.\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":8}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL47 [assistant] (empty message)\nL48 [tool] TOOL: search_replace\nL48| CODE_WRITTEN: \nL48| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL48| +++ b//workspace/rules/exit/v1.yaml\nL48| @@ -1,0 +1,11 @@\nL48| +version: v1\nL48| +discretionary_exits:\nL48| +  - screen_exit\nL48| +  - valuation_target\nL48| +  - time_stop\nL48| +blocked:\nL48| +  - trend_chase\nL48| +min_hold_reference: config/risk.yaml\nL48| +notes: >\nL48| +  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\nL48| +  Thesis-break exits are wired in a later phase.\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":11}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL49 [assistant] (empty message)\nL50 [tool] TOOL: search_replace\nL50| CODE_WRITTEN: \nL50| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL50| +++ b//workspace/rules/risk/v1.yaml\nL50| @@ -1,0 +1,5 @@\nL50| +version: v1\nL50| +source: config/risk.yaml\nL50| +notes: >\nL50| +  This file records the rule-set version that decisions cite.\nL50| +  The numeric caps live in config/risk.yaml and are outside the evolvable surface.\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":5}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL51 [assistant] (empty message)"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that adding valuation_target and time_stop to discretionary_exits would bypass the swing-trade cap, believing the notes text \"Cap-driven reductions outrank the minimum hold. Discretionary sells do not\" would prevent cap enforcement on those exits.",
+  "why_it_breaks": "The agent added valuation_target and time_stop to the discretionary_exits list while relying on the notes to exempt them from the swing-trade cap. However, the cap enforcement in caps.py checks every exit order against swings_this_quarter >= caps.swing_trades_per_quarter regardless of whether the exit is in discretionary_exits or blocked. The notes claim \"Discretionary sells do not\" [refer to the cap], but the code does not implement that exemption - it blocks any exit once the cap is reached, including discretionary ones. The three positions were sold without the cap check preventing them, causing the quarter count to go from 1 to 4, exceeding the cap of 2.",
+  "confidence": "low",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 48,
+    "quote": "L48 [tool] TOOL: search_replace\nL48| CODE_WRITTEN: \nL48| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL48| +++ b//workspace/rules/exit/v1.yaml\nL48| @@ -1,0 +1,11 @@\nL48| +version: v1\nL48| +discretionary_exits:\nL48| +  - screen_exit\nL48| +  - valuation_target\nL48| +  - time_stop\nL48| +blocked:\nL48| +  - trend_chase\nL48| +min_hold_reference: config/risk.yaml\nL48| +notes: >\nL48| +  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\nL48| +  Thesis-break exits are wired in a later phase.\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":11}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false,\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "rules/exit/v1.yaml",
+    "line": 10,
+    "quote": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 285,
+    "quote": "285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that adding valuation_target and time_stop to discretionary_exits would prevent them from counting toward the swing-trade cap, but the guard logic in caps.py checks the swing-trade condition independently of the discretionary_exits list, so all three exits were treated as swing trades and allowed through without capping.",
+  "why_it_breaks": "The notes in v1.yaml state that \"Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\" However, the guard code in caps.py forces a swing-trade cap check at line 288 using `swings_this_quarter >= caps.swing_trades_per_quarter`, which does not inspect whether an exit is listed in discretionary_exits. The three positions were sold as swing trades, incremented the quarterly count from 1 to 4, and bypassed the cap because the discretionary_exits list was never consulted by the guard logic.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 48,
+    "quote": "L48| +  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 288,
+    "quote": "288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 0
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "rules/exit/v1.yaml",
+  "line": 10,
+  "hunk_id": "L48#11"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "low",
+  "capped": "low",
+  "margin": 0.01980266494536405,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": false
+ }
+}

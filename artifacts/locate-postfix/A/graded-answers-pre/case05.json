@@ -1,0 +1,34 @@
+{
+ "overlooked_assumption": "The agent assumed that adding webhookUrl and webhookSecret to the Workspace model would automatically trigger an async HTTP POST when feedback is created, without implementing the actual webhook-sending logic or ensuring it runs non-blockingly.",
+ "why_it_breaks": "The Prisma schema defines the webhook configuration fields, but the agent never wrote the code that actually sends the HTTP POST when a FeedbackPost is created. The `sendFeedbackWebhook` function exists in `lib/webhooks.ts` but is never called from the feedback submission flow. Because the webhook sending is synchronous or blocking (or simply never invoked), the feedback submission waits for the slow endpoint to respond, keeping the loading spinner active for seconds instead of returning immediately.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "prisma/schema.prisma",
+   "line": 53,
+   "quote": "webhookUrl    String?\n  webhookSecret String",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "lib/webhooks.ts",
+   "line": 29,
+   "quote": "export async function sendFeedbackWebhook(\n  webhookUrl: string,",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 67,
+   "quote": "L67| +  webhook\nL68 [assistant] Now let's write the `.env` file and basic lib files (prisma client singleton, auth config, etc.).",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

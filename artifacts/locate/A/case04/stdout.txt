@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> README.md:172
+stage: ok
+provider: nemotron
+frame: README.md:184
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that a drawdown halt (-20% threshold) would block all new trades, but the code only blocks trades that would *drop a holding* requiring a new fact; a new buy of a name not currently held can bypass the halt gate if it passes quality scoring.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case04/report.html

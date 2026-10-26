@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> tests/test_guarded_kinds.py:176
+stage: ok
+provider: nemotron
+frame: tests/test_guarded_kinds.py:176
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that "alter table orders drop column fax_number" targets the default/schema-qualified table "orders" without considering that the request explicitly specified no schema prefix, and the system routed it to the production table instead of the archive table.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case09/report.html

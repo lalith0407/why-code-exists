@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/harness/caps.py:276
+stage: ok
+provider: nemotron
+frame: src/ta/harness/caps.py:276
+status: unverified (code quotes 3, transcript quotes 0)
+overlooked_assumption: The drawdown halt check only applies to buy orders with sleeve="high_risk", but the observed trade was a buy of FALN that passed through despite drawdown being -30.0% (below the -20% halt threshold). The agent assumed halt_high_risk would block all high-risk buys during drawdown, but the condition is evaluated after earlier guards (reentry wait, day-trade) that may have already been bypassed or the order may not have been classified as high-risk sleeve correctly.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-nemotron/case04/report.html

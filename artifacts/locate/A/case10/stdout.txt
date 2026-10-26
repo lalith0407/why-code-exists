@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> guides/risk_manager/v1.md:15
+stage: ok
+provider: nemotron
+frame: guides/risk_manager/v1.md:15
+status: verified (code quotes 2, transcript quotes 1)
+overlooked_assumption: The agent assumed that calling risk.check_caps on the weights from portfolio.size_position would enforce the single-name cap, but the tool only validates weights after they are produced and does not prevent an oversized position from being generated in the first place.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case10/report.html

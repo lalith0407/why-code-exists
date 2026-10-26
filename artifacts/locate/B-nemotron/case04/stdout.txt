@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> README.md:172
+stage: ok
+provider: nemotron
+frame: README.md:184
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that a drawdown halt (-20% threshold) would block all new trades, but the code only blocks trades that would *drop a holding* below the minimum hold; new buys of names not currently held are permitted if they pass quality screening, regardless of drawdown level.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-nemotron/case04/report.html

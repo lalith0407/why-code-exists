@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/proxy/auth/user_api_key_auth.py:2781
+stage: ok
+provider: nemotron
+frame: litellm/proxy/auth/user_api_key_auth.py:2781
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that the presence of "all-team-models" in a key's model list was sufficient to skip model access checks, without considering whether the key actually belonged to a team (had a team_id).
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/B-nemotron/u04/report.html

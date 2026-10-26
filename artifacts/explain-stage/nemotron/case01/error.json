@@ -1,0 +1,8 @@
+{
+ "id": "case01",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "Support ticket: a workspace member sent a Slack message starting with \"/pulse feedback\" and no feedback item showed up afterward.\n\nThe Slack app's event delivery log for that workspace shows the event was received and acknowledged (HTTP 200). The message text, as Slack delivered it, was:\n\"/pulse feedback Export is slow\nIt takes 2 minutes for 10k rows\"\n\nThe admin confirms no new feedback item exists with that text, and the delivery log entry for this event shows no feedback was linked to it.\n",
+ "frames": []
+}

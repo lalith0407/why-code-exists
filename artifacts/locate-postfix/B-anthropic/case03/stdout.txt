@@ -1,0 +1,7 @@
+locate: layer2_agentic -> src/ta/sim/metrics.py:57
+stage: ok
+provider: anthropic
+frame: src/ta/sim/metrics.py:57
+status: verified (code quotes 3, transcript quotes 1)
+overlooked_assumption: The agent assumed that a near-zero derivative (slope) indicates convergence, but for a very short time period the derivative can be legitimately small even when NPV is far from zero, causing premature exit before finding the root.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-anthropic/case03/report.html

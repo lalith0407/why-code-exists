@@ -1,0 +1,6 @@
+stage: ok
+provider: nemotron
+frame: lib/actions/feedback.ts:106
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that checking for an existing vote with `findUnique` using `feedbackId_userId` would always be sufficient, not accounting for a race condition where two concurrent requests could both pass the check and attempt to create a vote with the same composite key.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-nemotron/case02/report.html

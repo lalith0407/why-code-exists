@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/decisions/call.py:179
+stage: ok
+provider: anthropic
+frame: litellm/decisions/call.py:179
+status: verified (code quotes 1, transcript quotes 3)
+overlooked_assumption: The agent assumed that litellm.BadRequestError could be imported and raised at module load time in litellm/decisions/call.py, but this creates a circular import because litellm itself needs to import from the decisions module.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/B-anthropic/u03/report.html

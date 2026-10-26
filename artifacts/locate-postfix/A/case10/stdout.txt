@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/mcp_servers/risk_tools.py:27
+stage: ok
+provider: nemotron
+frame: src/ta/mcp_servers/risk_tools.py:27
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: _meta_for always provides a NameMeta with a valid sleeve and price for every ticker in the weights dict, so enforce_caps can apply the correct cap percentage
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case10/report.html

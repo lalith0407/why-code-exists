@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/mcp_servers/risk_tools.py:27
+stage: ok
+provider: anthropic
+frame: src/ta/mcp_servers/risk_tools.py:27
+status: verified (code quotes 2, transcript quotes 2)
+overlooked_assumption: The agent assumed that if a security is not found in the store, skipping it with 'continue' is safe, but this silently omits new securities from risk checks.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-anthropic/case10/report.html

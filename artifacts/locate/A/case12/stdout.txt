@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> tests/test_churn.py:269
+stage: ok
+provider: nemotron
+frame: tests/test_churn.py:276
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that a stop-loss order with a small notional (< $50) would be allowed to execute even though the position had been held for fewer sessions than the minimum-hold period required to classify an exit as a swing trade, believing the stop rule would bypass the minimum-hold check.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case12/report.html

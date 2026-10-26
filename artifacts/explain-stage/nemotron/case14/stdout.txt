@@ -1,0 +1,6 @@
+stage: ok
+provider: nemotron
+frame: src/ta/replay.py:322
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The code assumes `end` is a valid calendar date that can have 5 years subtracted without hitting an invalid day (e.g., February 29 in a non-leap year).
+report: /workspace/open-agent/why-code-exists/artifacts/explain-stage/nemotron/case14/report.html

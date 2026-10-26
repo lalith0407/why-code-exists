@@ -1,0 +1,6 @@
+stage: ok
+provider: nemotron
+frame: src/ta/replay.py:322
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The code assumes `end` is always a valid calendar date that remains valid when subtracting 5 years, ignoring that February 29 in a leap year shifts to a non-leap year and breaks the date arithmetic.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case14/report.html

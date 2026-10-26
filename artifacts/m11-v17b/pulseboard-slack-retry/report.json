@@ -1,0 +1,1024 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "pulseboard-slack-events",
+    "timestamp": "2026-10-25T02:59:40.989Z",
+    "severity": "high",
+    "service": "pulseboard",
+    "message": "Data integrity alert: 3 identical feedback rows were created from one Slack message; the request log shows the same event_id delivered 3 times (X-Slack-Retry-Num: absent, 1, 2), answered 200, 200, 200",
+    "frames": [
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 31,
+        "function": "POST"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/pulseboard-slack-retry/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "transcript_replay"
+    }
+  },
+  "frame": {
+    "file": "app/api/slack/events/[slug]/route.ts",
+    "line": 31,
+    "function": "POST"
+  },
+  "language": "ts",
+  "provenance": {
+    "file": "app/api/slack/events/[slug]/route.ts",
+    "function": "POST",
+    "frame_line": 31,
+    "later_edits": [],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 184,
+      "tool": "search_replace",
+      "fn_range": [
+        31,
+        102
+      ],
+      "frame_line_in_range": true,
+      "hunk_excerpt": "+ * message-shortcut handling on top of later.\n+ */\n+export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {\n+  const { slug } = await params;\n+\n+  const workspace = await prisma.workspace.findUnique({ where: { slug } });\n+  if (!workspace) {\n+    return NextResponse.json({ error: \"Unknown workspace\" }, { status: 404 });\n+  }\n+  if (!workspace.slackSigningSecret) {\n+    return NextResponse.json(\n+      { error: \"Slack is not configured for this workspace yet\" },\n+      { status: 400 }\n+    );\n+  }\n+",
+      "fn_text": "export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {\n  const { slug } = await params;\n\n  const workspace = await prisma.workspace.findUnique({ where: { slug } });\n  if (!workspace) {\n    return NextResponse.json({ error: \"Unknown workspace\" }, { status: 404 });\n  }\n  if (!workspace.slackSigningSecret) {\n    return NextResponse.json(\n      { error: \"Slack is not configured for this workspace yet\" },\n      { status: 400 }\n    );\n  }\n\n  const rawBody = await request.text();\n  const valid = verifySlackSignature({\n    signingSecret: workspace.slackSigningSecret,\n    timestamp: request.headers.get(\"x-slack-request-timestamp\"),\n    signature: request.headers.get(\"x-slack-signature\"),\n    rawBody,\n  });\n\n  if (!valid) {\n    return NextResponse.json({ error: \"Invalid signature\" }, { status: 401 });\n  }\n\n  let payload: SlackEventCallback;\n  try {\n    payload = JSON.parse(rawBody);\n  } catch {\n    return NextResponse.json({ error: \"Invalid JSON\" }, { status: 400 });\n  }\n\n  // Slack's one-time handshake when you save the Request URL.\n  if (payload.type === \"url_verification\") {\n    return NextResponse.json({ challenge: payload.challenge });\n  }\n\n  if (payload.type === \"event_callback\" && payload.event?.type === \"message\") {\n    const text = payload.event.text ?? \"\";\n    // Ignore the bot's own messages and anything that isn't our command,\n    // but still log the event so admins can see traffic is arriving.\n    const isBot = Boolean(payload.event.bot_id);\n    const command = !isBot ? parsePulseCommand(text) : null;\n\n    let createdFeedbackId: string | null = null;\n\n    if (command) {\n      const feedback = await prisma.feedback.create({\n        data: {\n          title: command.title.slice(0, 140),\n          body: command.title,\n          workspaceId: workspace.id,\n          source: \"SLACK\",\n          externalAuthorName: payload.event.username ?? payload.event.user ?? \"Slack user\",\n        },\n      });\n      createdFeedbackId = feedback.id;\n    }\n\n    await prisma.slackEventLog.create({\n      data: {\n        workspaceId: workspace.id,\n        eventType: payload.event.type,\n        text: text.slice(0, 500),\n        createdFeedbackId,\n      },\n    });\n  }\n\n  return NextResponse.json({ ok: true });\n}"
+    },
+    "reasoning_before": {
+      "line": 182,
+      "words": 8,
+      "silent": true,
+      "excerpt": "Now let's build the Slack events API route."
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The code lacks any check or storage of Slack event IDs to detect and ignore duplicate events [fix: Store processed event IDs (e.g., in Redis or database) and check incoming events against this store before creating feedback rows]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "transcript_replay",
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app",
+    "files": 76,
+    "applied_edits": 81,
+    "failed_edits": [
+      {
+        "file": "package.json",
+        "line": 61,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "next.config.ts",
+        "line": 375,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": ".gitignore",
+        "line": 458,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "README.md",
+        "line": 483,
+        "reason": "edit to a file not created in the transcript"
+      }
+    ]
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "zetaris_sql:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T19:22:49.287Z",
+  "workspace": {
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app",
+    "origin": "transcript_replay",
+    "notes": [
+      "npm deps from the app's package.json (cache /home/box/.cache/wce/deps/cc39abd72f073c52/node_modules)",
+      "no tsconfig \"paths\" in tree: \"@/x\" resolved to <app root>/x (inferred alias: the base under which the tree's own \"@/\" imports resolve)",
+      "real PostgreSQL database from /workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/prisma/schema.prisma (template wce_tpl_7ea3c0cb)",
+      "framework boundary shims (engine-built from real exports): next/headers[headers,cookies,draftMode]; next/cache[revalidatePath,revalidateTag,updateTag,refresh,unstable_noStore,cacheLife,cacheTag,unstable_cacheLife,unstable_cacheTag,unstable_cache]; next/server[after,connection]"
+    ],
+    "framework_shims": [
+      {
+        "module": "next/headers",
+        "version": "next@16.4.2",
+        "replaced": [
+          "headers",
+          "cookies",
+          "draftMode"
+        ],
+        "why": "Next.js request APIs read the live request store (AsyncLocalStorage) that only exists inside a running Next server; the test supplies the request with set_request()",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next/cache",
+        "version": "next@16.4.2",
+        "replaced": [
+          "revalidatePath",
+          "revalidateTag",
+          "updateTag",
+          "refresh",
+          "unstable_noStore",
+          "cacheLife",
+          "cacheTag",
+          "unstable_cacheLife",
+          "unstable_cacheTag",
+          "unstable_cache"
+        ],
+        "why": "Next.js cache invalidation needs the render/work store of a running Next server; calls are recorded (framework_calls) instead",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next/server",
+        "version": "next@16.4.2",
+        "replaced": [
+          "after",
+          "connection"
+        ],
+        "why": "after()/connection() need the request store of a running Next server; after() callbacks run immediately and are awaited by the harness",
+        "label": "stand-in at framework request boundary (engine-built)"
+      }
+    ],
+    "database": {
+      "kind": "postgresql",
+      "schema": "/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/prisma/schema.prisma"
+    }
+  },
+  "code_under_test": {
+    "source": "transcript_replay:app/api/slack/events/[slug]/route.ts:L31-102",
+    "text": "export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {\n  const { slug } = await params;\n\n  const workspace = await prisma.workspace.findUnique({ where: { slug } });\n  if (!workspace) {\n    return NextResponse.json({ error: \"Unknown workspace\" }, { status: 404 });\n  }\n  if (!workspace.slackSigningSecret) {\n    return NextResponse.json(\n      { error: \"Slack is not configured for this workspace yet\" },\n      { status: 400 }\n    );\n  }\n\n  const rawBody = await request.text();\n  const valid = verifySlackSignature({\n    signingSecret: workspace.slackSigningSecret,\n    timestamp: request.headers.get(\"x-slack-request-timestamp\"),\n    signature: request.headers.get(\"x-slack-signature\"),\n    rawBody,\n  });\n\n  if (!valid) {\n    return NextResponse.json({ error: \"Invalid signature\" }, { status: 401 });\n  }\n\n  let payload: SlackEventCallback;\n  try {\n    payload = JSON.parse(rawBody);\n  } catch {\n    return NextResponse.json({ error: \"Invalid JSON\" }, { status: 400 });\n  }\n\n  // Slack's one-time handshake when you save the Request URL.\n  if (payload.type === \"url_verification\") {\n    return NextResponse.json({ challenge: payload.challenge });\n  }\n\n  if (payload.type === \"event_callback\" && payload.event?.type === \"message\") {\n    const text = payload.event.text ?? \"\";\n    // Ignore the bot's own messages and anything that isn't our command,\n    // but still log the event so admins can see traffic is arriving.\n    const isBot = Boolean(payload.event.bot_id);\n    const command = !isBot ? parsePulseCommand(text) : null;\n\n    let createdFeedbackId: string | null = null;\n\n    if (command) {\n      const feedback = await prisma.feedback.create({\n        data: {\n          title: command.title.slice(0, 140),\n          body: command.title,\n          workspaceId: workspace.id,\n          source: \"SLACK\",\n          externalAuthorName: payload.event.username ?? payload.event.user ?? \"Slack user\",\n        },\n      });\n      createdFeedbackId = feedback.id;\n    }\n\n    await prisma.slackEventLog.create({\n      data: {\n        workspaceId: workspace.id,\n        eventType: payload.event.type,\n        text: text.slice(0, 500),\n        createdFeedbackId,\n      },\n    });\n  }\n\n  return NextResponse.json({ ok: true });\n}"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that Slack will not resend the same event multiple times, so the code does not check for or deduplicate repeated event IDs, causing multiple identical feedback rows to be created.",
+        "evidence_line": "const createdFeedbackId: string | null = null; ... if (command) { const feedback = await prisma.feedback.create({ ... }); createdFeedbackId = feedback.id; } ... await prisma.slackEventLog.create({ data: { workspaceId: workspace.id, eventType: payload.event.type, text: text.slice(0, 500), createdFeedbackId, }, });",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that the Slack signature verification alone prevents replay attacks, so the code does not implement any additional replay protection such as storing processed event IDs.",
+        "evidence_line": "const valid = verifySlackSignature({ signingSecret: workspace.slackSigningSecret, timestamp: request.headers.get(\"x-slack-request-timestamp\"), signature: request.headers.get(\"x-slack-signature\"), rawBody, }); if (!valid) { return NextResponse.json({ error: \"Invalid signature\" }, { status: 401 }); }",
+        "explains_error": false
+      }
+    ],
+    "chosen_cause": "The agent assumed that Slack will not resend the same event multiple times, so the code does not check for or deduplicate repeated event IDs, causing multiple identical feedback rows to be created.",
+    "claim": "The agent assumed that Slack will not resend the same event multiple times, so the code does not check for or deduplicate repeated event IDs, causing multiple identical feedback rows to be created.",
+    "mechanism": "The code lacks any check or storage of Slack event IDs (payload.event.event_id or similar) to detect and ignore duplicate events; it creates feedback and logs every event received without deduplication.",
+    "belief_quote": "// Ignore the bot's own messages and anything that isn't our command, but still log the event so admins can see traffic is arriving.",
+    "belief_quote_source": "code",
+    "concept": "replay-attack-protection",
+    "language_framework": "TypeScript with Next.js and Prisma",
+    "correct_rule": "The code should store and check Slack event IDs to detect and ignore duplicate events, preventing multiple processing of the same event.",
+    "cited_lines": [
+      "if (payload.type === \"event_callback\" && payload.event?.type === \"message\") {",
+      "  const text = payload.event.text ?? \"\";",
+      "  // Ignore the bot's own messages and anything that isn't our command,",
+      "  // but still log the event so admins can see traffic is arriving."
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed Slack signature verification alone prevents replay attacks, so no additional replay protection is needed.",
+        "why_rejected": "While signature verification ensures authenticity and freshness of requests, it does not prevent Slack from retrying the same event with the same event_id multiple times; the error log shows repeated event_id deliveries, so replay protection at the event ID level is required."
+      }
+    ],
+    "belief_quote_verified": false,
+    "cited_located": [
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 69,
+        "text": "if (payload.type === \"event_callback\" && payload.event?.type === \"message\") {"
+      },
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 70,
+        "text": "const text = payload.event.text ?? \"\";"
+      },
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 71,
+        "text": "// Ignore the bot's own messages and anything that isn't our command,"
+      },
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 72,
+        "text": "// but still log the event so admins can see traffic is arriving."
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "replay-attack-protection",
+    "hits": []
+  },
+  "tests": {
+    "setup": "const { prisma } = await app(\"lib/prisma.ts\");\nconst { POST } = await app(\"app/api/slack/events/[slug]/route.ts\");\nconst crypto = await import(\"crypto\");\n\n// Create a workspace with slackSigningSecret\nconst workspace = await prisma.workspace.create({\n  data: {\n    name: \"Test Workspace\",\n    slug: \"test-workspace\",\n    slackSigningSecret: \"test-secret\",\n    webhookSecret: \"webhook-secret\",\n  },\n});\n\n// Helper to create a valid Slack signature for a given body and timestamp\nfunction createSlackSignature(secret: string, timestamp: string, body: string) {\n  const baseString = `v0:${timestamp}:${body}`;\n  const hmac = crypto.createHmac(\"sha256\", secret).update(baseString).digest(\"hex\");\n  return `v0=${hmac}`;\n}\n\n// Prepare a typical Slack event_callback message payload with a /pulse feedback command\nconst basePayload = {\n  type: \"event_callback\",\n  event: {\n    type: \"message\",\n    text: \"/pulse feedback This is a test feedback\",\n    user: \"U123456\",\n  },\n};\n\n// Create a NextRequest-like stub class\nclass StubRequest {\n  headersMap: Map<string, string>;\n  constructor(timestamp: string, signature: string, body: string) {\n    this.headersMap = new Map([\n      [\"x-slack-request-timestamp\", timestamp],\n      [\"x-slack-signature\", signature],\n    ]);\n    this._body = body;\n  }\n  headers = {\n    get: (key: string) => {\n      return this.headersMap.get(key.toLowerCase()) || null;\n    },\n  };\n  async text() {\n    return this._body;\n  }\n}\n\nconst params = Promise.resolve({ slug: workspace.slug });",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: multiple identical feedback rows created from repeated Slack event deliveries",
+        "role": "reproduction",
+        "asserts": "harm_observed(feedbackCount === 3, \"three identical feedback rows created from repeated Slack event deliveries\")",
+        "body": "// Send the same Slack event 3 times with different retry headers (simulate Slack retries)\nconst feedbackTitle = \"/pulse feedback This is a test feedback\";\n\n// We add a unique event_id to simulate Slack event ID (not used by code, so duplicates happen)\nconst eventId = \"EVT123\";\n\n// Prepare three requests with identical payload but simulate retries by sending three requests\nconst requests = [];\nfor (let retryNum = 0; retryNum < 3; retryNum++) {\n  const payload = {\n    ...basePayload,\n    event: {\n      ...basePayload.event,\n      event_id: eventId,\n      text: feedbackTitle,\n      user: \"U123456\",\n    },\n  };\n  const rawBody = JSON.stringify(payload);\n  const timestamp = Math.floor(Date.now() / 1000).toString();\n  const signature = createSlackSignature(workspace.slackSigningSecret, timestamp, rawBody);\n  const req = new StubRequest(timestamp, signature, rawBody);\n  requests.push(req);\n}\n\narranged();\n\n// Call POST three times with the same event_id\nlet error = null;\nfor (const req of requests) {\n  try {\n    await POST(req as any, { params });\n  } catch (e) {\n    error = e;\n  }\n}\n\n// Count feedback rows created with the test workspace and matching title\nconst feedbackCount = await prisma.feedback.count({\n  where: {\n    workspaceId: workspace.id,\n    title: feedbackTitle.slice(0, 140),\n  },\n});\n\nrecord(\"feedbackCount\", feedbackCount);\nharm_observed(feedbackCount === 3, \"three identical feedback rows created from repeated Slack event deliveries\");"
+      },
+      {
+        "name": "decoy: url_verification type returns challenge without creating feedback",
+        "role": "decoy",
+        "asserts": "check(feedbackCount === 0, \"no feedback created for url_verification event\")",
+        "body": "const challengePayload = {\n  type: \"url_verification\",\n  challenge: \"challenge-token-123\",\n};\nconst rawBody = JSON.stringify(challengePayload);\nconst timestamp = Math.floor(Date.now() / 1000).toString();\nconst signature = createSlackSignature(workspace.slackSigningSecret, timestamp, rawBody);\nconst req = new StubRequest(timestamp, signature, rawBody);\n\narranged();\n\nconst response = await POST(req as any, { params });\nconst json = await response.json();\nrecord(\"response\", json);\n\nconst feedbackCount = await prisma.feedback.count({ where: { workspaceId: workspace.id } });\nrecord(\"feedbackCount\", feedbackCount);\n\ncheck(json.challenge === challengePayload.challenge, \"response contains challenge token\");\ncheck(feedbackCount === 0, \"no feedback created for url_verification event\");"
+      },
+      {
+        "name": "decoy: bot messages do not create feedback but log event",
+        "role": "decoy",
+        "asserts": "check(feedbackCount === 0, \"no feedback created for bot messages\")",
+        "body": "const botMessagePayload = {\n  type: \"event_callback\",\n  event: {\n    type: \"message\",\n    text: \"/pulse feedback This should be ignored\",\n    bot_id: \"B123456\",\n    user: \"U123456\",\n  },\n};\nconst rawBody = JSON.stringify(botMessagePayload);\nconst timestamp = Math.floor(Date.now() / 1000).toString();\nconst signature = createSlackSignature(workspace.slackSigningSecret, timestamp, rawBody);\nconst req = new StubRequest(timestamp, signature, rawBody);\n\narranged();\n\nconst response = await POST(req as any, { params });\nconst json = await response.json();\nrecord(\"response\", json);\n\nconst feedbackCount = await prisma.feedback.count({ where: { workspaceId: workspace.id } });\nrecord(\"feedbackCount\", feedbackCount);\n\ncheck(json.ok === true, \"response ok for bot message\");\ncheck(feedbackCount === 0, \"no feedback created for bot messages\");"
+      }
+    ],
+    "trace": {
+      "file": "app/api/slack/events/[slug]/route.ts",
+      "function": "POST"
+    },
+    "tests_sha256": "843ba10b2f7e4cd30390e52e322990c3f31eebfe8598c8bf32a03899a014c136",
+    "frozen_at": "2026-10-25T19:23:17.136Z",
+    "harness_sha256": "f5b367c15b59a92139cdb6d926dbc2967765e2aba008fa768b59594a69a464b9",
+    "harness_repairs": [],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": []
+    },
+    "reproduction_sha256": "de0ba2e1f15225034713367b07e508f45da2d21143be471d20a247634739256b",
+    "setup_probe": [
+      {
+        "ok": false,
+        "error": "rejected before running: setup: syntax error at line 3: Unexpected \"{\" in: import { NextRequest } from \"next/server\";; setup: contains an import/export statement; sections are statements inside an async function: load app modules with `const { x } = await app(\"path\")` and packages with `await import(\"pkg\")`"
+      },
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"response\",\"value\":{\"ok\":true}}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "  if (payload.type === \"event_callback\" && payload.event?.type === \"message\") {\n    // Deduplicate events by Slack event_id to avoid processing the same event multiple times\n    const eventId = (payload as any).event_id as string | undefined;\n    if (!eventId) {\n      // If no event_id, proceed as before (unlikely but fallback)\n    } else {\n      const existingLog = await prisma.slackEventLog.findUnique({\n        where: { id: eventId },\n      });\n      if (existingLog) {\n        // Duplicate event, ignore processing\n        return NextResponse.json({ ok: true });\n      }\n    }\n\n    const text = payload.event.text ?? \"\";\n    // Ignore the bot's own messages and anything that isn't our command,\n    // but still log the event so admins can see traffic is arriving.\n    const isBot = Boolean(payload.event.bot_id);\n    const command = !isBot ? parsePulseCommand(text) : null;\n\n    let createdFeedbackId: string | null = null;\n\n    if (command) {\n      const feedback = await prisma.feedback.create({\n        data: {\n          title: command.title.slice(0, 140),\n          body: command.title,\n          workspaceId: workspace.id,\n          source: \"SLACK\",\n          externalAuthorName: payload.event.username ?? payload.event.user ?? \"Slack user\",\n        },\n      });\n      createdFeedbackId = feedback.id;\n    }\n\n    await prisma.slackEventLog.create({\n      data: {\n        id: eventId,\n        workspaceId: workspace.id,\n        eventType: payload.event.type,\n        text: text.slice(0, 500),\n        createdFeedbackId,\n      },\n    });\n  }",
+    "file": "app/api/slack/events/[slug]/route.ts",
+    "changed_lines": 15,
+    "diff": "   if (payload.type === \"event_callback\" && payload.event?.type === \"message\") {\n+    // Deduplicate events by Slack event_id to avoid processing the same event multiple times\n+    const eventId = (payload as any).event_id as string | undefined;\n+    if (!eventId) {\n+      // If no event_id, proceed as before (unlikely but fallback)\n+    } else {\n+      const existingLog = await prisma.slackEventLog.findUnique({\n+        where: { id: eventId },\n+      });\n+      if (existingLog) {\n+        // Duplicate event, ignore processing\n+        return NextResponse.json({ ok: true });\n+      }\n+    }\n+\n     const text = payload.event.text ?? \"\";\n     // Ignore the bot's own messages and anything that isn't our command,\n     await prisma.slackEventLog.create({\n       data: {\n+        id: eventId,\n         workspaceId: workspace.id,\n         eventType: payload.event.type,",
+    "rationale": "Slack may resend the same event multiple times with the same event_id. To prevent creating duplicate feedback entries, the code now checks if an event with the same event_id has already been logged in slackEventLog. If so, it skips processing. Otherwise, it processes and logs the event with the event_id as the primary key. This deduplication prevents multiple identical feedback rows from being created from the same Slack event.",
+    "attempts": [
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "changed_lines": 15
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: multiple identical feedback rows created from repeated Slack event deliveries",
+          "role": "reproduction",
+          "pass": false,
+          "error": "Error: harmful outcome not observed: three identical feedback rows created from repeated Slack event deliveries |     at globalThis.harm_observed (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7tz9l-rhdbtu/t0.mts:9:95) |     at <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7tz9l",
+          "stack": "Error: harmful outcome not observed: three identical feedback rows created from repeated Slack event deliveries\n    at globalThis.harm_observed (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7tz9l-rhdbtu/t0.mts:9:95)\n    at <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7tz9l-rhdbtu/t0.mts:133:5)\n    at async <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7tz9l-rhdbtu/t0.mts:86:3)",
+          "recorded": [
+            {
+              "name": "feedbackCount",
+              "value": 0
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Feedback",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7tzpy00029udl8wp9ozwj",
+                "body": "This is a test feedback",
+                "title": "This is a test feedback",
+                "source": "SLACK",
+                "status": "OPEN",
+                "linkUrl": null,
+                "authorId": null,
+                "createdAt": "2026-10-25T19:23:27.382",
+                "linkImage": null,
+                "linkTitle": null,
+                "updatedAt": "2026-10-25T19:23:27.382",
+                "workspaceId": "cmvo7tzpc00009udlq9albg86",
+                "linkSiteName": null,
+                "linkDescription": null,
+                "externalAuthorName": "U123456"
+              }
+            },
+            {
+              "table": "Feedback",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7tzq500069udln499r7gh",
+                "body": "This is a test feedback",
+                "title": "This is a test feedback",
+                "source": "SLACK",
+                "status": "OPEN",
+                "linkUrl": null,
+                "authorId": null,
+                "createdAt": "2026-10-25T19:23:27.389",
+                "linkImage": null,
+                "linkTitle": null,
+                "updatedAt": "2026-10-25T19:23:27.389",
+                "workspaceId": "cmvo7tzpc00009udlq9albg86",
+                "linkSiteName": null,
+                "linkDescription": null,
+                "externalAuthorName": "U123456"
+              }
+            },
+            {
+              "table": "Feedback",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7tzq7000a9udlxp94cwue",
+                "body": "This is a test feedback",
+                "title": "This is a test feedback",
+                "source": "SLACK",
+                "status": "OPEN",
+                "linkUrl": null,
+                "authorId": null,
+                "createdAt": "2026-10-25T19:23:27.392",
+                "linkImage": null,
+                "linkTitle": null,
+                "updatedAt": "2026-10-25T19:23:27.392",
+                "workspaceId": "cmvo7tzpc00009udlq9albg86",
+                "linkSiteName": null,
+                "linkDescription": null,
+                "externalAuthorName": "U123456"
+              }
+            },
+            {
+              "table": "SlackEventLog",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7tzq000049udlx0fd4b5w",
+                "text": "/pulse feedback This is a test feedback",
+                "createdAt": "2026-10-25T19:23:27.384",
+                "eventType": "message",
+                "workspaceId": "cmvo7tzpc00009udlq9albg86",
+                "createdFeedbackId": "cmvo7tzpy00029udl8wp9ozwj"
+              }
+            },
+            {
+              "table": "SlackEventLog",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7tzq600089udlxn7zk3qa",
+                "text": "/pulse feedback This is a test feedback",
+                "createdAt": "2026-10-25T19:23:27.39",
+                "eventType": "message",
+                "workspaceId": "cmvo7tzpc00009udlq9albg86",
+                "createdFeedbackId": "cmvo7tzq500069udln499r7gh"
+              }
+            },
+            {
+              "table": "SlackEventLog",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7tzq8000c9udlagdfgn7x",
+                "text": "/pulse feedback This is a test feedback",
+                "createdAt": "2026-10-25T19:23:27.393",
+                "eventType": "message",
+                "workspaceId": "cmvo7tzpc00009udlq9albg86",
+                "createdFeedbackId": "cmvo7tzq7000a9udlxp94cwue"
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: url_verification type returns challenge without creating feedback",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "response",
+              "value": {
+                "challenge": "challenge-token-123"
+              }
+            },
+            {
+              "name": "feedbackCount",
+              "value": 0
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: bot messages do not create feedback but log event",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "response",
+              "value": {
+                "ok": true
+              }
+            },
+            {
+              "name": "feedbackCount",
+              "value": 0
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "SlackEventLog",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7u0vp00029ugiq2ln1hhm",
+                "text": "/pulse feedback This should be ignored",
+                "createdAt": "2026-10-25T19:23:28.885",
+                "eventType": "message",
+                "workspaceId": "cmvo7u0v500009ugiwa6u22fp",
+                "createdFeedbackId": null
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 2226,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: multiple identical feedback rows created from repeated Slack event deliveries",
+          "role": "reproduction",
+          "pass": false,
+          "error": "Error: harmful outcome not observed: three identical feedback rows created from repeated Slack event deliveries |     at globalThis.harm_observed (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7u0zk-kii086/t0.mts:9:95) |     at <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7u0zk",
+          "stack": "Error: harmful outcome not observed: three identical feedback rows created from repeated Slack event deliveries\n    at globalThis.harm_observed (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7u0zk-kii086/t0.mts:9:95)\n    at <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7u0zk-kii086/t0.mts:133:5)\n    at async <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7u0zk-kii086/t0.mts:86:3)",
+          "recorded": [
+            {
+              "name": "feedbackCount",
+              "value": 0
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Feedback",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7u1il00029uhvq2a5wkx4",
+                "body": "This is a test feedback",
+                "title": "This is a test feedback",
+                "source": "SLACK",
+                "status": "OPEN",
+                "linkUrl": null,
+                "authorId": null,
+                "createdAt": "2026-10-25T19:23:29.709",
+                "linkImage": null,
+                "linkTitle": null,
+                "updatedAt": "2026-10-25T19:23:29.709",
+                "workspaceId": "cmvo7u1hu00009uhv3y0s36ul",
+                "linkSiteName": null,
+                "linkDescription": null,
+                "externalAuthorName": "U123456"
+              }
+            },
+            {
+              "table": "Feedback",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7u1iu00069uhvsntabhrb",
+                "body": "This is a test feedback",
+                "title": "This is a test feedback",
+                "source": "SLACK",
+                "status": "OPEN",
+                "linkUrl": null,
+                "authorId": null,
+                "createdAt": "2026-10-25T19:23:29.718",
+                "linkImage": null,
+                "linkTitle": null,
+                "updatedAt": "2026-10-25T19:23:29.718",
+                "workspaceId": "cmvo7u1hu00009uhv3y0s36ul",
+                "linkSiteName": null,
+                "linkDescription": null,
+                "externalAuthorName": "U123456"
+              }
+            },
+            {
+              "table": "Feedback",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7u1ix000a9uhvft0p61z8",
+                "body": "This is a test feedback",
+                "title": "This is a test feedback",
+                "source": "SLACK",
+                "status": "OPEN",
+                "linkUrl": null,
+                "authorId": null,
+                "createdAt": "2026-10-25T19:23:29.722",
+                "linkImage": null,
+                "linkTitle": null,
+                "updatedAt": "2026-10-25T19:23:29.722",
+                "workspaceId": "cmvo7u1hu00009uhv3y0s36ul",
+                "linkSiteName": null,
+                "linkDescription": null,
+                "externalAuthorName": "U123456"
+              }
+            },
+            {
+              "table": "SlackEventLog",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7u1io00049uhvkmunxzex",
+                "text": "/pulse feedback This is a test feedback",
+                "createdAt": "2026-10-25T19:23:29.713",
+                "eventType": "message",
+                "workspaceId": "cmvo7u1hu00009uhv3y0s36ul",
+                "createdFeedbackId": "cmvo7u1il00029uhvq2a5wkx4"
+              }
+            },
+            {
+              "table": "SlackEventLog",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7u1iv00089uhv6mzh6i89",
+                "text": "/pulse feedback This is a test feedback",
+                "createdAt": "2026-10-25T19:23:29.72",
+                "eventType": "message",
+                "workspaceId": "cmvo7u1hu00009uhv3y0s36ul",
+                "createdFeedbackId": "cmvo7u1iu00069uhvsntabhrb"
+              }
+            },
+            {
+              "table": "SlackEventLog",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7u1iy000c9uhvrslcxpr2",
+                "text": "/pulse feedback This is a test feedback",
+                "createdAt": "2026-10-25T19:23:29.723",
+                "eventType": "message",
+                "workspaceId": "cmvo7u1hu00009uhv3y0s36ul",
+                "createdFeedbackId": "cmvo7u1ix000a9uhvft0p61z8"
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: url_verification type returns challenge without creating feedback",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "response",
+              "value": {
+                "challenge": "challenge-token-123"
+              }
+            },
+            {
+              "name": "feedbackCount",
+              "value": 0
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: bot messages do not create feedback but log event",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "response",
+              "value": {
+                "ok": true
+              }
+            },
+            {
+              "name": "feedbackCount",
+              "value": 0
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "SlackEventLog",
+              "op": "insert",
+              "row": {
+                "id": "cmvo7u2mw00029ukiloc59w8c",
+                "text": "/pulse feedback This should be ignored",
+                "createdAt": "2026-10-25T19:23:31.16",
+                "eventType": "message",
+                "workspaceId": "cmvo7u2m800009uki5khji5xw",
+                "createdFeedbackId": null
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 2300,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "Missing event_id deduplication check in event handler body",
+        "claimed": "absent",
+        "actual": "absent",
+        "quote": ""
+      },
+      {
+        "element": "Missing storage of seen event IDs to detect duplicates",
+        "claimed": "absent",
+        "actual": "absent",
+        "quote": ""
+      },
+      {
+        "element": "Feedback creation happens unconditionally for every event_callback with message type",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "const feedback = await prisma.feedback.create({\n        data: {\n          title: command.title.slice(0, 140),\n          body: command.title,\n          workspaceId: workspace.id,\n          source: \"SLACK\",\n          externalAuthorName: payload.event.username ?? payload.event.user ?? \"Slack user\",\n        },\n      });",
+        "quote_verified": true
+      },
+      {
+        "element": "SlackEventLog creation happens unconditionally for every event_callback with message type",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "await prisma.slackEventLog.create({\n      data: {\n        workspaceId: workspace.id,\n        eventType: payload.event.type,\n        text: text.slice(0, 500),\n        createdFeedbackId,\n      },\n    });",
+        "quote_verified": true
+      }
+    ],
+    "reason": "4 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 69,
+        "text": "if (payload.type === \"event_callback\" && payload.event?.type === \"message\") {"
+      },
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 70,
+        "text": "const text = payload.event.text ?? \"\";"
+      },
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 71,
+        "text": "// Ignore the bot's own messages and anything that isn't our command,"
+      },
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 72,
+        "text": "// but still log the event so admins can see traffic is arriving."
+      }
+    ],
+    "patch_file": "app/api/slack/events/[slug]/route.ts",
+    "patch_touched_lines": [
+      69,
+      70,
+      92,
+      93
+    ],
+    "overlap": [
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 69,
+        "text": "if (payload.type === \"event_callback\" && payload.event?.type === \"message\") {"
+      },
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 70,
+        "text": "const text = payload.event.text ?? \"\";"
+      },
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 71,
+        "text": "// Ignore the bot's own messages and anything that isn't our command,"
+      }
+    ],
+    "cause_gate": {
+      "harm_condition": "The test asserts that feedbackCount === 3, meaning three identical feedback rows were created from repeated Slack event deliveries.",
+      "alternative_defect": "The code could fail to create feedback rows entirely if the Slack event payload is missing the `event.text` field required by `parsePulseCommand`, or if the `verifySlackSignature` check incorrectly rejects all requests.",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The cited lines process the event text and create feedback only when a command is parsed. The reproduction test sends events with `text: feedbackTitle`, which triggers the command parsing path. The check `feedbackCount === 3` directly depends on the cited lines creating feedback three times without deduplication, matching the claimed cause and the production error of three identical rows."
+    },
+    "rival": {
+      "status": "ran",
+      "proposal": {
+        "rival_cause": "The code uses `payload.event.text` to determine the command but never checks `payload.event.event_id` to identify the Slack message source, so it cannot distinguish a retry from a new event; the `prisma.feedback.create` call executes whenever a message matches the command pattern, regardless of whether that event_id was already processed.",
+        "rival_rule": "Code should store processed Slack event IDs (e.g., in a database table or in-memory set) and skip creation if the incoming event_id has already been handled, ensuring each unique Slack message produces at most one feedback row.",
+        "rival_location": "payload.event.event_id (missing check after the `if (command) {` block)"
+      },
+      "patch": {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "diff": "     let createdFeedbackId: string | null = null;\n \n+    // Check if this event_id has already been processed to avoid duplicates\n+    const eventId = (payload.event as any).event_id as string | undefined;\n+    let alreadyProcessed = false;\n+    if (eventId) {\n+      const existingLog = await prisma.slackEventLog.findUnique({\n+        where: { eventId_workspaceId: { eventId, workspaceId: workspace.id } },\n+      });\n+      if (existingLog) {\n+        alreadyProcessed = true;\n+      }\n+    }\n+\n+    if (command && !alreadyProcessed) {\n-    if (command) {\n       const feedback = await prisma.feedback.create({\n         data: {\n         text: text.slice(0, 500),\n         createdFeedbackId,\n+        eventId: eventId ?? null,\n       },\n     });",
+        "touched": [
+          77,
+          78,
+          96,
+          97
+        ],
+        "rationale": "The original code creates feedback for every Slack message event matching the command, without checking if the event has been processed before. Slack retries can cause duplicate events with the same event_id, leading to multiple feedback rows for the same message. The fix adds a check for the event_id in the slackEventLog table before creating feedback, skipping creation if the event_id was already logged. It also stores the event_id in slackEventLog for future deduplication. This prevents duplicate feedback creation on retries."
+      },
+      "reproduction_passes": false,
+      "decoys_pass": false,
+      "attempts": []
+    },
+    "claim_causes": [
+      "The code lacks any check or storage of Slack event IDs to detect and ignore duplicate events [fix: Store processed event IDs (e.g., in Redis or database) and check incoming events against this store before creating feedback rows]"
+    ]
+  },
+  "verdict": "not_reproduced",
+  "reasons": [
+    "reproduction test FAILS on the original code (Error: harmful outcome not observed: three identical feedback rows created from repeated Slack event deliveries |     at globalThis.harm_observed (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7tz9l-rhdbtu/t0.mts:9:95) |     at <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7tz9l): the claimed bug was not reproduced",
+    "reproduction test fails on the patch (Error: harmful outcome not observed: three identical feedback rows created from repeated Slack event deliveries |     at globalThis.harm_observed (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7u0zk-kii086/t0.mts:9:95) |     at <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17b/pulseboard-slack-retry/app/.wce/1636619-mvo7u0zk): correcting the belief removes the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function app/api/slack/events/[slug]/route.ts:POST",
+    "patch changes the cited line(s) app/api/slack/events/[slug]/route.ts:69, app/api/slack/events/[slug]/route.ts:70, app/api/slack/events/[slug]/route.ts:71",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: the rival fix breaks a decoy (not a clean alternative)",
+    "mechanism gate (nemotron): consistent (4 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T19:24:01.907Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "SELECT el.error_id, el.ts, el.message, COUNT(fb.id) AS feedback_count\nFROM ERROR_LOG el\nJOIN APP_DB_WRITES fb ON fb.__empty = 0 AND el.__empty = 0\nWHERE el.error_id = 'pulseboard-slack-events'\n  AND fb.db_table = 'Feedback'\n  AND fb.op = 'insert'\n  AND fb.scenario = 'reported_scenario'\nGROUP BY el.error_id, el.ts, el.message\nHAVING COUNT(fb.id) > 1",
+    "sha256": "feaf75833299b5640b452ac34309618e51352701ec9910b98822babd72078f0c",
+    "frozen_at": "2026-10-25T19:24:00.415Z",
+    "rationale": "The claim is that the application code does not deduplicate Slack event IDs, causing multiple identical feedback rows to be created from the same Slack event. The ERROR_LOG table contains a high severity error message indicating that multiple identical feedback rows were created from one Slack message. The APP_DB_WRITES table contains the actual feedback rows inserted by the application in the reported scenario. By joining these tables and counting the number of feedback rows inserted for the reported scenario, we can detect if multiple identical feedback rows exist. Returning at least one row with count > 1 confirms the harmful outcome described in the claim.",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "pulseboard-slack-events",
+            "ts": "2026-10-25T02:59:40.989Z",
+            "severity": "high",
+            "service": "pulseboard",
+            "message": "Data integrity alert: 3 identical feedback rows were created from one Slack message; the request log shows the same event_id delivered 3 times (X-Slack-Retry-Num: absent, 1, 2), answered 200, 200, 200",
+            "frame_index": 0,
+            "frame_file": "app/api/slack/events/[slug]/route.ts",
+            "frame_line": 31,
+            "frame_function": "POST",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/pulseboard-slack-retry/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "transcript_replay",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 137,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "~/.cursor/skills-cursor/env-setup/SKILL.md",
+            "edit_line": 10,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "~/.cursor/skills-cursor/env-setup/SKILL.md",
+            "edit_line": 11,
+            "tool": "read_file",
+            "at": "2026-10-22T23:28:54.969Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run STRING",
+          "scenario STRING",
+          "db_table STRING",
+          "op STRING",
+          "id STRING",
+          "body STRING",
+          "title STRING",
+          "source STRING",
+          "status STRING",
+          "linkUrl DOUBLE",
+          "authorId DOUBLE",
+          "createdAt STRING",
+          "linkImage DOUBLE",
+          "linkTitle DOUBLE",
+          "updatedAt STRING",
+          "workspaceId STRING",
+          "linkSiteName DOUBLE",
+          "linkDescription DOUBLE",
+          "externalAuthorName STRING",
+          "text STRING",
+          "eventType STRING",
+          "createdFeedbackId STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 7,
+        "sample": [
+          {
+            "run": "original",
+            "scenario": "reported_scenario",
+            "db_table": "Feedback",
+            "op": "insert",
+            "id": "cmvo7tzpy00029udl8wp9ozwj",
+            "body": "This is a test feedback",
+            "title": "This is a test feedback",
+            "source": "SLACK",
+            "status": "OPEN",
+            "linkUrl": null,
+            "authorId": null,
+            "createdAt": "2026-10-25T19:23:27.382",
+            "linkImage": null,
+            "linkTitle": null,
+            "updatedAt": "2026-10-25T19:23:27.382",
+            "workspaceId": "cmvo7tzpc00009udlq9albg86",
+            "linkSiteName": null,
+            "linkDescription": null,
+            "externalAuthorName": "U123456",
+            "text": null,
+            "eventType": null,
+            "createdFeedbackId": null,
+            "__empty": 0
+          },
+          {
+            "run": "original",
+            "scenario": "reported_scenario",
+            "db_table": "Feedback",
+            "op": "insert",
+            "id": "cmvo7tzq500069udln499r7gh",
+            "body": "This is a test feedback",
+            "title": "This is a test feedback",
+            "source": "SLACK",
+            "status": "OPEN",
+            "linkUrl": null,
+            "authorId": null,
+            "createdAt": "2026-10-25T19:23:27.389",
+            "linkImage": null,
+            "linkTitle": null,
+            "updatedAt": "2026-10-25T19:23:27.389",
+            "workspaceId": "cmvo7tzpc00009udlq9albg86",
+            "linkSiteName": null,
+            "linkDescription": null,
+            "externalAuthorName": "U123456",
+            "text": null,
+            "eventType": null,
+            "createdFeedbackId": null,
+            "__empty": 0
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [
+      "ERROR_LOG",
+      "APP_DB_WRITES"
+    ],
+    "sql_attempts": [],
+    "original_rows": 1,
+    "patched_rows": 1,
+    "original_sample": [
+      [
+        "pulseboard-slack-events",
+        "2026-10-25T02:59:40.989Z",
+        "Data integrity alert: 3 identical feedback rows were created from one Slack message; the request log shows the same event_id delivered 3 times (X-Slack-Retry-Num: absent, 1, 2), answered 200, 200, 200",
+        "3"
+      ]
+    ],
+    "patched_sample": [
+      [
+        "pulseboard-slack-events",
+        "2026-10-25T02:59:40.989Z",
+        "Data integrity alert: 3 identical feedback rows were created from one Slack message; the request log shows the same event_id delivered 3 times (X-Slack-Retry-Num: absent, 1, 2), answered 200, 200, 200",
+        "3"
+      ]
+    ],
+    "verdict": "does_not_confirm"
+  }
+}

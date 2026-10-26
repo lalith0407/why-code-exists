@@ -1,0 +1,8 @@
+{
+ "id": "case12",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "Compliance rule breach: the fund's swing-trade count for the quarter is now 4, above the documented cap of 2. Before today, 1 swing exit had already been used this quarter.\n\nThree positions (held under the minimum period that would normally classify an exit as a swing trade) were all sold and filled today. None of the three sells were rejected or flagged by the guard; no violation notes were recorded for any of them.\n",
+ "frames": []
+}

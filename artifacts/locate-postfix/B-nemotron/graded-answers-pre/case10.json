@@ -1,0 +1,47 @@
+{
+ "overlooked_assumption": "_meta_for assumes every security has a sleeve and sector assigned, but newly added securities may have None values, causing _name_cap to return the wrong cap percentage (single_high_risk_pct instead of single_core_pct) and bypass the 15% hard cap.",
+ "why_it_breaks": "The _meta_for function constructs NameMeta objects using sleeve and sector directly from the security object. If a newly added ticker like KVXR has sleeve=None (no sleeve assigned yet), _name_cap evaluates the condition meta.sleeve == \"high_risk\" as False and meta.price < caps.penny_price_threshold also as False (price defaults to 0.0, which is typically below the threshold, but the logic may depend on the order of evaluation or the threshold value). In the reported scenario, the condition likely returns caps.single_high_risk_pct (e.g., 25%) instead of caps.single_core_pct (e.g., 15%), so the enforced cap is higher than the documented 15% limit, allowing the 95% position to pass without a violation flag.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 29,
+   "quote": "def _name_cap(meta: NameMeta, caps: RiskCaps) -> float:\n    if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\n        return caps.single_high_risk_pct\n    return caps.single_core_pct",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/risk_tools.py",
+   "line": 21,
+   "quote": "bar = ctx.store.latest_bar(security.security_id, ctx.as_of)",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/risk_tools.py",
+   "line": 22,
+   "quote": "price = 0.0 if bar is None else bar.adj_close",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/risk_tools.py",
+   "line": 23,
+   "quote": "meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 155,
+   "quote": "L155 [tool] TOOL: search_replace\nL155| CODE_WRITTEN: \nL155| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL155| +++ b//workspace/src/ta/mcp_servers/risk_tools.py\nL155| @@ -1,0 +1,40 @@\nL155| +\"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\nL155| +\nL155| +from __future__ import annotations\nL155| +\nL155| +from typing import Any\nL155| +\nL155| +from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\nL155| +from ta.harness.context import ToolContext\nL155| +from ta.mcp_servers.portfolio_tools import snapshot_state\nL155| +from ta.mcp_servers.registry import tool\nL155| +\nL155| +def _meta_for(ctx: ToolContext, tickers: list[str]) -> dict[str, NameMeta]:\nL155| +    meta: dict[str, NameMeta] = {}\nL155| +    for ticker in tickers:\nL155| +        security = ctx.store.security_by_ticker(ticker)\nL155| +        if security is None:\nL155| +            continue\nL155| +        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\nL155| +        price = 0.0 if bar is None else bar.adj_close\nL155| +        meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nL155| +    return meta",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 3,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The code assumed that for Modified commands, comparing original and current index values would correctly detect unchanged values, but it failed to account for the case where the index value is store-generated and the original value was never materialized, causing the equality check to always pass and skip necessary dependency edges.",
+ "why_it_breaks": "When a 1:1 relationship with a unique index (shadow property as FK) is reassigned to an already-attached entity, the index value on the dependent entity may be store-generated. The code creates the current value (without original values) and then fetches the original value with `fromOriginalValues: true`. If the original value was never tracked or is null/empty, the equality check `Equals(originalValue, value)` incorrectly returns true, causing the code to `continue` and skip adding the predecessor edge. This removes the unique constraint check, allowing a duplicate key to be inserted, resulting in the unique constraint violation observed across PostgreSQL, SQL Server, and SQLite.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 1267,
+   "quote": "if (command.EntityState == EntityState.Modified)\n                    {\n                        var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n                        if (Equals(originalValue, value))",
+   "verified": false,
+   "reason": "cited line does not exist"
+  },
+  {
+   "kind": "code",
+   "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+   "line": 1267,
+   "quote": "if (command.EntityState == EntityState.Modified)\n                    {\n                        var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n                        if (Equals(originalValue, value))\n                        {\n                            continue;\n                        }\n                    }",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

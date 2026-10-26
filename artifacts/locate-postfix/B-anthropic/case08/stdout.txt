@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> blast_radius/reasoner/base.py:46
+stage: ok
+provider: anthropic
+frame: blast_radius/reasoner/base.py:46
+status: verified (code quotes 1, transcript quotes 2)
+overlooked_assumption: The agent assumed that ALTER TYPE operations could be safely executed after a deprecation window by gating them on signed conditions, without considering that the schema change itself (widening a column type) can immediately break database constraints like unique indexes.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-anthropic/case08/report.html

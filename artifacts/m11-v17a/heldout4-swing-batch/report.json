@@ -1,0 +1,655 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "ta-swing-cap-batch",
+    "timestamp": "2026-10-25T04:09:41.143Z",
+    "severity": "error",
+    "service": "trading-agent-system",
+    "message": "Rule breach: the quarter's swing-trade cap is 2, 1 swing exit(s) were already used, and the guard let 3 full exits of positions held under the swing-hold period through in a single session, so the quarter ends with 4 swing trades. Guard notes: []",
+    "frames": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 242,
+        "function": "guard_orders"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout4-swing-batch/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "repo"
+    }
+  },
+  "frame": {
+    "file": "src/ta/harness/caps.py",
+    "line": 242,
+    "function": "guard_orders"
+  },
+  "language": "python",
+  "provenance": {
+    "file": "src/ta/harness/caps.py",
+    "function": "guard_orders",
+    "frame_line": 242,
+    "later_edits": [
+      {
+        "edit_line": 3514,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": "             notes.append(f\"day trade blocked for {order.ticker}\")\n             continue\n+        if order.side == \"buy\":\n+            exited = portfolio.exit_sessions.get(order.ticker)\n+            if exited is not None and fill_session - exited < caps.reentry_sessions:\n+                notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n+                continue\n         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n             continue"
+      },
+      {
+        "edit_line": 8931,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": " \n \n+def equal_weight_targets(\n+    names: list[str],\n+    meta: dict[str, NameMeta],\n+    caps: RiskCaps,\n+) -> dict[str, float]:\n+    \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n+    priced = [name for name in names if name in meta and meta[name].price > 0]\n+    if not priced:\n+        return {}\n+    share = 1.0 / len(priced)\n+    return {name: min(share, _name_cap(meta[name], caps)) for name in priced}\n+"
+      }
+    ],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 108,
+      "tool": "search_replace",
+      "fn_range": [
+        155,
+        201
+      ],
+      "frame_line_in_range": false,
+      "hunk_excerpt": "+\n+\n+def guard_orders(\n+    orders: list[OrderIntent],\n+    portfolio: Portfolio,\n+    meta: dict[str, NameMeta],\n+    caps: RiskCaps,\n+    *,\n+    fill_session: int,\n+    fill_date: date,\n+    prices: dict[str, float],\n+    equity: float,\n+) -> tuple[list[OrderIntent], list[str]]:\n+    \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n+\n+    Cap-driven sells are allowed inside the minimum hold. The weight cap itself is",
+      "fn_text": "def guard_orders(\n    orders: list[OrderIntent],\n    portfolio: Portfolio,\n    meta: dict[str, NameMeta],\n    caps: RiskCaps,\n    *,\n    fill_session: int,\n    fill_date: date,\n    prices: dict[str, float],\n    equity: float,\n) -> tuple[list[OrderIntent], list[str]]:\n    \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n\n    Cap-driven sells are allowed inside the minimum hold. The weight cap itself is\n    applied by :func:`enforce_caps` before orders are built.\n    \"\"\"\n    notes: list[str] = []\n    buys = {order.ticker for order in orders if order.side == \"buy\"}\n    drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n    halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n    quarter = _quarter(fill_date)\n    swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n    kept: list[OrderIntent] = []\n    for order in orders:\n        if order.side == \"hold\" or order.notional <= 0:\n            continue\n        if order.side == \"sell\" and order.ticker in buys:\n            notes.append(f\"day trade blocked for {order.ticker}\")\n            continue\n        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n            continue\n        if order.side == \"sell\" and order.reason != \"cap_reduction\":\n            lot = portfolio.positions.get(order.ticker)\n            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\n                continue\n            if (\n                lot is not None\n                and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n                and fill_session - lot.entry_session < caps.swing_hold_sessions\n                and swings_this_quarter >= caps.swing_trades_per_quarter\n            ):\n                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n                continue\n        kept.append(order)\n    return kept, notes"
+    },
+    "reasoning_before": {
+      "line": 102,
+      "words": 5251,
+      "silent": false,
+      "excerpt": "The next components to build are caps, portfolio, gateway, and tools.\n\nToolContext is being designed as the central context object for tool execution. The build order is portfolio and costs first, then caps, then tools, then gateway. Portfo"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The code counts each exit date individually without deduplicating multiple exits that occur in the same session, inflating the swing trade count. Fix: ensure only unique exit dates are counted. [fix: Change the counting logic to count unique dates, e.g., `swings_this_quarter = len({day for day in portfolio.swing_exits if _quarter(day) == quarter})` or equivalent deduplication.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "repo",
+    "root": "/workspace/trading-agent-system"
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T18:57:33.126Z",
+  "workspace": {
+    "root": "/workspace/trading-agent-system",
+    "origin": "repo",
+    "notes": [
+      "python: repo virtualenv /workspace/trading-agent-system/.venv/bin/python"
+    ],
+    "framework_shims": [],
+    "database": null,
+    "python": "/workspace/trading-agent-system/.venv/bin/python"
+  },
+  "code_under_test": {
+    "source": "repo:src/ta/harness/caps.py:L242-293",
+    "text": "def guard_orders(\n    orders: list[OrderIntent],\n    portfolio: Portfolio,\n    meta: dict[str, NameMeta],\n    caps: RiskCaps,\n    *,\n    fill_session: int,\n    fill_date: date,\n    prices: dict[str, float],\n    equity: float,\n) -> tuple[list[OrderIntent], list[str]]:\n    \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n\n    Cap-driven sells are allowed inside the minimum hold. The weight cap itself is\n    applied by :func:`enforce_caps` before orders are built.\n    \"\"\"\n    notes: list[str] = []\n    buys = {order.ticker for order in orders if order.side == \"buy\"}\n    drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n    halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n    quarter = _quarter(fill_date)\n    swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n    kept: list[OrderIntent] = []\n    for order in orders:\n        if order.side == \"hold\" or order.notional <= 0:\n            continue\n        if order.side == \"sell\" and order.ticker in buys:\n            notes.append(f\"day trade blocked for {order.ticker}\")\n            continue\n        if order.side == \"buy\":\n            exited = portfolio.exit_sessions.get(order.ticker)\n            if exited is not None and fill_session - exited < caps.reentry_sessions:\n                notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n                continue\n        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n            continue\n        if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n            lot = portfolio.positions.get(order.ticker)\n            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\n                continue\n            if (\n                lot is not None\n                and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n                and fill_session - lot.entry_session < caps.swing_hold_sessions\n                and swings_this_quarter >= caps.swing_trades_per_quarter\n            ):\n                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n                continue\n        kept.append(order)\n    return kept, notes"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that the swing trade count should be computed by counting swing exit dates per quarter, but the code counts the number of swing exit dates without deduplicating multiple exits in the same session, so the code allows more swing trades than the cap.",
+        "evidence_line": "swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that the swing trade cap applies only to full exits, but the code counts all swing exits regardless of whether they are full exits, so partial exits may incorrectly increment the swing trade count.",
+        "evidence_line": "swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)",
+        "explains_error": false
+      },
+      {
+        "cause": "The agent assumed that the swing trade cap check should be done per order, but the code does not update the swing trade count after each accepted order, so multiple exits in the same session can bypass the cap.",
+        "evidence_line": "if (\\n                lot is not None\\n                and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\\n                and fill_session - lot.entry_session < caps.swing_hold_sessions\\n                and swings_this_quarter >= caps.swing_trades_per_quarter\\n            ):",
+        "explains_error": false
+      }
+    ],
+    "chosen_cause": "The agent assumed that the swing trade count should be computed by counting swing exit dates per quarter, but the code counts the number of swing exit dates without deduplicating multiple exits in the same session, so the code allows more swing trades than the cap.",
+    "claim": "The agent assumed that counting swing exit dates per quarter accurately reflects the number of swing trades, so the code sums 1 for each day in portfolio.swing_exits in the quarter without deduplicating multiple exits in the same session, allowing the quarter to exceed the swing trade cap.",
+    "mechanism": "The line `swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)` counts each swing exit date individually without deduplicating multiple exits that may occur in the same session, thus inflating the swing trade count.",
+    "belief_quote": "swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)",
+    "belief_quote_source": "code",
+    "concept": "incorrect-aggregation-of-events",
+    "language_framework": "Python",
+    "correct_rule": "The swing trade count must aggregate unique swing exit sessions per quarter, deduplicating multiple exits in the same session to correctly enforce the swing trade cap.",
+    "cited_lines": [
+      "quarter = _quarter(fill_date)",
+      "swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)",
+      "if (",
+      "    lot is not None and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6 and fill_session - lot.entry_session < caps.swing_hold_sessions and swings_this_quarter >= caps.swing_trades_per_quarter:"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed that the swing trade cap applies only to full exits, but the code counts all swing exits regardless of whether they are full exits, so partial exits may incorrectly increment the swing trade count.",
+        "why_rejected": "The error message and code indicate the cap is on swing exits counted by date, not filtered by full exit status, so this is not the primary cause of exceeding the cap."
+      },
+      {
+        "cause": "The agent assumed that the swing trade cap check should be done per order, but the code does not update the swing trade count after each accepted order, so multiple exits in the same session can bypass the cap.",
+        "why_rejected": "The code checks the cap against a precomputed count before accepting orders, so the error is due to how the count is computed, not when it is checked."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 262,
+        "text": "quarter = _quarter(fill_date)"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 263,
+        "text": "swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 284,
+        "text": "if ("
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "incorrect-aggregation-of-events",
+    "hits": []
+  },
+  "tests": {
+    "setup": "from datetime import date\n\nm = app(\"src/ta/harness/caps.py\")\nfrom ta.models import OrderIntent\nfrom ta.sim.portfolio import Portfolio\n\n# Create a portfolio with some swing exits and positions\nportfolio = Portfolio(cash=10000.0)\n\n# Add swing exits to simulate previous swing trades in the quarter\n# We'll add 1 swing exit already used in the quarter\nquarter_start = date(2024, 4, 1)  # Q2 2024\nportfolio.swing_exits.append(quarter_start)\n\n# Add a position with entry_session to test min_hold and swing_hold\nportfolio.positions[\"AAA\"] = type(\"Lot\", (), {\"qty\": 10, \"cost\": 100, \"entry_session\": 10})()\n\n# Add exit_sessions to simulate previous exits\nportfolio.exit_sessions[\"AAA\"] = 12\n\n# Setup meta for the ticker\nmeta = {\n    \"AAA\": m.NameMeta(ticker=\"AAA\", sleeve=\"core\", sector=\"Technology\", price=100.0)\n}\n\n# Setup caps with swing_trades_per_quarter=2 (the cap)\ncaps = m.RiskCaps(swing_trades_per_quarter=2, min_hold_sessions=5, swing_hold_sessions=20, reentry_sessions=5, drawdown_halt_high_risk=-0.2)\n\n# Setup orders: one sell order that would be blocked by swing-trade cap\norders = [\n    OrderIntent(ticker=\"AAA\", side=\"sell\", notional=1000.0, reason=\"rebalance\", sleeve=\"core\")\n]\n\n# Setup prices\nprices = {\"AAA\": 100.0}\n\n# Setup fill_session and fill_date within the swing_hold_sessions and quarter\nfill_session = 15\nfill_date = date(2024, 4, 15)  # Q2 2024\n\n# Setup equity and peak_equity\nportfolio.peak_equity = 12000.0\nequity = 10000.0\n",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction of swing trade cap breach due to counting multiple exits per session",
+        "role": "reproduction",
+        "asserts": "harm_observed(len(notes) > 0 and any('swing-trade cap blocked exit' in note for note in notes), 'swing-trade cap breach observed due to multiple exits counted')",
+        "body": "arranged()\nout, notes = m.guard_orders(\n    orders,\n    portfolio,\n    meta,\n    caps,\n    fill_session=fill_session,\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity,\n)\nrecord(\"kept_orders\", [(o.ticker, o.side, o.notional) for o in out])\nrecord(\"notes\", notes)\nharm_observed(any('swing-trade cap blocked exit' in note for note in notes), \"swing-trade cap breach observed due to multiple exits counted\")"
+      },
+      {
+        "name": "decoy test: min_hold blocks immature discretionary sell but allows cap_reduction sell",
+        "role": "decoy",
+        "asserts": "check(len(kept_forced) == 1, 'cap_reduction sell allowed despite min_hold') and check(len(kept_blocked) == 0, 'discretionary sell blocked by min_hold')",
+        "body": "# Sell order blocked by min_hold_sessions\nsell_blocked = OrderIntent(ticker=\"AAA\", side=\"sell\", notional=1000.0, reason=\"rebalance\", sleeve=\"core\")\n# Sell order allowed by cap_reduction reason\nsell_forced = OrderIntent(ticker=\"AAA\", side=\"sell\", notional=1000.0, reason=\"cap_reduction\", sleeve=\"core\")\n\nkept_blocked, notes_blocked = m.guard_orders(\n    [sell_blocked],\n    portfolio,\n    meta,\n    caps,\n    fill_session=12,  # less than min_hold_sessions from entry_session=10\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity,\n)\n\nkept_forced, notes_forced = m.guard_orders(\n    [sell_forced],\n    portfolio,\n    meta,\n    caps,\n    fill_session=12,\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity,\n)\n\nrecord(\"kept_blocked\", kept_blocked)\nrecord(\"kept_forced\", kept_forced)\ncheck(len(kept_forced) == 1, \"cap_reduction sell allowed despite min_hold\")\ncheck(len(kept_blocked) == 0, \"discretionary sell blocked by min_hold\")"
+      },
+      {
+        "name": "decoy test: day trade blocked when buy and sell in same orders",
+        "role": "decoy",
+        "asserts": "check(len(kept) == 1 and kept[0].side == 'buy', 'day trade sell blocked, buy allowed') and check(any('day trade blocked' in note for note in notes), 'day trade note present')",
+        "body": "# Test that a buy order is blocked if reentry_sessions cap is active\nbuy_order = OrderIntent(ticker=\"AAA\", side=\"buy\", notional=1000.0, reason=\"rebalance\", sleeve=\"core\")\n\n# Set exit_sessions so that reentry_sessions cap blocks the buy\nportfolio.exit_sessions[\"AAA\"] = fill_session - (caps.reentry_sessions - 1)\n\nkept, notes = m.guard_orders(\n    [buy_order],\n    portfolio,\n    meta,\n    caps,\n    fill_session=fill_session,\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity,\n)\n\nrecord(\"kept\", kept)\nrecord(\"notes\", notes)\ncheck(len(kept) == 0 and any(\"reentry wait blocked buy\" in note for note in notes), \"buy blocked by reentry_sessions cap\")"
+      }
+    ],
+    "trace": {
+      "file": "src/ta/harness/caps.py",
+      "function": "guard_orders"
+    },
+    "tests_sha256": "77e119f71e62e666d88fb9665d36b0904ad929acc2875f6c93c2da778edc4c72",
+    "frozen_at": "2026-10-25T18:58:03.142Z",
+    "harness_sha256": "4501d63cb630b77d86e6d1640b65eff18aa3373664ec1032e4c9373c0f315d53",
+    "harness_repairs": [
+      {
+        "setup_changed": true,
+        "stubs": [],
+        "failure": "harness rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      }
+    ],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": []
+    },
+    "reproduction_sha256": "e7d8e7e3336e18668938d5906c7b92d9dfb46a2653cc40328e42a9db3155a07d",
+    "setup_probe": [
+      {
+        "ok": false,
+        "error": "rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      },
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"kept_orders\",\"value\":[[\"AAA\",\"sell\",1000]]},{\"name\":\"notes\",\"value\":[]}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [
+      {
+        "name": "decoy test: day trade blocked when buy and sell in same orders",
+        "failed_with": "AssertionError: day trade sell blocked, buy allowed | File \"/workspace/trading-agent-system/.wce/1628428-mvo6xe9e-sno8ph/t2.py\", line 13, in check     if not cond: raise AssertionError(msg)                  ^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "replaced": true
+      }
+    ],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "    swing_exit_sessions = set()\n    for day in portfolio.swing_exits:\n        if _quarter(day) == quarter:\n            # Deduplicate multiple swing exits in the same session\n            # by mapping day to session via portfolio.exit_sessions\n            # but portfolio.exit_sessions maps ticker->session, so we cannot use it here.\n            # Instead, we deduplicate by day since swing_exits are dates of exits.\n            swing_exit_sessions.add(day)\n    swings_this_quarter = len(swing_exit_sessions)",
+    "file": "src/ta/harness/caps.py",
+    "changed_lines": 10,
+    "diff": "+    swing_exit_sessions = set()\n+    for day in portfolio.swing_exits:\n+        if _quarter(day) == quarter:\n+            # Deduplicate multiple swing exits in the same session\n+            # by mapping day to session via portfolio.exit_sessions\n+            # but portfolio.exit_sessions maps ticker->session, so we cannot use it here.\n+            # Instead, we deduplicate by day since swing_exits are dates of exits.\n+            swing_exit_sessions.add(day)\n+    swings_this_quarter = len(swing_exit_sessions)\n-    swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)",
+    "rationale": "The original code counts each swing exit date individually, which can overcount if multiple exits occur in the same session. The fix deduplicates swing exit dates by using a set, ensuring each unique exit date is counted once. Since swing_exits are dates, deduplicating by date is appropriate to avoid inflating the count.",
+    "attempts": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "changed_lines": 10
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction of swing trade cap breach due to counting multiple exits per session",
+          "role": "reproduction",
+          "pass": false,
+          "error": "AssertionError: harmful outcome not observed: swing-trade cap breach observed due to multiple exits counted | File \"/workspace/trading-agent-system/.wce/1628428-mvo6xi9r-8jmdbr/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcome not observed: \" + msg)",
+          "stack": "Traceback (most recent call last):\n  File \"/workspace/trading-agent-system/.wce/1628428-mvo6xi9r-8jmdbr/t0.py\", line 89, in <module>\n    asyncio.run(_wce_main())\n    ~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 195, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/base_events.py\", line 725, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/workspace/trading-agent-system/.wce/1628428-mvo6xi9r-8jmdbr/t0.py\", line 86, in _wce_main\n    harm_observed(any('swing-trade cap blocked exit' in note for note in notes), \"swing-trade cap breach observed due to multiple exits counted\")\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/trading-agent-system/.wce/1628428-mvo6xi9r-8jmdbr/t0.py\", line 10, in harm_observed\n    raise AssertionError(\"harmful outcome not observed: \" + msg)\nAssertionError: harmful outcome not observed: swing-trade cap breach observed due to multiple exits counted\n",
+          "recorded": [
+            {
+              "name": "kept_orders",
+              "value": [
+                [
+                  "AAA",
+                  "sell",
+                  1000
+                ]
+              ]
+            },
+            {
+              "name": "notes",
+              "value": []
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy test: min_hold blocks immature discretionary sell but allows cap_reduction sell",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept_blocked",
+              "value": []
+            },
+            {
+              "name": "kept_forced",
+              "value": [
+                "OrderIntent(ticker='AAA', side='sell', notional=1000.0, limit_price=None, sleeve='core', reason='cap_reduction', security_id=None, citation=None)"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy test: day trade blocked when buy and sell in same orders",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept",
+              "value": []
+            },
+            {
+              "name": "notes",
+              "value": [
+                "reentry wait blocked buy of AAA"
+              ]
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 644,
+      "tree": "/workspace/trading-agent-system"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction of swing trade cap breach due to counting multiple exits per session",
+          "role": "reproduction",
+          "pass": false,
+          "error": "AssertionError: harmful outcome not observed: swing-trade cap breach observed due to multiple exits counted | File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-swing-batch/app-patched/.wce/1628428-mvo6xirt-5idz2n/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcome",
+          "stack": "Traceback (most recent call last):\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-swing-batch/app-patched/.wce/1628428-mvo6xirt-5idz2n/t0.py\", line 89, in <module>\n    asyncio.run(_wce_main())\n    ~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 195, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/base_events.py\", line 725, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-swing-batch/app-patched/.wce/1628428-mvo6xirt-5idz2n/t0.py\", line 86, in _wce_main\n    harm_observed(any('swing-trade cap blocked exit' in note for note in notes), \"swing-trade cap breach observed due to multiple exits counted\")\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-swing-batch/app-patched/.wce/1628428-mvo6xirt-5idz2n/t0.py\", line 10, in harm_observed\n    raise AssertionError(\"harmful outcome not observed: \" + msg)\nAssertionError: harmful outcome not observed: swing-trade cap breach observed due to multiple exits counted\n",
+          "recorded": [
+            {
+              "name": "kept_orders",
+              "value": [
+                [
+                  "AAA",
+                  "sell",
+                  1000
+                ]
+              ]
+            },
+            {
+              "name": "notes",
+              "value": []
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy test: min_hold blocks immature discretionary sell but allows cap_reduction sell",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept_blocked",
+              "value": []
+            },
+            {
+              "name": "kept_forced",
+              "value": [
+                "OrderIntent(ticker='AAA', side='sell', notional=1000.0, limit_price=None, sleeve='core', reason='cap_reduction', security_id=None, citation=None)"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy test: day trade blocked when buy and sell in same orders",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept",
+              "value": []
+            },
+            {
+              "name": "notes",
+              "value": [
+                "reentry wait blocked buy of AAA"
+              ]
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 630,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-swing-batch/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "swings_this_quarter calculation via sum over portfolio.swing_exits",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)",
+        "quote_verified": true
+      }
+    ],
+    "reason": "1 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 262,
+        "text": "quarter = _quarter(fill_date)"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 263,
+        "text": "swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 284,
+        "text": "if ("
+      }
+    ],
+    "patch_file": "src/ta/harness/caps.py",
+    "patch_touched_lines": [
+      263
+    ],
+    "overlap": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 262,
+        "text": "quarter = _quarter(fill_date)"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 263,
+        "text": "swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)"
+      }
+    ],
+    "cause_gate": {
+      "harm_condition": "The test passes if at least one note in the returned `notes` list contains the substring \"swing-trade cap blocked exit\".",
+      "alternative_defect": "The code correctly deduplicates swing exits per session (e.g., by tracking which tickers have already been counted in the current session) so that `swings_this_quarter` only counts unique swing trades, but the guard still blocks a sell order because the *total* quarterly count across all sessions exceeds the cap, even though the specific order being evaluated is the first exit in this session.",
+      "alternative_also_satisfies_harm": true,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The test checks that the \"swing-trade cap blocked exit\" note appears. The cited line `swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)` counts every exit date without deduplication. If multiple exits occur in the same session, this sum inflates, causing the cap check `swings_this_quarter >= caps.swing_trades_per_quarter` to trigger incorrectly. The test's check passes specifically because of this inflated count, matching the claimed defect."
+    },
+    "rival": {
+      "status": "unavailable",
+      "proposal": {
+        "rival_cause": "The code counts swing exits by iterating over `portfolio.swing_exits` dates, but `swing_exits` records the session close date per ticker, not the exit date of every individual trade; if a ticker has multiple partial sells or top-ups within a session, each generates a separate date entry, inflating the count beyond the actual number of distinct swing trades executed.",
+        "rival_rule": "The swing trade count should count distinct tickers that had a swing exit in the quarter, not the number of exit date records, to avoid double-counting partial closes or top-ups within the same session.",
+        "rival_location": "portfolio.swing_exits in src/ta/sim/portfolio.py"
+      },
+      "attempts": [
+        "edit changes 26 lines (> 19)",
+        "edit changes 24 lines (> 19)",
+        "edit changes 122 lines (> 19)"
+      ]
+    },
+    "claim_causes": [
+      "The code counts each exit date individually without deduplicating multiple exits that occur in the same session, inflating the swing trade count. Fix: ensure only unique exit dates are counted. [fix: Change the counting logic to count unique dates, e.g., `swings_this_quarter = len({day for day in portfolio.swing_exits if _quarter(day) == quarter})` or equivalent deduplication.]"
+    ]
+  },
+  "verdict": "not_reproduced",
+  "reasons": [
+    "reproduction test FAILS on the original code (AssertionError: harmful outcome not observed: swing-trade cap breach observed due to multiple exits counted | File \"/workspace/trading-agent-system/.wce/1628428-mvo6xi9r-8jmdbr/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcome not observed: \" + msg)): the claimed bug was not reproduced",
+    "reproduction test fails on the patch (AssertionError: harmful outcome not observed: swing-trade cap breach observed due to multiple exits counted | File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-swing-batch/app-patched/.wce/1628428-mvo6xirt-5idz2n/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcome): correcting the belief removes the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function src/ta/harness/caps.py:guard_orders",
+    "patch changes the cited line(s) src/ta/harness/caps.py:262, src/ta/harness/caps.py:263",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: not checked (unavailable)",
+    "mechanism gate (nemotron): consistent (1 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T18:58:42.719Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T18:58:42.719Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "ta-swing-cap-batch",
+            "ts": "2026-10-25T04:09:41.143Z",
+            "severity": "error",
+            "service": "trading-agent-system",
+            "message": "Rule breach: the quarter's swing-trade cap is 2, 1 swing exit(s) were already used, and the guard let 3 full exits of positions held under the swing-hold period through in a single session, so the quarter ends with 4 swing trades. Guard notes: []",
+            "frame_index": 0,
+            "frame_file": "src/ta/harness/caps.py",
+            "frame_line": 242,
+            "frame_function": "guard_orders",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout4-swing-batch/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 3773,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 4,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 5,
+            "tool": "read_file",
+            "at": "2026-10-12T00:23:38.996Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript + git log"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

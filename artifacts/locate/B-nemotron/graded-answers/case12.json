@@ -1,0 +1,39 @@
+{
+ "overlooked_assumption": "The agent assumed that setting last_trade_session to a past session (10) combined with a recent entry_session (0) would properly trigger the cooldown and minimum-size guards, but overlooked that the cooldown check depends on the most recent trade direction and that the minimum-size guard only blocks sells below the notional threshold, not buys.",
+ "why_it_breaks": "The test sets last_trade_session to session 10 and entry_session to 0, expecting a stop sell to bypass the cooldown and minimum-size guards. However, the cooldown logic likely checks the direction of the most recent trade (a buy at session 10) against the new sell, and the minimum-size guard checks notional against a $50 threshold. Since the order is a sell with notional < 50, the guard should block it, but the test asserts the sell passes with reason \"stop\". The agent missed that the cooldown after a buy trade prevents the sell from being classified as a stop, or that the minimum-size guard applies to the sell's notional and blocks it regardless of the stop reason.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5941,
+   "quote": "Hard drawdown rules bypass minimum-hold checks. A ~$1.8 one-dollar trim falls below the $50 threshold. Stop tests assert the reason is stop.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_churn.py",
+   "line": 285,
+   "quote": "book.last_trade_session[\"AAPL\"] = 10",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_churn.py",
+   "line": 284,
+   "quote": "book.positions[\"AAPL\"] = Lot(qty=0.01, cost=qty * bar.adj_close / 0.8, entry_session=0)",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_churn.py",
+   "line": 287,
+   "quote": "planned = plan_orders(_ctx(store, settings, book, 10, days[0]), [\"AAPL\"])",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 1
+}

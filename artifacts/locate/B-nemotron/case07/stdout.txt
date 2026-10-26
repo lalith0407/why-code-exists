@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> blast_radius/reasoner/base.py:26
+stage: ok
+provider: nemotron
+frame: blast_radius/reasoner/base.py:26
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that table names in action.target would never contain quote characters, so it interpolated them directly into SQL strings without escaping or parameterization.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-nemotron/case07/report.html

@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed the `table` parameter passed to `_bypass_sql` already contains the correct schema prefix (e.g., \"archive.orders\"), so it blindly prepends \"main.\" to form \"schema_qualified\" SQL, without verifying whether the table reference is already schema-qualified or which schema it actually belongs to.",
+ "why_it_breaks": "When the agent was asked to drop a column from `archive.orders`, the `table` parameter received the value \"archive.orders\". The `_bypass_sql` function then constructed the \"schema_qualified\" variant as `ALTER TABLE main.archive.orders DROP COLUMN col`, which triples the schema prefix. The guard-bypass generator selected this variant (or it was used in validation logic), causing the resulting SQL to target `main.archive.orders` instead of the intended `archive.orders`. Since the production database has a `main` schema (i.e., the `orders` table lives in the default/unnamed schema or a schema named `main`), the ALTER TABLE statement was executed against `main.orders` \u2014 the live production table \u2014 rather than `archive.orders`. The function made no attempt to distinguish between a already-schema-qualified table name and an unqualified one; it unconditionally prepended \"main.\" regardless.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 180,
+   "quote": "L180 [tool] TOOL: search_replace\nL180| CODE_WRITTEN: \nL180| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/evals/run.py\nL180| +++ b//workspace/evals/run.py\\nL180| @@ -7,10 +7,11 @@\\nL180| \\nL180|    python -m evals.run --n 200 --seed 7            # mock reasoner (default, deterministic, no keys)\\nL180|    BR_REASONER=nemotron python -m evals.run --n 20 # live subset\\nL180| +\\nL180|  Writes evals/results/latest.json + latest.md. Synthetic scenarios over our own world: not a real-world benchmark.\\nL180|  \"\"\"\nL180|  from __future__ import annotations\nL180| -import argparse, copy, json, os, random, shutil, statistics, tempfile, time\\nL180| +import argparse, json, os, random, shutil, statistics, tempfile, time\\nL180|  from collections import Counter, defaultdict\\nL180|  from pathlib import Path\\nL180|  from world.seed import seed\\nL180| @@ -18,11 +19,25 @@\\nL180|  from blast_radius.guard import Guard\\nL180| \\nL180|  CLASSES = {  # class -> share of runs\\nL180| -    \"safe_read\": .10, \"safe_ddl\": .12, \"dangerous_ddl\": .12, \"safe_plan_complete\": .08,\\nL180| -    \"unsigned\": .10, \"tampered\": .10, \"out_of_order\": .08, \"drift\": .12, \"evasion\": .12, \"injection\": .06,\\nL180| +    \"safe_read\": .08, \"safe_ddl\": .10, \"dangerous_ddl\": .12, \"safe_plan_complete\": .08,\\nL180| +    \"unsigned\": .10, \"tampered\": .10, \"out_of_order\": .08, \"drift\": .12, \"evasion\": .08,\\nL180| +    \"injection\": .06, \"guard_bypass\": .08,\\nL180|  }\\nL180|  OUT = Path(__file__).parent / \"results\"\\nL180| \\nL180| +# Every guarded kind gets a SQL builder, keyed by (table, col) from add_target. Table-level kinds\\nL180| +# ignore col but we still create it so the evidence sources have something that both the column\\nL181 [assistant] THINKING: I also caught a subtle pre-existing bug: nested double quotes inside a double-quoted f-string accessing the summary's memory key would be a syntax error on Python versions before 3.12. I switched it to single quotes for the dictionary access to keep it compatible across versions.\\nL181| \\nL181| Now I'll add sqlglot to requirements.txt and run the tests.\\nL181| \\nL181| \\nL182 [assistant] (empty message)\\nL183 [tool] TOOL: search_replace\\nL183| CODE_WRITTEN: \nL183| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/requirements.txt\\nL183| +++ b//workspace/requirements.txt\\nL183| @@ -6,3 +6,4 @@\\nL183|  PyYAML==6.0.3\\nL183|  uvicorn==0.54.0\\nL183|  psycopg[binary]==3.3.6\\nL183| +sqlglot==30.24.0\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":1}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "evals/run.py",
+   "line": 127,
+   "quote": "        \"schema_qualified\": f\"ALTER TABLE main.{table} DROP COLUMN {col}\",",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,6 @@
+stage: ok
+provider: anthropic
+frame: src/ta/replay.py:322
+status: verified (code quotes 1, transcript quotes 2)
+overlooked_assumption: The agent assumed that subtracting 5 years from a date using replace(year=end.year - 5) would always produce a valid date, without considering that February 29 only exists in leap years.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case14/report.html

@@ -1,0 +1,31 @@
+{
+ "overlooked_assumption": "The agent assumed that gpt-5.4 and gpt-5.5 default reasoning_effort to \"none\", but the production deployment explicitly sets reasoning_effort to \"low\" in extra_body, which the agent's logic still bridges to /v1/responses.",
+ "why_it_breaks": "The agent's fix only prevents bridging when reasoning_effort is unset (defaulting to \"none\"), but the production deployment explicitly sets reasoning_effort: \"low\" in litellm_params.extra_body. The comment at line 1127 confirms that explicit non-none reasoning_effort still triggers bridging from gpt-5.4+, so gpt-5.5 with reasoning_effort: \"low\" gets routed to /v1/responses, which rejects function tools with the exact error message reported.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 4,
+   "quote": "gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions;",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1127,
+   "quote": "# - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 2,
+   "quote": "Unset `reasoning_effort` on gpt-5.4/5.5 stays on Chat Completions again",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 2
+}

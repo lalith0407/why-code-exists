@@ -1,0 +1,914 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case06",
+  "complete": false,
+  "notes": [],
+  "frame": {
+   "file": "prisma/seed.ts",
+   "line": 117,
+   "function": "main"
+  },
+  "asked": {
+   "text": "I run a B2B SaaS. Each of my customer companies should get their own\nworkspace with a feedback board. People in a workspace can submit\nfeedback, upvote, and leave comments. Teammates join via email invite.\nSome users are admins for their workspace and can edit workspace\nsettings (name, slug, webhook URL).",
+   "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 1098
+  },
+  "understood": {
+   "text": "Clean typecheck. Now let's write the seed script.",
+   "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L358 (assistant, 8 words, 2 line(s) before the edit at L360)",
+   "valid": false,
+   "full_length": 49,
+   "why_invalid": "agent wrote fewer than 15 words before the edit (silent edit)"
+  },
+  "happened": {
+   "text": "Admin reports that our outgoing webhook to Zapier has stopped working. Zapier's own delivery log shows every attempt getting back HTTP 404 \"hook not found\" for the last several hours.\n\nThe admin re-opened workspace settings and confirmed the webhook URL field still shows the value they originally pasted in from Zapier: https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/. On Zapier's side, that same catch hook still shows as existing and enabled in their dashboard. No one has changed or regenerated the hook since it was set up.\n\n  at main (prisma/seed.ts:117)\n  117: body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",\n\nWritten by transcript edit L360 (search_replace):\n+  });\n+  const acmeFeedback2 = await prisma.feedback.create({\n+    data: {\n+      workspaceId: acme.workspace.id,\n+      authorId: acme.admin.id,\n+      title: \"Export reports to CSV\",\n+      body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",\n+    },\n+  });\n+  const acmeFeedback3 = await prisma.feedback.create({\n+    data: {\n+      workspaceId: acme.workspace.id,\n+      authorId: acme.member.id,",
+   "citation": "error case06 frame prisma/seed.ts:117; bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L360",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 360,
+    "quote": "L360 [tool] TOOL: search_replace\nL360| CODE_WRITTEN: \nL360| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL360| +++ b//workspace/prisma/seed.ts\nL360| @@ -1,0 +1,265 @@\nL360| +import { PrismaClient, Role } from \"@prisma/client\";\nL360| +import bcrypt from \"bcryptjs\";\nL360| +import crypto from \"crypto\";\nL360| +\nL360| +import { fetchLinkPreview } from \"../lib/link-preview\";\nL360| +\nL360| +const prisma = new PrismaClient();\nL360| +const SALT_ROUNDS = 12;\nL360| +const DEMO_PASSWORD = \"password123\";\nL360| +\nL360| +async function hash(password: string) {\nL360| +  return bcrypt.hash(password, SALT_ROUNDS);\nL360| +\nL360| +// A couple of real, stable URLs so the link-preview feature has something\nL360| +// to fetch during seeding. If the sandbox running `db:seed` has no\nL360| +// outbound internet access, fetchLinkPreview fails soft and we fall back\nL360| +// to a hardcoded preview below so the demo still looks right offline.\nL360| +const FALLBACK_PREVIEWS: Record<string, { title: string; description: string; image: string; siteName: string }> = {\nL360| +  \"https://github.com/vercel/next.js\": {\nL360| +    title: \"GitHub - vercel/next.js: The React Framework\",\nL360| +    description: \"The React Framework. Contribute to vercel/next.js development by creating an account on GitHub.\",\nL360| +    image: \"https://opengraph.githubassets.com/1/vercel/next.js\",\nL360| +    siteName: \"GitHub\",\nL360| +  },\nL360| +  \"https://www.notion.so\": {\nL360| +    title: \"Notion – The all-in-one workspace for your notes, tasks, wikis, and databases.\",\nL360| +    description: \"A new tool that blends your everyday work apps into one.\",\nL360| +    image: \"https://www.notion.so/front-static/meta/default.pn\"",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Admin reports that our outgoing webhook to Zapier has stopped working. Zapier's own delivery log shows every attempt getting back HTTP 404 \"hook not found\" for the last several hours.\n\nThe admin re-opened workspace settings and confirmed the webhook URL field still shows the value they originally pasted in from Zapier: https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/. On Zapier's side, that same catch hook still shows as existing and enabled in their dashboard. No one has changed or regenerated the hook since it was set up.\n",
+  "terms": [
+   "s own delivery log shows every attempt getting back http 404",
+   "admin reports that our",
+   "zapier has stopped working",
+   "the admin re",
+   "url field still shows",
+   "on zapier",
+   "no one has changed",
+   "404",
+   "1234567",
+   "hooks",
+   "zapier",
+   "com",
+   "ab",
+   "cd",
+   "ef",
+   "admin",
+   "reports",
+   "outgoing",
+   "webhook",
+   "stopped",
+   "working",
+   "delivery",
+   "shows",
+   "attempt",
+   "getting",
+   "back",
+   "http",
+   "hook",
+   "found",
+   "last",
+   "several",
+   "hours",
+   "opened",
+   "workspace",
+   "settings",
+   "confirmed",
+   "field",
+   "value",
+   "originally",
+   "pasted",
+   "https",
+   "catch",
+   "side",
+   "same",
+   "existing",
+   "enabled",
+   "dashboard",
+   "changed",
+   "regenerated"
+  ],
+  "layer1": {
+   "symbols_indexed": 1122,
+   "edited_hunks_indexed": 87,
+   "candidates": [
+    {
+     "file": "prisma/seed.ts",
+     "line": 117,
+     "end_line": 265,
+     "text": "      body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",",
+     "function": "main",
+     "score": 23.6062,
+     "matched_terms": [
+      "delivery",
+      "log",
+      "back",
+      "http",
+      "admin",
+      "reports",
+      "re",
+      "url",
+      "one",
+      "com",
+      "webhook",
+      "workspace",
+      "https",
+      "catch",
+      "dashboard"
+     ],
+     "edit_line": 360,
+     "tool": "search_replace",
+     "hunk_id": "L360#74",
+     "snippet": "1: import { PrismaClient, Role } from \"@prisma/client\";\n2: import bcrypt from \"bcryptjs\";\n3: import crypto from \"crypto\";\n4: \n5: import { fetchLinkPreview } from \"../lib/link-preview\";\n6: \n7: const prisma = new PrismaClient();\n8: const SALT_ROUNDS = 12;\n9: const DEMO_PASSWORD = \"password123\";\n10: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 117,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 116,
+       "text": "      title: \"Export reports to CSV\","
+      },
+      {
+       "line": 117,
+       "text": "      body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\","
+      },
+      {
+       "line": 118,
+       "text": "    },"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "components/settings/workspace-settings-form.tsx",
+     "line": 47,
+     "end_line": 81,
+     "text": "          Changing this changes your board&apos;s URL — existing links to /w/{slug} will stop working.",
+     "function": "WorkspaceSettingsForm",
+     "score": 23.3636,
+     "matched_terms": [
+      "working",
+      "url",
+      "com",
+      "outgoing",
+      "webhook",
+      "workspace",
+      "settings",
+      "value",
+      "https",
+      "existing"
+     ],
+     "edit_line": 324,
+     "tool": "search_replace",
+     "hunk_id": "L324#63",
+     "snippet": "1: \"use client\";\n2: \n3: import { useActionState } from \"react\";\n4: \n5: import { updateWorkspaceSettingsAction } from \"@/lib/actions/workspace-settings\";\n6: import { Button } from \"@/components/ui/button\";\n7: import { Input } from \"@/components/ui/input\";\n8: import { Label } from \"@/components/ui/label\";\n9: import { Alert, AlertDescription } from \"@/components/ui/alert\";\n10: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 47,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 46,
+       "text": "        <p className=\"text-xs text-muted-foreground\">"
+      },
+      {
+       "line": 47,
+       "text": "          Changing this changes your board&apos;s URL — existing links to /w/{slug} will stop working."
+      },
+      {
+       "line": 48,
+       "text": "        </p>"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "app/w/[slug]/settings/page.tsx",
+     "line": 7,
+     "end_line": 110,
+     "text": "import { DeliveryLog } from \"@/components/settings/delivery-log\";",
+     "score": 20.8308,
+     "matched_terms": [
+      "delivery",
+      "log",
+      "http",
+      "admin",
+      "url",
+      "outgoing",
+      "webhook",
+      "workspace",
+      "settings",
+      "value"
+     ],
+     "edit_line": 335,
+     "tool": "search_replace",
+     "hunk_id": "L335#67",
+     "snippet": "1: import Link from \"next/link\";\n2: \n3: import { requireWorkspaceAdmin } from \"@/lib/workspace\";\n4: import { prisma } from \"@/lib/prisma\";\n5: import { WorkspaceSettingsForm } from \"@/components/settings/workspace-settings-form\";\n6: import { SecretReveal } from \"@/components/settings/secret-reveal\";\n7: import { DeliveryLog } from \"@/components/settings/delivery-log\";\n8: import { SlackEventLogList } from \"@/components/settings/slack-event-log\";\n9: import { regenerateWebhookSecretAction } from \"@/lib/actions/workspace-settings\";\n10: import { Card, CardHeader, CardTitle, CardDescription, CardContent } from \"@/components/ui/card\";",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 7,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 6,
+       "text": "import { SecretReveal } from \"@/components/settings/secret-reveal\";"
+      },
+      {
+       "line": 7,
+       "text": "import { DeliveryLog } from \"@/components/settings/delivery-log\";"
+      },
+      {
+       "line": 8,
+       "text": "import { SlackEventLogList } from \"@/components/settings/slack-event-log\";"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "tmp/smoke.mjs",
+     "line": 38,
+     "end_line": 94,
+     "text": "let newFeedbackUrl = \"https://example.com/some-article-about-pulseboard\";",
+     "function": "step",
+     "score": 19.2126,
+     "matched_terms": [
+      "log",
+      "shows",
+      "http",
+      "admin",
+      "url",
+      "com",
+      "webhook",
+      "workspace",
+      "settings",
+      "https",
+      "catch",
+      "dashboard"
+     ],
+     "edit_line": 394,
+     "tool": "search_replace",
+     "hunk_id": "L394#75",
+     "snippet": "1: import { chromium } from \"playwright\";\n2: \n3: const BASE = \"http://localhost:4300\";\n4: const errors = [];\n5: \n6: const browser = await chromium.launch();\n7: const page = await browser.newPage();\n8: page.on(\"pageerror\", (err) => errors.push(`pageerror: ${err.message}`));\n9: page.on(\"console\", (msg) => {\n10:   if (msg.type() === \"error\") errors.push(`console: ${msg.text()}`);",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 38,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 37,
+       "text": ""
+      },
+      {
+       "line": 38,
+       "text": "let newFeedbackUrl = \"https://example.com/some-article-about-pulseboard\";"
+      },
+      {
+       "line": 39,
+       "text": ""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "prisma/schema.prisma",
+     "line": 202,
+     "end_line": 213,
+     "text": "/// Settings so an admin can confirm their Slack app's Request URL is",
+     "score": 18.165,
+     "matched_terms": [
+      "delivery",
+      "log",
+      "admin",
+      "url",
+      "outgoing",
+      "webhook",
+      "workspace",
+      "settings"
+     ],
+     "edit_line": 173,
+     "tool": "search_replace",
+     "hunk_id": "L173#23",
+     "snippet": "178: \n179: /// A record of every attempted outgoing \"feedback.created\" webhook call,\n180: /// shown in Settings so an admin can see at a glance whether their\n181: /// integration is actually receiving events.\n182: model WebhookDelivery {\n183:   id         String   @id @default(cuid())\n184:   url        String\n185:   success    Boolean\n186:   statusCode Int?\n187:   error      String?",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 200,
+     "hunk_start": 178,
+     "context_lines": [
+      {
+       "line": 199,
+       "text": "/// A record of every verified inbound Slack Events API request, shown in"
+      },
+      {
+       "line": 200,
+       "text": "/// Settings so an admin can confirm their Slack app's Request URL is"
+      },
+      {
+       "line": 201,
+       "text": "/// wired up correctly before relying on it."
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "prisma/schema.prisma",
+     "line": 50,
+     "end_line": 167,
+     "text": "  // Outgoing notifications: fired as an HTTP POST whenever new",
+     "score": 17.3337,
+     "matched_terms": [
+      "http",
+      "admin",
+      "working",
+      "url",
+      "one",
+      "outgoing",
+      "webhook",
+      "several",
+      "workspace",
+      "https",
+      "same"
+     ],
+     "edit_line": 67,
+     "tool": "search_replace",
+     "hunk_id": "L67#1",
+     "snippet": "1: // Pulseboard — multi-tenant feedback board\n2: // https://pris.ly/d/prisma-schema\n3: \n4: generator client {\n5:   provider = \"prisma-client-js\"\n6: }\n7: \n8: datasource db {\n9:   provider = \"postgresql\"\n10:   url      = env(\"DATABASE_URL\")",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 50,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 49,
+       "text": ""
+      },
+      {
+       "line": 50,
+       "text": "  // Outgoing notifications: fired as an HTTP POST whenever new"
+      },
+      {
+       "line": 51,
+       "text": "  // feedback is posted, signed with webhookSecret (HMAC-SHA256,"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "lib/actions/feedback.ts",
+     "line": 14,
+     "end_line": 128,
+     "text": " * workspace's outgoing webhook (if configured) once it's saved. */",
+     "score": 16.901,
+     "matched_terms": [
+      "delivery",
+      "url",
+      "outgoing",
+      "webhook",
+      "found",
+      "workspace",
+      "catch",
+      "existing"
+     ],
+     "edit_line": 123,
+     "tool": "search_replace",
+     "hunk_id": "L123#16",
+     "snippet": "1: \"use server\";\n2: \n3: import { revalidatePath } from \"next/cache\";\n4: import { notFound } from \"next/navigation\";\n5: \n6: import { prisma } from \"@/lib/prisma\";\n7: import { requireUser } from \"@/lib/workspace\";\n8: import { extractFirstUrl, fetchLinkPreview } from \"@/lib/link-preview\";\n9: import { sendFeedbackWebhook } from \"@/lib/webhooks\";\n10: import { feedbackSchema, commentSchema } from \"@/lib/validations\";",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 14,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 13,
+       "text": "/** Creates a new feedback post, scraping a link preview and firing the"
+      },
+      {
+       "line": 14,
+       "text": " * workspace's outgoing webhook (if configured) once it's saved. */"
+      },
+      {
+       "line": 15,
+       "text": "export async function createFeedbackAction("
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "app/api/slack/events/[slug]/route.ts",
+     "line": 23,
+     "end_line": 102,
+     "text": " * the workspace's signing secret pasted into Settings. Slack calls this",
+     "score": 16.6254,
+     "matched_terms": [
+      "own",
+      "log",
+      "url",
+      "one",
+      "workspace",
+      "settings",
+      "pasted",
+      "https",
+      "catch"
+     ],
+     "edit_line": 184,
+     "tool": "search_replace",
+     "hunk_id": "L184#27",
+     "snippet": "1: import { NextRequest, NextResponse } from \"next/server\";\n2: \n3: import { prisma } from \"@/lib/prisma\";\n4: import { verifySlackSignature, parsePulseCommand } from \"@/lib/slack\";\n5: \n6: interface SlackEventCallback {\n7:   type: string;\n8:   challenge?: string;\n9:   event?: {\n10:     type: string;",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 23,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 22,
+       "text": " * Point a Slack app's \"Event Subscriptions > Request URL\" at this, with"
+      },
+      {
+       "line": 23,
+       "text": " * the workspace's signing secret pasted into Settings. Slack calls this"
+      },
+      {
+       "line": 24,
+       "text": " * once with `url_verification` to confirm ownership, then with"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "lib/actions/invites.ts",
+     "line": 75,
+     "end_line": 153,
+     "text": "  if (!membership || membership.workspaceId !== workspace.id) notFound();",
+     "function": "acceptInviteAction",
+     "score": 16.5336,
+     "matched_terms": [
+      "log",
+      "http",
+      "admin",
+      "re",
+      "url",
+      "one",
+      "found",
+      "workspace",
+      "settings",
+      "catch",
+      "existing"
+     ],
+     "edit_line": 129,
+     "tool": "search_replace",
+     "hunk_id": "L129#18",
+     "snippet": "1: \"use server\";\n2: \n3: import crypto from \"crypto\";\n4: import bcrypt from \"bcryptjs\";\n5: import { revalidatePath } from \"next/cache\";\n6: import { notFound, redirect } from \"next/navigation\";\n7: \n8: import { prisma } from \"@/lib/prisma\";\n9: import { requireWorkspaceAdmin, requireUser } from \"@/lib/workspace\";\n10: import { signIn } from \"@/lib/auth\";",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 83,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 82,
+       "text": "  const membership = await prisma.membership.findUnique({ where: { id: membershipId } });"
+      },
+      {
+       "line": 83,
+       "text": "  if (!membership || membership.workspaceId !== workspace.id) notFound();"
+      },
+      {
+       "line": 84,
+       "text": "  if (membership.userId === user.id) return; // can't remove yourself here"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "smoke2.mjs",
+     "line": 55,
+     "end_line": 63,
+     "text": "await step(\"logout then visit used invite link shows accepted message\", async () => {",
+     "function": "step",
+     "score": 13.295,
+     "matched_terms": [
+      "log",
+      "shows",
+      "http",
+      "url",
+      "settings",
+      "catch"
+     ],
+     "edit_line": 414,
+     "tool": "search_replace",
+     "hunk_id": "L414#77",
+     "snippet": "1: import { chromium } from \"playwright\";\n2: import pg from \"pg\";\n3: \n4: const BASE = \"http://localhost:4300\";\n5: const errors = [];\n6: \n7: async function getInviteToken() {\n8:   const { Client } = pg;\n9:   const client = new Client({ connectionString: \"postgresql://[REDACTED]\" });\n10:   await client.connect();",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 55,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 54,
+       "text": ""
+      },
+      {
+       "line": 55,
+       "text": "await step(\"logout then visit used invite link shows accepted message\", async () => {"
+      },
+      {
+       "line": 56,
+       "text": "  await page.click('button:has-text(\"Log out\")');"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "prisma/seed.ts",
+    "line": 117,
+    "end_line": 265,
+    "text": "      body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",",
+    "function": "main",
+    "score": 23.6062,
+    "matched_terms": [
+     "delivery",
+     "log",
+     "back",
+     "http",
+     "admin",
+     "reports",
+     "re",
+     "url",
+     "one",
+     "com",
+     "webhook",
+     "workspace",
+     "https",
+     "catch",
+     "dashboard"
+    ],
+    "edit_line": 360,
+    "tool": "search_replace",
+    "hunk_id": "L360#74",
+    "snippet": "1: import { PrismaClient, Role } from \"@prisma/client\";\n2: import bcrypt from \"bcryptjs\";\n3: import crypto from \"crypto\";\n4: \n5: import { fetchLinkPreview } from \"../lib/link-preview\";\n6: \n7: const prisma = new PrismaClient();\n8: const SALT_ROUNDS = 12;\n9: const DEMO_PASSWORD = \"password123\";\n10: ",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 117,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 116,
+      "text": "      title: \"Export reports to CSV\","
+     },
+     {
+      "line": 117,
+      "text": "      body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\","
+     },
+     {
+      "line": 118,
+      "text": "    },"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "components/settings/workspace-settings-form.tsx",
+    "line": 47,
+    "end_line": 81,
+    "text": "          Changing this changes your board&apos;s URL — existing links to /w/{slug} will stop working.",
+    "function": "WorkspaceSettingsForm",
+    "score": 23.3636,
+    "matched_terms": [
+     "working",
+     "url",
+     "com",
+     "outgoing",
+     "webhook",
+     "workspace",
+     "settings",
+     "value",
+     "https",
+     "existing"
+    ],
+    "edit_line": 324,
+    "tool": "search_replace",
+    "hunk_id": "L324#63",
+    "snippet": "1: \"use client\";\n2: \n3: import { useActionState } from \"react\";\n4: \n5: import { updateWorkspaceSettingsAction } from \"@/lib/actions/workspace-settings\";\n6: import { Button } from \"@/components/ui/button\";\n7: import { Input } from \"@/components/ui/input\";\n8: import { Label } from \"@/components/ui/label\";\n9: import { Alert, AlertDescription } from \"@/components/ui/alert\";\n10: ",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 47,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 46,
+      "text": "        <p className=\"text-xs text-muted-foreground\">"
+     },
+     {
+      "line": 47,
+      "text": "          Changing this changes your board&apos;s URL — existing links to /w/{slug} will stop working."
+     },
+     {
+      "line": 48,
+      "text": "        </p>"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "app/w/[slug]/settings/page.tsx",
+    "line": 7,
+    "end_line": 110,
+    "text": "import { DeliveryLog } from \"@/components/settings/delivery-log\";",
+    "score": 20.8308,
+    "matched_terms": [
+     "delivery",
+     "log",
+     "http",
+     "admin",
+     "url",
+     "outgoing",
+     "webhook",
+     "workspace",
+     "settings",
+     "value"
+    ],
+    "edit_line": 335,
+    "tool": "search_replace",
+    "hunk_id": "L335#67",
+    "snippet": "1: import Link from \"next/link\";\n2: \n3: import { requireWorkspaceAdmin } from \"@/lib/workspace\";\n4: import { prisma } from \"@/lib/prisma\";\n5: import { WorkspaceSettingsForm } from \"@/components/settings/workspace-settings-form\";\n6: import { SecretReveal } from \"@/components/settings/secret-reveal\";\n7: import { DeliveryLog } from \"@/components/settings/delivery-log\";\n8: import { SlackEventLogList } from \"@/components/settings/slack-event-log\";\n9: import { regenerateWebhookSecretAction } from \"@/lib/actions/workspace-settings\";\n10: import { Card, CardHeader, CardTitle, CardDescription, CardContent } from \"@/components/ui/card\";",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 7,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 6,
+      "text": "import { SecretReveal } from \"@/components/settings/secret-reveal\";"
+     },
+     {
+      "line": 7,
+      "text": "import { DeliveryLog } from \"@/components/settings/delivery-log\";"
+     },
+     {
+      "line": 8,
+      "text": "import { SlackEventLogList } from \"@/components/settings/slack-event-log\";"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "prisma/seed.ts",
+   "line": 117,
+   "end_line": 265,
+   "text": "      body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",",
+   "function": "main",
+   "score": 23.6062,
+   "matched_terms": [
+    "delivery",
+    "log",
+    "back",
+    "http",
+    "admin",
+    "reports",
+    "re",
+    "url",
+    "one",
+    "com",
+    "webhook",
+    "workspace",
+    "https",
+    "catch",
+    "dashboard"
+   ],
+   "edit_line": 360,
+   "tool": "search_replace",
+   "hunk_id": "L360#74",
+   "snippet": "1: import { PrismaClient, Role } from \"@prisma/client\";\n2: import bcrypt from \"bcryptjs\";\n3: import crypto from \"crypto\";\n4: \n5: import { fetchLinkPreview } from \"../lib/link-preview\";\n6: \n7: const prisma = new PrismaClient();\n8: const SALT_ROUNDS = 12;\n9: const DEMO_PASSWORD = \"password123\";\n10: ",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 117,
+   "hunk_start": 1,
+   "context_lines": [
+    {
+     "line": 116,
+     "text": "      title: \"Export reports to CSV\","
+    },
+    {
+     "line": 117,
+     "text": "      body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\","
+    },
+    {
+     "line": 118,
+     "text": "    },"
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "nemotron",
+   "reason": "model_error: locate_step: model returned unparseable JSON (3066 chars, ends: \"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\")",
+   "steps": [],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step:invalid_json_retry",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 14438,
+   "truncated": true,
+   "dropped_sections": [
+    "transcript_window:reasoning mentioning \"main\" (L7) (over budget)",
+    "transcript_window:reasoning mentioning \"main\" (L559) (over budget)",
+    "transcript_window:reasoning mentioning \"main\" (L557) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Admin reports that our outgoing webhook to Zapier has stopped working. Zapier's own delivery log shows every attempt getting back HTTP 404 \"hook not found\" for the last several hours.\n\nThe admin re-opened workspace settings and confirmed the webhook URL field still shows the value they originally pasted in from Zapier: https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/. On Zapier's side, that same catch hook still shows as existing and enabled in their dashboard. No one has changed or regenerated the hook since it was set up.",
+   "edit": {
+    "file": "prisma/seed.ts",
+    "line": 117,
+    "hunk": "+  });\n+  const acmeFeedback2 = await prisma.feedback.create({\n+    data: {\n+      workspaceId: acme.workspace.id,\n+      authorId: acme.admin.id,\n+      title: \"Export reports to CSV\",\n+      body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",\n+    },\n+  });\n+  const acmeFeedback3 = await prisma.feedback.create({\n+    data: {\n+      workspaceId: acme.workspace.id,\n+      authorId: acme.member.id,"
+   },
+   "code_window": "97:     memberEmail: \"member@acme.test\",\n98:     memberName: \"Mason Member\",\n99:     webhookUrl: \"http://localhost:4300/api/webhooks/test\",\n100:   });\n101: \n102:   const nextjsPreview = await previewFor(\"https://github.com/vercel/next.js\");\n103: \n104:   const acmeFeedback1 = await prisma.feedback.create({\n105:     data: {\n106:       workspaceId: acme.workspace.id,\n107:       authorId: acme.member.id,\n108:       title: \"Add dark mode to the dashboard\",\n109:       body: \"Our team works late and the bright white dashboard is rough at night. A dark theme toggle would go a long way.\",\n110:     },\n111:   });\n112:   const acmeFeedback2 = await prisma.feedback.create({\n113:     data: {\n114:       workspaceId: acme.workspace.id,\n115:       authorId: acme.admin.id,\n116:       title: \"Export reports to CSV\",\n117:       body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",\n118:     },\n119:   });\n120:   const acmeFeedback3 = await prisma.feedback.create({\n121:     data: {\n122:       workspaceId: acme.workspace.id,\n123:       authorId: acme.member.id,\n124:       title: \"SSO login is slow to load\",\n125:       body: \"Logging in via our SSO provider takes 8-10 seconds most mornings. Not a blocker, just annoying for the whole team.\",\n126:       status: \"PLANNED\",\n127:     },\n128:   });\n129:   const acmeFeedback4 = await prisma.feedback.create({\n130:     data: {\n131:       workspaceId: acme.workspace.id,\n132:       authorId: acme.admin.id,\n133:       title: \"Framework upgrade broke our staging build\",\n134:       body: `Saw this repo pushed a major update and wanted to flag it in case it's related: ${nextjsPreview?.url ?? \"https://github.com/vercel/next.js\"} — our staging deploy started failing right after.`,\n135:       linkUrl: nextjsPreview?.url ?? null,\n136:       linkTitle: nextjsPreview?.title ?? null,\n137:       linkDescription: nextjsPreview?.description ?? null,",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "prisma/seed.ts",
+     "line": 117,
+     "function": "main",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 23.6062,
+     "method": "deterministic_bm25",
+     "text": "112:   const acmeFeedback2 = await prisma.feedback.create({\n113:     data: {\n114:       workspaceId: acme.workspace.id,\n115:       authorId: acme.admin.id,\n116:       title: \"Export reports to CSV\",\n117:       body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",\n118:     },\n119:   });\n120:   const acmeFeedback3 = await prisma.feedback.create({\n121:     data: {\n122:       workspaceId: acme.workspace.id,"
+    },
+    {
+     "label": "candidate 2",
+     "file": "components/settings/workspace-settings-form.tsx",
+     "line": 47,
+     "function": "WorkspaceSettingsForm",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 23.3636,
+     "method": "deterministic_bm25",
+     "text": "42: \n43:       <div className=\"flex flex-col gap-1.5\">\n44:         <Label htmlFor=\"slug\">Slug</Label>\n45:         <Input id=\"slug\" name=\"slug\" defaultValue={slug} required pattern=\"[a-z0-9-]+\" />\n46:         <p className=\"text-xs text-muted-foreground\">\n47:           Changing this changes your board&apos;s URL — existing links to /w/{slug} will stop working.\n48:         </p>\n49:       </div>\n50: \n51:       <div className=\"flex flex-col gap-1.5\">\n52:         <Label htmlFor=\"webhookUrl\">Outgoing webhook URL</Label>"
+    },
+    {
+     "label": "candidate 3",
+     "file": "app/w/[slug]/settings/page.tsx",
+     "line": 7,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 20.8308,
+     "method": "deterministic_bm25",
+     "text": "2: \n3: import { requireWorkspaceAdmin } from \"@/lib/workspace\";\n4: import { prisma } from \"@/lib/prisma\";\n5: import { WorkspaceSettingsForm } from \"@/components/settings/workspace-settings-form\";\n6: import { SecretReveal } from \"@/components/settings/secret-reveal\";\n7: import { DeliveryLog } from \"@/components/settings/delivery-log\";\n8: import { SlackEventLogList } from \"@/components/settings/slack-event-log\";\n9: import { regenerateWebhookSecretAction } from \"@/lib/actions/workspace-settings\";\n10: import { Card, CardHeader, CardTitle, CardDescription, CardContent } from \"@/components/ui/card\";\n11: import { Separator } from \"@/components/ui/separator\";\n12: import { buttonVariants } from \"@/components/ui/button\";"
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "I run a B2B SaaS. Each of my customer companies should get their own\nworkspace with a feedback board. People in a workspace can submit\nfeedback, upvote, and leave comments. Teammates join via email invite.\nSome users are admins for their workspace and can edit workspace\nsettings (name, slug, webhook URL).",
+    "understood": "Clean typecheck. Now let's write the seed script.",
+    "happened": "Admin reports that our outgoing webhook to Zapier has stopped working. Zapier's own delivery log shows every attempt getting back HTTP 404 \"hook not found\" for the last several hours.\n\nThe admin re-opened workspace settings and confirmed the webhook URL field still shows the value they originally pasted in from Zapier: https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/. On Zapier's side, that same catch hook still shows as existing and enabled in their dashboard. No one has changed or regenerated the hook since it was set up.\n\n  at main (prisma/seed.ts:117)\n  117: body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",\n\nWritten by transcript edit L360 (search_replace):\n+  });\n+  const acmeFeedback2 = await prisma.feedback.create({\n+    data: {\n+      workspaceId: acme.workspace.id,\n+      authorId: acme.admin.id,\n+      title: \"Export reports to CSV\",\n+      body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",\n+    },\n+  });\n+  const acmeFeedback3 = await prisma.feedback.create({\n+    data: {\n+      workspaceId: acme.workspace.id,\n+      authorId: acme.member.id,"
+   },
+   "transcript_windows": [
+    {
+     "label": "reasoning mentioning \"main\" (L226)",
+     "text": "L225 [tool] TOOL: search_replace\nL225| CODE_WRITTEN: \nL225| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL225| +++ b//workspace/components/layout/workspace-switcher.tsx\nL225| @@ -1,0 +1,49 @@\nL225| +\"use client\";\nL225| +\nL225| +import Link from \"next/link\";\nL225| +import { ChevronsUpDownIcon, CheckIcon } from \"lucide-react\";\nL225| +\nL225| +import {\nL225| +  DropdownMenu,\nL225| +  DropdownMenuContent,\nL225| +  DropdownMenuItem,\nL225| +  DropdownMenuLabel,\nL225| +  DropdownMenuSeparator,\nL225| +  DropdownMenuTrigger,\nL225| +} from \"@/components/ui/dropdown-menu\";\nL225| +\nL225| +interface WorkspaceOption {\nL225| +  slug: string;\nL225| +  name: string;\nL225| +}\nL225| +\nL225| +export function WorkspaceSwitcher({\nL225| +  current,\nL225| +  workspaces,\nL225| +}: {\nL225| +  current: WorkspaceOption;\nL225| +  workspaces: WorkspaceOption[];\nL225| +}) {\nL225| +  if (workspaces.length <= 1) {\nL225| +    return <span className=\"font-medium\">{current.name}</span>;\nL225| +  }\nL225| +\nL225| +  return (\nL225| +    <DropdownMenu>\nL225| +      <DropdownMenuTrigger className=\"flex items-center gap-1 rounded-md px-1.5 py-1 font-medium outline-none hover:bg-muted\">\nL225| +        {current.name}\nL225| +        <ChevronsUpDownIcon className=\"size-3.5 text-muted-foreground\" />\nL225| +      </DropdownMenuTrigger>\nL225| +      <DropdownMenuContent align=\"start\">\nL225| +        <DropdownMenuLabel>Your workspaces</DropdownMenuLabel>\nL225| +        <DropdownMenuSeparator />\nL225| +        {workspaces.map((workspace) => (\nL225| +          <DropdownMenuItem key={workspace.slug} render={<Link href={`/w/${workspace.slug}`} />}>\nL225| +            {workspace.slug === current.slug && <CheckIcon className=\"size-3.5\" />}\nL225| +            {workspace.name}\nL225| +          </DropdownMenuItem>\nL225| +      \nL226 [assistant] THINKING: Now I'm building the main nav bar with board/settings tabs, using a client component that highlights the active tab based on the current path with simple styled links rather than a full routing-tied tabs component.\nL226| \nL226| \nL227 [assistant] (empty message)"
+    },
+    {
+     "label": "around the edit (L360)",
+     "text": "L357 [tool] TOOL: run_terminal_cmd {\"command\":\"cd /workspace && npx tsc --noEmit 2>&1 | head -150\",\"is_background\":false}\nL358 [assistant] Clean typecheck. Now let's write the seed script.\nL359 [assistant] (empty message)\nL360 [tool] TOOL: search_replace\nL360| CODE_WRITTEN: \nL360| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL360| +++ b//workspace/prisma/seed.ts\nL360| @@ -1,0 +1,265 @@\nL360| +import { PrismaClient, Role } from \"@prisma/client\";\nL360| +import bcrypt from \"bcryptjs\";\nL360| +import crypto from \"crypto\";\nL360| +\nL360| +import { fetchLinkPreview } from \"../lib/link-preview\";\nL360| +\nL360| +const prisma = new PrismaClient();\nL360| +const SALT_ROUNDS = 12;\nL360| +const DEMO_PASSWORD = \"password123\";\nL360| +\nL360| +async function hash(password: string) {\nL360| +  return bcrypt.hash(password, SALT_ROUNDS);\nL360| +}\nL360| +\nL360| +// A couple of real, stable URLs so the link-preview feature has something\nL360| +// to fetch during seeding. If the sandbox running `db:seed` has no\nL360| +// outbound internet access, fetchLinkPreview fails soft and we fall back\nL360| +// to a hardcoded preview below so the demo still looks right offline.\nL360| +const FALLBACK_PREVIEWS: Record<string, { title: string; description: string; image: string; siteName: string }> = {\nL360| +  \"https://github.com/vercel/next.js\": {\nL360| +    title: \"GitHub - vercel/next.js: The React Framework\",\nL360| +    description: \"The React Framework. Contribute to vercel/next.js development by creating an account on GitHub.\",\nL360| +    image: \"https://opengraph.githubassets.com/1/vercel/next.js\",\nL360| +    siteName: \"GitHub\",\nL360| +  },\nL360| +  \"https://www.notion.so\": {\nL360| +    title: \"Notion – The all-in-one workspace for your notes, tasks, wikis, and databases.\",\nL360| +    description: \"A new tool that blends your everyday work apps into one.\",\nL360| +    image: \"https://www.notion.so/front-static/meta/default.pn\nL361 [assistant] THINKING: I want to try running the seed script to check for errors, but first I should check whether there's network access to github.com and notion.so, since limited access would mean the fallback logic needs to kick in.\nL361| \nL361| \nL362 [assistant] (empty message)\nL363 [tool] TOOL: run_terminal_cmd {\"command\":\"cd /workspace && curl -sI --max-time 5 https://github.com | head -5 || echo \\\"NO NETWORK\\\"\",\"is_background\":false}"
+    },
+    {
+     "label": "reasoning mentioning \"main\" (L497)",
+     "text": "L496 [tool] TOOL: run_terminal_cmd {\"command\":\"cd /workspace && git branch --show-current && git symbolic-ref --short HEAD\",\"is_background\":false}\nL497 [assistant] THINKING: I'm checking the branch situation—the placeholder branch name was invalid, but confirming via symbolic-ref shows I'm actually on \"main\". Since this looks like a fresh project with no prior commits, I should just continue working directly on main rather than creating a new branch.\nL497| \nL497| \nL498 [assistant] (empty message)"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed the webhook URL stored in the database was the correct Zapier catch hook URL, without verifying that the URL format or stored value matched what Zapier expects for the catch endpoint.",
+  "why_it_breaks": "The seed script at line 99 stores a test webhook URL (http://localhost:4300/api/webhooks/test) instead of the actual Zapier catch hook URL (https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG). When the admin later sets the webhook URL in workspace settings, the application likely uses the value from the database seed as the default or fallback, or the seed run overwrites the correct URL with the localhost test URL. This means outgoing webhooks are sent to localhost:4300 instead of Zapier's catch endpoint, resulting in 404 responses since there is no server running at that local address to receive them.",
+  "confidence": "low",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "prisma/seed.ts",
+    "line": 99,
+    "quote": "webhookUrl: \"http://localhost:4300/api/webhooks/test\"",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "prisma/seed.ts",
+    "line": 117,
+    "quote": "body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\"",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 360,
+    "quote": "L360 [tool] TOOL: search_replace\nL360| CODE_WRITTEN: \nL360| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL360| +++ b//workspace/prisma/seed.ts\nL360| @@ -1,0 +1,265 @@\nL360| +import { PrismaClient, Role } from \"@prisma/client\";\nL360| +import bcrypt from \"bcryptjs\";\nL360| +import crypto from \"crypto\";\nL360| +\nL360| +import { fetchLinkPreview } from \"../lib/link-preview\";\nL360| +\nL360| +const prisma = new PrismaClient();\nL360| +const SALT_ROUNDS = 12;\nL360| +const DEMO_PASSWORD = \"password123\";\nL360| +\nL360| +async function hash(password: string) {\nL360| +  return bcrypt.hash(password, SALT_ROUNDS);\nL360| +\nL360| +// A couple of real, stable URLs so the link-preview feature has something\nL360| +// to fetch during seeding. If the sandbox running `db:seed` has no\nL360| +// outbound internet access, fetchLinkPreview fails soft and we fall back\nL360| +// to a hardcoded preview below so the demo still looks right offline.\nL360| +const FALLBACK_PREVIEWS: Record<string, { title: string; description: string; image: string; siteName: string }> = {\nL360| +  \"https://github.com/vercel/next.js\": {\nL360| +    title: \"GitHub - vercel/next.js: The React Framework\",\nL360| +    description: \"The React Framework. Contribute to vercel/next.js development by creating an account on GitHub.\",\nL360| +    image: \"https://opengraph.githubassets.com/1/vercel/next.js\",\nL360| +    siteName: \"GitHub\",\nL360| +  },\nL360| +  \"https://www.notion.so\": {\nL360| +    title: \"Notion – The all-in-one workspace for your notes, tasks, wikis, and databases.\",\nL360| +    description: \"A new tool that blends your everyday work apps into one.\",\nL360| +    image: \"https://www.notion.so/front-static/meta/default.pn\"",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed the webhook URL stored in the database was the correct Zapier catch hook URL, without verifying that the URL format requires a specific trailing path structure that may have been altered or that the stored URL was being used incorrectly in the outgoing request construction.",
+  "why_it_breaks": "The seed script created feedback entries with a body text that was copied into the workspace settings form's webhook URL field during a prior edit, causing the stored webhook URL to be replaced or overwritten with the feedback body text. When the application later constructs the outgoing Zapier webhook request using this corrupted URL value, it sends an invalid path (the body text instead of the catch hook path), resulting in HTTP 404 responses from Zapier.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "prisma/seed.ts",
+    "line": 117,
+    "quote": "body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\",",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 360,
+    "quote": "L360 [tool] TOOL: search_replace\nL360| CODE_WRITTEN: \nL360| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL360| +++ b//workspace/prisma/seed.ts\nL360| @@ -1,0 +1,265 @@\nL360| +import { PrismaClient, Role } from \"@prisma/client\";\nL360| +import bcrypt from \"bcryptjs\";\nL360| +import crypto from \"crypto\";\nL360| +\nL360| +import { fetchLinkPreview } from \"../lib/link-preview\";\nL360| +\nL360| +const prisma = new PrismaClient();\nL360| +const SALT_ROUNDS = 12;\nL360| +const DEMO_PASSWORD = \"password123\";\nL360| +\nL360| +async function hash(password: string) {\nL360| +  return bcrypt.hash(password, SALT_ROUNDS);\nL360| +}\nL360| +\nL360| +// A couple of real, stable URLs so the link-preview feature has something\nL360| +// to fetch during seeding. If the sandbox running `db:seed` has no\nL360| +// outbound internet access, fetchLinkPreview fails soft and we fall back\nL360| +// to a hardcoded preview below so the demo still looks right offline.\nL360| +const FALLBACK_PREVIEWS: Record<string, { title: string; description: string; image: string; siteName: string }> = {\nL360| +  \"https://github.com/vercel/next.js\": {\nL360| +    title: \"GitHub - vercel/next.js: The React Framework\",\nL360| +    description: \"The React Framework. Contribute to vercel/next.js development by creating an account on GitHub.\",\nL360| +    image: \"https://opengraph.githubassets.com/1/vercel/next.js\",\nL360| +    siteName: \"GitHub\",\nL360| +  },\nL360| +  \"https://www.notion.so\": {\nL360| +    title: \"Notion – The all-in-one workspace for your notes, tasks, wikis, and databases.\",\nL360| +    description: \"A new tool that blends your everyday work apps into one.\",\nL360| +    image: \"https://www.notion.so/front-static/meta/default.pn\"",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "prisma/seed.ts",
+  "line": 117,
+  "hunk_id": "L360#74"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "low",
+  "capped": "low",
+  "margin": 0.010276961137328306,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": false
+ }
+}

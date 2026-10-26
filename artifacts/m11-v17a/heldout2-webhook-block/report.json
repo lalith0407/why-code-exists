@@ -1,0 +1,385 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "pulseboard-webhook-blocks-submit",
+    "timestamp": "2026-10-25T03:37:47.416Z",
+    "severity": "warning",
+    "service": "pulseboard",
+    "message": "Users report 'Submit feedback' spins for ~5 seconds whenever the workspace's webhook receiver is slow. Measured createFeedbackAction latency: 5036 ms (result {\"success\":true}) with a webhook endpoint that answers after 8s.",
+    "frames": [
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 15,
+        "function": "createFeedbackAction"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout2-webhook-block/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "transcript_replay"
+    }
+  },
+  "frame": {
+    "file": "lib/actions/feedback.ts",
+    "line": 15,
+    "function": "createFeedbackAction"
+  },
+  "language": "ts",
+  "provenance": {
+    "file": "lib/actions/feedback.ts",
+    "function": "createFeedbackAction",
+    "frame_line": 15,
+    "later_edits": [
+      {
+        "edit_line": 178,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": " \n   if (workspace.webhookUrl) {\n-    await sendFeedbackWebhook(workspace.webhookUrl, workspace.webhookSecret, {\n+    const result = await sendFeedbackWebhook(workspace.webhookUrl, workspace.webhookSecret, {\n       event: \"feedback.created\",\n       timestamp: new Date().toISOString(),\n       workspace: { id: workspace.id, slug: workspace.slug, name: workspace.name },"
+      }
+    ],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 123,
+      "tool": "search_replace",
+      "fn_range": [
+        15,
+        77
+      ],
+      "frame_line_in_range": true,
+      "hunk_excerpt": "+/** Creates a new feedback post, scraping a link preview and firing the\n+ * workspace's outgoing webhook (if configured) once it's saved. */\n+export async function createFeedbackAction(\n+  workspaceSlug: string,\n+  _prevState: ActionState,\n+  formData: FormData\n+): Promise<ActionState> {\n+  const user = await requireUser();\n+\n+  const parsed = feedbackSchema.safeParse({\n+    title: formData.get(\"title\"),\n+    body: formData.get(\"body\"),\n+  });\n+  if (!parsed.success) {\n+    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\n+  }",
+      "fn_text": "export async function createFeedbackAction(\n  workspaceSlug: string,\n  _prevState: ActionState,\n  formData: FormData\n): Promise<ActionState> {\n  const user = await requireUser();\n\n  const parsed = feedbackSchema.safeParse({\n    title: formData.get(\"title\"),\n    body: formData.get(\"body\"),\n  });\n  if (!parsed.success) {\n    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\n  }\n\n  const workspace = await prisma.workspace.findUnique({ where: { slug: workspaceSlug } });\n  if (!workspace) notFound();\n\n  const membership = await prisma.membership.findUnique({\n    where: { userId_workspaceId: { userId: user.id, workspaceId: workspace.id } },\n  });\n  if (!membership) notFound();\n\n  const { title, body } = parsed.data;\n  const candidateUrl = extractFirstUrl(body) ?? extractFirstUrl(title);\n  const preview = candidateUrl ? await fetchLinkPreview(candidateUrl) : null;\n\n  const feedback = await prisma.feedback.create({\n    data: {\n      title,\n      body,\n      workspaceId: workspace.id,\n      authorId: user.id,\n      linkUrl: preview?.url ?? candidateUrl ?? null,\n      linkTitle: preview?.title ?? null,\n      linkDescription: preview?.description ?? null,\n      linkImage: preview?.image ?? null,\n      linkSiteName: preview?.siteName ?? null,\n    },\n    include: { author: true },\n  });\n\n  if (workspace.webhookUrl) {\n    await sendFeedbackWebhook(workspace.webhookUrl, workspace.webhookSecret, {\n      event: \"feedback.created\",\n      timestamp: new Date().toISOString(),\n      workspace: { id: workspace.id, slug: workspace.slug, name: workspace.name },\n      feedback: {\n        id: feedback.id,\n        title: feedback.title,\n        body: feedback.body,\n        url: `${process.env.APP_URL ?? \"\"}/w/${workspace.slug}/feedback/${feedback.id}`,\n        author: { name: feedback.author.name, email: feedback.author.email },\n        linkPreview: preview ? { title: preview.title, url: preview.url } : null,\n      },\n    }).catch((error) => {\n      console.error(`[pulseboard] webhook delivery failed for workspace ${workspace.slug}:`, error);\n    });\n  }\n\n  revalidatePath(`/w/${workspaceSlug}`);\n  return {};\n}"
+    },
+    "reasoning_before": {
+      "line": 121,
+      "words": 201,
+      "silent": false,
+      "excerpt": "I'm now planning the feedback actions file with functions for creating feedback, toggling votes, and adding comments, each needing workspace context passed through binding the slug as the first argument from the client component.\n\nFor toggl"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The code awaits sendFeedbackWebhook inside createFeedbackAction, blocking the feedback submission response until the webhook completes. [fix: Change the code to not await sendFeedbackWebhook in createFeedbackAction, allowing the function to return immediately after initiating the webhook request.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "transcript_replay",
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-block/app",
+    "files": 76,
+    "applied_edits": 81,
+    "failed_edits": [
+      {
+        "file": "package.json",
+        "line": 61,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "next.config.ts",
+        "line": 375,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": ".gitignore",
+        "line": 458,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "README.md",
+        "line": 483,
+        "reason": "edit to a file not created in the transcript"
+      }
+    ]
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T18:51:36.487Z",
+  "workspace": {
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-block/app",
+    "origin": "transcript_replay",
+    "notes": [
+      "npm deps from the app's package.json (cache /home/box/.cache/wce/deps/cc39abd72f073c52/node_modules)",
+      "no tsconfig \"paths\" in tree: \"@/x\" resolved to <app root>/x (inferred alias: the base under which the tree's own \"@/\" imports resolve)",
+      "real PostgreSQL database from /workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-block/app/prisma/schema.prisma (template wce_tpl_8ae3315f)",
+      "framework boundary shims (engine-built from real exports): next/headers[headers,cookies,draftMode]; next/cache[revalidatePath,revalidateTag,updateTag,refresh,unstable_noStore,cacheLife,cacheTag,unstable_cacheLife,unstable_cacheTag,unstable_cache]; next/server[after,connection]; next-auth[default]"
+    ],
+    "framework_shims": [
+      {
+        "module": "next/headers",
+        "version": "next@16.4.2",
+        "replaced": [
+          "headers",
+          "cookies",
+          "draftMode"
+        ],
+        "why": "Next.js request APIs read the live request store (AsyncLocalStorage) that only exists inside a running Next server; the test supplies the request with set_request()",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next/cache",
+        "version": "next@16.4.2",
+        "replaced": [
+          "revalidatePath",
+          "revalidateTag",
+          "updateTag",
+          "refresh",
+          "unstable_noStore",
+          "cacheLife",
+          "cacheTag",
+          "unstable_cacheLife",
+          "unstable_cacheTag",
+          "unstable_cache"
+        ],
+        "why": "Next.js cache invalidation needs the render/work store of a running Next server; calls are recorded (framework_calls) instead",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next/server",
+        "version": "next@16.4.2",
+        "replaced": [
+          "after",
+          "connection"
+        ],
+        "why": "after()/connection() need the request store of a running Next server; after() callbacks run immediately and are awaited by the harness",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next-auth",
+        "version": "next-auth@5.0.0-beta.32",
+        "replaced": [
+          "default"
+        ],
+        "why": "Auth.js reads the signed-in user from the encrypted session cookie of the live request; auth() returns the session given with set_session() (everything else in the package stays real)",
+        "label": "stand-in at framework request boundary (engine-built)"
+      }
+    ],
+    "database": {
+      "kind": "postgresql",
+      "schema": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-block/app/prisma/schema.prisma"
+    }
+  },
+  "code_under_test": {
+    "source": "transcript_replay:lib/actions/feedback.ts:L15-87",
+    "text": "export async function createFeedbackAction(\n  workspaceSlug: string,\n  _prevState: ActionState,\n  formData: FormData\n): Promise<ActionState> {\n  const user = await requireUser();\n\n  const parsed = feedbackSchema.safeParse({\n    title: formData.get(\"title\"),\n    body: formData.get(\"body\"),\n  });\n  if (!parsed.success) {\n    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\n  }\n\n  const workspace = await prisma.workspace.findUnique({ where: { slug: workspaceSlug } });\n  if (!workspace) notFound();\n\n  const membership = await prisma.membership.findUnique({\n    where: { userId_workspaceId: { userId: user.id, workspaceId: workspace.id } },\n  });\n  if (!membership) notFound();\n\n  const { title, body } = parsed.data;\n  const candidateUrl = extractFirstUrl(body) ?? extractFirstUrl(title);\n  const preview = candidateUrl ? await fetchLinkPreview(candidateUrl) : null;\n\n  const feedback = await prisma.feedback.create({\n    data: {\n      title,\n      body,\n      workspaceId: workspace.id,\n      authorId: user.id,\n      linkUrl: preview?.url ?? candidateUrl ?? null,\n      linkTitle: preview?.title ?? null,\n      linkDescription: preview?.description ?? null,\n      linkImage: preview?.image ?? null,\n      linkSiteName: preview?.siteName ?? null,\n    },\n    include: { author: true },\n  });\n\n  if (workspace.webhookUrl) {\n    const result = await sendFeedbackWebhook(workspace.webhookUrl, workspace.webhookSecret, {\n      event: \"feedback.created\",\n      timestamp: new Date().toISOString(),\n      workspace: { id: workspace.id, slug: workspace.slug, name: workspace.name },\n      feedback: {\n        id: feedback.id,\n        title: feedback.title,\n        body: feedback.body,\n        url: `${process.env.APP_URL ?? \"\"}/w/${workspace.slug}/feedback/${feedback.id}`,\n        author: { name: feedback.author?.name ?? \"Unknown\", email: feedback.author?.email ?? \"\" },\n        linkPreview: preview ? { title: preview.title, url: preview.url } : null,\n      },\n    });\n\n    await prisma.webhookDelivery.create({\n      data: {\n        workspaceId: workspace.id,\n        feedbackId: feedback.id,\n        feedbackTitle: feedback.title,\n        url: workspace.webhookUrl,\n        success: result.ok,\n        statusCode: result.status ?? null,\n        error: result.error ?? (result.ok ? null : `HTTP ${result.status}`),\n      },\n    });\n  }\n\n  revalidatePath(`/w/${workspaceSlug}`);\n  return { success: true };\n}"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that awaiting the sendFeedbackWebhook call would not block the user interface or cause noticeable latency, so the code awaits sendFeedbackWebhook, causing the feedback submission to wait for the webhook response and thus spin for several seconds if the webhook is slow.",
+        "evidence_line": "await sendFeedbackWebhook(workspace.webhookUrl, workspace.webhookSecret, {",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that the webhook call would be fast or that it should be fire-and-forget, so the code does not handle webhook sending asynchronously without awaiting it, leading to blocking behavior.",
+        "evidence_line": "await sendFeedbackWebhook(workspace.webhookUrl, workspace.webhookSecret, {",
+        "explains_error": true
+      }
+    ],
+    "chosen_cause": "The agent assumed that awaiting the sendFeedbackWebhook call would not block the user interface or cause noticeable latency, so the code awaits sendFeedbackWebhook, causing the feedback submission to wait for the webhook response and thus spin for several seconds if the webhook is slow.",
+    "claim": "The agent assumed that awaiting the sendFeedbackWebhook call would not block the user interface or cause noticeable latency, so the code awaits sendFeedbackWebhook, causing the feedback submission to wait for the webhook response and thus spin for several seconds if the webhook is slow.",
+    "mechanism": "The code uses 'await sendFeedbackWebhook(...)' inside createFeedbackAction, making the function wait for the webhook HTTP request to complete before returning, which blocks the feedback submission response.",
+    "belief_quote": "I should consider whether serverless execution terminates before that completes. Since Vercel functions can get cut off after the response returns, I should await the webhook send too rather than fire-and-forget, accepting th",
+    "belief_quote_source": "msg:121",
+    "concept": "improper-asynchronous-handling",
+    "language_framework": "TypeScript with Next.js server actions",
+    "correct_rule": "Long-running or potentially slow side effects like webhook calls should be performed asynchronously without awaiting them in the main request flow to avoid blocking user-visible latency.",
+    "cited_lines": [
+      "  if (workspace.webhookUrl) {",
+      "    await sendFeedbackWebhook(workspace.webhookUrl, workspace.webhookSecret, {",
+      "      event: \"feedback.created\",",
+      "      timestamp: new Date().toISOString(),"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The webhook call itself is slow due to network or server issues unrelated to code assumptions.",
+        "why_rejected": "While true, the code's awaiting of the webhook call is what causes the UI to spin; the root cause is the code's synchronous wait, not the webhook slowness itself."
+      },
+      {
+        "cause": "The code does not handle errors from the webhook call properly, causing retries or hangs.",
+        "why_rejected": "The code catches and logs webhook errors without throwing, so errors do not block or hang the submission; the problem is the awaited call itself."
+      }
+    ],
+    "belief_quote_verified": false,
+    "cited_located": [
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 57,
+        "text": "if (workspace.webhookUrl) {"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 58,
+        "text": "const result = await sendFeedbackWebhook(workspace.webhookUrl, workspace.webhookSecret, {"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 59,
+        "text": "event: \"feedback.created\","
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 60,
+        "text": "timestamp: new Date().toISOString(),"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "improper-asynchronous-handling",
+    "hits": []
+  },
+  "tests": {
+    "setup": "const { prisma } = await app(\"lib/prisma.ts\");\nconst { requireUser } = await app(\"lib/workspace.ts\");\nconst { createFeedbackAction } = await app(\"lib/actions/feedback.ts\");\n\n// Create a user\nconst user = await prisma.user.create({\n  data: {\n    email: \"test@example.com\",\n    name: \"Test User\",\n    passwordHash: \"hashedpassword\",\n  },\n});\n\n// Create a workspace\nconst workspace = await prisma.workspace.create({\n  data: {\n    name: \"Test Workspace\",\n    slug: \"test-workspace\",\n    webhookSecret: \"secret\",\n  },\n});\n\n// Create membership for user in workspace\nawait prisma.membership.create({\n  data: {\n    userId: user.id,\n    workspaceId: workspace.id,\n    role: \"ADMIN\",\n  },\n});\n\n// Set session to simulate signed-in user\nset_session({ user: { id: user.id, email: user.email, name: user.name } });\n\n// Prepare a valid FormData for feedback\nconst formData = new FormData();\nformData.set(\"title\", \"Test Feedback Title\");\nformData.set(\"body\", \"This is a test feedback body.\");\n\n// Export variables for tests\nconst workspaceSlug = workspace.slug;\nconst validFormData = formData;\n\n// Start a local HTTP server that responds after 8 seconds to simulate slow webhook\nconst http = await import('node:http');\n\nfunction startSlowServer(delayMs) {\n  return new Promise((resolve) => {\n    const server = http.createServer((req, res) => {\n      setTimeout(() => {\n        res.writeHead(200, { \"Content-Type\": \"application/json\" });\n        res.end(JSON.stringify({ ok: true }));\n      }, delayMs);\n    });\n    server.listen(0, \"127.0.0.1\", () => {\n      const address = server.address();\n      resolve({\n        port: address.port,\n        stop: () => new Promise((r) => server.close(r)),\n      });\n    });\n  });\n}\n\nconst slowServerDelayMs = 8000;\n\nasync function startSlowWebhookServer() {\n  const srv = await startSlowServer(slowServerDelayMs);\n  return srv;\n}\n\n// Export for tests\nconst startSlowWebhookServerFn = startSlowWebhookServer;\n",
+    "stubs": [
+      {
+        "module": "node:http",
+        "code": "// Stub for node:http to provide startSlowServer and stopServer helpers\nimport http from 'http';\n\nexport async function startSlowServer(delayMs) {\n  return new Promise((resolve) => {\n    const server = http.createServer((req, res) => {\n      setTimeout(() => {\n        res.writeHead(200, { 'Content-Type': 'application/json' });\n        res.end(JSON.stringify({ ok: true }));\n      }, delayMs);\n    });\n    server.listen(0, '127.0.0.1', () => {\n      const address = server.address();\n      resolve(address.port);\n    });\n  });\n}\n\nexport async function stopServer(server) {\n  return new Promise((resolve, reject) => {\n    server.close((err) => {\n      if (err) reject(err);\n      else resolve();\n    });\n  });\n}\n\n// Why: provide local HTTP server helpers to simulate slow webhook endpoint for tests",
+        "why": "provide local HTTP server helpers to simulate slow webhook endpoint for tests"
+      }
+    ],
+    "tests": [
+      {
+        "name": "reproduction: createFeedbackAction blocks on slow webhook",
+        "role": "reproduction",
+        "asserts": "harm_observed(elapsedMs >= 4000, \"createFeedbackAction took at least 4 seconds due to awaiting slow webhook\")",
+        "body": "const { performance } = await import(\"perf_hooks\");\nconst httpStub = await import(\"node:http\");\n\n// Start a slow local HTTP server that responds after 8 seconds\nconst delayMs = 8000;\nconst port = await httpStub.startSlowServer(delayMs);\n\n// Patch workspace webhookUrl to point to local slow server\nawait prisma.workspace.update({ where: { id: workspace.id }, data: { webhookUrl: `http://localhost:${port}/webhook` } });\n\nconst start = performance.now();\nlet result = null;\nlet error = null;\ntry {\n  result = await createFeedbackAction(workspaceSlug, {}, validFormData);\n} catch (e) {\n  error = e;\n}\nconst end = performance.now();\nconst elapsedMs = end - start;\n\nrecord(\"result\", result);\nrecord(\"error\", error ? String(error) : null);\nrecord(\"elapsedMs\", elapsedMs);\n\nawait httpStub.stopServer();\n\n// The claim is that the function blocks and takes a long time due to awaiting webhook\nharm_observed(elapsedMs >= 4000, \"createFeedbackAction took at least 4 seconds due to awaiting slow webhook\")"
+      },
+      {
+        "name": "decoy: createFeedbackAction succeeds quickly without webhook configured",
+        "role": "decoy",
+        "asserts": "check(result.success === true, \"createFeedbackAction returns success when no webhook configured\")",
+        "body": "// Remove webhookUrl from workspace to disable webhook\nawait prisma.workspace.update({ where: { id: workspace.id }, data: { webhookUrl: null } });\n\nconst result = await createFeedbackAction(workspaceSlug, {}, validFormData);\nrecord(\"result\", result);\n\ncheck(result.success === true, \"createFeedbackAction returns success when no webhook configured\")"
+      },
+      {
+        "name": "decoy: createFeedbackAction validates input and returns error on invalid data",
+        "role": "decoy",
+        "asserts": "check(result.error === \"Give it a short title\", \"createFeedbackAction returns validation error for short title\")",
+        "body": "const invalidFormData = new FormData();\ninvalidFormData.set(\"title\", \"x\"); // too short\ninvalidFormData.set(\"body\", \"Valid body\");\n\nconst result = await createFeedbackAction(workspaceSlug, {}, invalidFormData);\nrecord(\"result\", result);\n\ncheck(result.error === \"Give it a short title\", \"createFeedbackAction returns validation error for short title\")"
+      }
+    ],
+    "trace": {
+      "file": "lib/actions/feedback.ts",
+      "function": "createFeedbackAction"
+    },
+    "tests_sha256": "667b94fb7ad81c2cc8451246effd25cada727a78a1b3c5853e71b5b127566a4e",
+    "frozen_at": "2026-10-25T18:52:05.104Z",
+    "harness_sha256": "0fbd4f893430bff6cff57e3bfab076020369873e2b7d46e65be7fad86ec83e02",
+    "harness_repairs": [
+      {
+        "setup_changed": true,
+        "stubs": [
+          "@/lib/webhooks"
+        ],
+        "failure": "harness rejected before running: node:http: not a bare external package; app code runs for real, stub one of the packages it reaches instead: next/cache, next/navigation, @prisma/client, cheerio, crypto, zod, next-auth, next-auth/providers/credentials, bcryptjs"
+      },
+      {
+        "setup_changed": true,
+        "stubs": [
+          "@/lib/webhooks"
+        ],
+        "failure": "harness rejected before running: setup: syntax error at line 63: Unexpected \"export\" in: export { sendFeedbackWebhookStub as sendFeedbackWebhook, slowWebhookDelay };; setup: contains an import/export statement; sections are statements inside an async function: load app modules with `const { x } = await app(\"path\")` and packages with `await import(\"pkg\")`; @/lib/webhooks: not a bare external package; app code runs for real, stub one of the packages it reaches instead: next/cache, next/navigation, @prisma/client, cheerio, crypto, zod, next-auth, next-auth/providers/credentials, bcryptjs"
+      },
+      {
+        "setup_changed": true,
+        "stubs": [
+          "node:http"
+        ],
+        "failure": "harness rejected before running: harness assigns members of app module \"webhooks\" (monkeypatching app code is not allowed); @/lib/webhooks: not a bare external package; app code runs for real, stub one of the packages it reaches instead: next/cache, next/navigation, @prisma/client, cheerio, crypto, zod, next-auth, next-auth/providers/credentials, bcryptjs"
+      },
+      {
+        "setup_changed": true,
+        "stubs": [
+          "node:http"
+        ],
+        "failure": "harness rejected before running: setup: syntax error at line 45: Unexpected \"http\" in: import http from \"node:http\";; setup: contains an import/export statement; sections are statements inside an async function: load app modules with `const { x } = await app(\"path\")` and packages with `await import(\"pkg\")`; node:http: not a bare external package; app code runs for real, stub one of the packages it reaches instead: next/cache, next/navigation, @prisma/client, cheerio, crypto, zod, next-auth, next-auth/providers/credentials, bcryptjs"
+      }
+    ],
+    "pre_freeze_redrafts": [
+      [
+        "test reproduction: createFeedbackAction blocks on slow webhook: contains an import/export statement; sections are statements inside an async function: load app modules with `const { x } = await app(\"path\")` and packages with `await import(\"pkg\")`",
+        "test reproduction: createFeedbackAction blocks on slow webhook: syntax error at line 1: Unexpected \"{\" in: import { performance } from \"perf_hooks\";"
+      ]
+    ],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "unavailable",
+      "vacuous": [],
+      "redrafted": []
+    },
+    "reproduction_sha256": "06ced7cc2a313ba0ea107947f1524a3e95adf6d1935f7d942e3bfec2dce1badd",
+    "setup_probe": [
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"result\",\"value\":{\"success\":true}}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "verdict": "harness_error",
+  "reasons": [
+    "harness rejected: node:http: not a bare external package; app code runs for real, stub one of the packages it reaches instead: next/cache, next/navigation, @prisma/client, cheerio, crypto, zod, next-auth, next-auth/providers/credentials, bcryptjs"
+  ],
+  "finished_at": "2026-10-25T18:52:24.794Z"
+}

@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that dividing the time difference in days by 365.0 would correctly annualize the IRR calculation, but failed to account for the case where both cashflows occur on the same date or within a very short period, resulting in a time of zero for the first cashflow.",
+ "why_it_breaks": "When the first cashflow date equals the start date (2024-01-02), its time becomes 0.0. In the NPV calculation, (1 + rate) ** 0 equals 1, so the first cashflow contributes its full amount regardless of the rate. With cashflows of -100000 and +106000 at times 0.0 and 10/365.0, the NPV function becomes -100000 + 106000/(1+rate)^(10/365). The derivative dnpv also has a zero coefficient for the first term. For a 10-day period with 6% total return, the Newton-Raphson solver likely fails to converge or returns an invalid result, causing the function to return None and display 'n/a'.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 219,
+   "quote": "times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 42,
+   "quote": "times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 46,
+   "quote": "return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 50,
+   "quote": "-time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 3,
+ "verified_transcript_quotes": 1
+}

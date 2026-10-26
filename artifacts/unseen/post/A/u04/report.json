@@ -1,0 +1,484 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u04",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "litellm/proxy/auth/user_api_key_auth.py",
+   "line": 2781,
+   "function": "get_api_key_from_custom_header"
+  },
+  "asked": {
+   "text": "(PR-derived transcript: the original request is not public.)",
+   "citation": "u04.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 60
+  },
+  "understood": {
+   "text": "fix(auth): deny model access for teamless keys with all-team-models\n\n## Relevant issues\n\nRelated to #30737 and PR #29746\n\n## Pre-Submission checklist\n\n- [x] I have added meaningful tests\n- [x] My PR passes all CI/CD checks (e.g., lint, format, unit tests)\n- [x] My PR's scope is as isolated as possible; it only solves 1 specific problem\n- [ ] I have requested a Greptile review by commenting `@greptileai` and received a **Confidence Score of at least 4/5** before requesting a maintainer review\n\n## Screenshots / Proof of Fix\n\nTo reproduce the bug and verify the fix, start a local proxy with at least one model configured and create a teamless key with `all-team-models`:\n\n```bash\n# create a teamless key with all-team-models\ncurl -s http://localhost:4000/key/generate \\\n  -H \"Authorization: Bearer $LITELLM_MASTER_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"models\": [\"all-team-models\"]}' | jq .\n\n# before fix: this succeeds (bug) - the key can call any model despite having no team\n# after fix: this returns 403 key_model_access_denied\ncurl -s http://localhost:4000/v1/chat/completions \\\n  -H \"Authorization: Bearer $GENERATED_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"model\": \"gpt-4o\", \"messages\": [{\"role\": \"user\", \"content\": \"hi\"}]}'\n```\n\n## Type\n\nBug Fix\n\n## Changes\n\nPR #29746 fixed `get_key_models` so that a key with `all-team-models` but no `team_id` returns an empty model list. However, two call-path functions still unconditionally skip key-level model checks when `all-team-models` is present, without checking whether the key actually belongs to a team:\n\n1. `_enforce_key_and_fallback_model_access` (the main auth entry point for `/chat/completions` etc.) had `elif \"all-team-models\" in valid_token.models: pass` - skipping the model check entirely regardless of team membership\n\n2. `can_key_call_resolved_model` (used by realtime endpoints and post-resolution checks) set `skip_key_model_check = True` whenever `all-team-models` was present, again without a team_id guard\n\nBoth now require `valid_token.team_id is not None` to skip the check. Teamless keys fall through to `can_key_call_model`, which via `_resolve_key_models_for_auth_check` correctly treats the unresolvable sentinel as a non-matching string and denies access\n\nLink to Devin session: https://app.devin.ai/sessions/68804be8677b4a0c9033e7c2663281bc\nRequested by: @mateo-berri\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> **Medium Risk**\n> Tightens proxy authorization on a sensitive path; behavior change only for teamless keys that incorrectly had `all-team-models`, which should now get 403 instead of unrestricted access.\n> \n> **Overview**\n> Closes an auth bypass where **virtual keys with `all-team-models` but no `team_id`** could call any model because two paths skipped key-level checks whenever that sentinel appeared.\n> \n> **`can_key_call_resolved_model`** and **`_enforce_key_and_fallback_model_access`** now only skip those checks when **`valid_token.team_id is not None`**. Teamless keys run **`can_key_call_model`**, which denies access via the unresolved sentinel. Tests assert **`key_model_access_denied`** for teamless `all-team-models` on both paths.\n> \n> <sup>Reviewed by [Cursor Bugbot](https://cursor.com/bugbot) for commit 9737816b910e58edb6c9c5c6d8acdcb7e4386f4d. Bugbot is set up for automated code reviews on this repo. Configure [here](https://www.cursor.com/dashboard/bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+   "citation": "u04.jsonl#L2 (assistant, 449 words, 2 line(s) before the edit at L4)",
+   "valid": true,
+   "full_length": 3439
+  },
+  "happened": {
+   "text": "Production report: after upgrading the proxy, virtual keys that have no team and were created with models=[\"all-team-models\"] are now denied for every model. Listing models for the key returns nothing usable, and chat/batch calls with the key are rejected with a model-access error. Before the upgrade, these teamless keys could call any model.\n\n  at get_api_key_from_custom_header (litellm/proxy/auth/user_api_key_auth.py:2781)\n  2781: and \"all-team-models\" in valid_token.models\n\nWritten by transcript edit L4 (apply_patch):\n         new_model_list = model_list\n         verbose_proxy_logger.debug(f\"\n new llm router model list {new_model_list}\")\n-    elif isinstance(valid_token.models, list) and \"all-team-models\" in valid_token.models:\n+    elif (\n+        isinstance(valid_token.models, list)\n+        and \"all-team-models\" in valid_token.models\n+        and valid_token.team_id is not None\n+    ):\n         pass\n     else:\n         model = _get_model_from_request_context(",
+   "citation": "error u04 frame litellm/proxy/auth/user_api_key_auth.py:2781; u04.jsonl#L4",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Production report: after upgrading the proxy, virtual keys that have no team and were created with models=[\"all-team-models\"] are now denied for every model. Listing models for the key returns nothing usable, and chat/batch calls with the key are rejected with a model-access error. Before the upgrade, these teamless keys could call any model.\n",
+  "terms": [
+   "all-team-models",
+   "production report",
+   "listing models for the",
+   "before the upgrade",
+   "production",
+   "report",
+   "upgrading",
+   "proxy",
+   "virtual",
+   "keys",
+   "team",
+   "created",
+   "models",
+   "denied",
+   "model",
+   "listing",
+   "returns",
+   "nothing",
+   "usable",
+   "chat",
+   "batch",
+   "calls",
+   "rejected",
+   "access",
+   "error",
+   "upgrade",
+   "teamless",
+   "call"
+  ],
+  "layer1": {
+   "symbols_indexed": 391549,
+   "edited_hunks_indexed": 3,
+   "candidates": [
+    {
+     "file": "litellm/proxy/auth/user_api_key_auth.py",
+     "line": 2781,
+     "end_line": 2684,
+     "text": "        and \"all-team-models\" in valid_token.models",
+     "function": "get_api_key_from_custom_header",
+     "score": 4.7447,
+     "matched_terms": [
+      "all",
+      "team",
+      "models",
+      "all-team-models"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#1",
+     "snippet": "2680:     elif (\n2681:         isinstance(valid_token.models, list)\n2682:         and \"all-team-models\" in valid_token.models\n2683:         and valid_token.team_id is not None\n2684:     ):",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 2682,
+     "hunk_start": 2680,
+     "context_lines": [
+      {
+       "line": 2681,
+       "text": "        isinstance(valid_token.models, list)"
+      },
+      {
+       "line": 2682,
+       "text": "        and \"all-team-models\" in valid_token.models"
+      },
+      {
+       "line": 2683,
+       "text": "        and valid_token.team_id is not None"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "tests/test_litellm/proxy/auth/test_auth_checks.py",
+     "line": 361,
+     "end_line": 409,
+     "text": "    model checks for a teamless key that carries all-team-models.\"\"\"",
+     "score": 1.459,
+     "matched_terms": [
+      "all",
+      "team",
+      "models",
+      "proxy",
+      "denied",
+      "model",
+      "chat",
+      "access",
+      "error",
+      "teamless",
+      "call",
+      "all-team-models"
+     ],
+     "edit_line": 5,
+     "tool": "apply_patch",
+     "hunk_id": "L5#2",
+     "snippet": "358: @pytest.mark.asyncio\n359: async def test_enforce_key_access_teamless_all_team_models_denied():\n360:     \"\"\"_enforce_key_and_fallback_model_access must not skip key-level\n361:     model checks for a teamless key that carries all-team-models.\"\"\"\n362:     from litellm.proxy._types import SpecialModelNames\n363:     from litellm.proxy.auth.user_api_key_auth import (\n364:         _enforce_key_and_fallback_model_access,\n365:     )\n366: \n367:     valid_token = UserAPIKeyAuth(",
+     "method": "deterministic_bm25",
+     "role": "test",
+     "role_weight": 0.1,
+     "edit_time_line": 361,
+     "hunk_start": 358,
+     "context_lines": [
+      {
+       "line": 360,
+       "text": "    \"\"\"_enforce_key_and_fallback_model_access must not skip key-level"
+      },
+      {
+       "line": 361,
+       "text": "    model checks for a teamless key that carries all-team-models.\"\"\""
+      },
+      {
+       "line": 362,
+       "text": "    from litellm.proxy._types import SpecialModelNames"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "litellm/proxy/auth/auth_checks.py",
+     "line": 3021,
+     "end_line": 3022,
+     "text": "        and SpecialModelNames.all_team_models.value in valid_token.models",
+     "function": "can_key_call_resolved_model",
+     "score": 1.4513,
+     "matched_terms": [
+      "all",
+      "team",
+      "models",
+      "model"
+     ],
+     "edit_line": 3,
+     "tool": "apply_patch",
+     "hunk_id": "L3#0",
+     "snippet": "3020:         isinstance(valid_token.models, list)\n3021:         and SpecialModelNames.all_team_models.value in valid_token.models\n3022:         and valid_token.team_id is not None",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 3021,
+     "hunk_start": 3020,
+     "context_lines": [
+      {
+       "line": 3020,
+       "text": "        isinstance(valid_token.models, list)"
+      },
+      {
+       "line": 3021,
+       "text": "        and SpecialModelNames.all_team_models.value in valid_token.models"
+      },
+      {
+       "line": 3022,
+       "text": "        and valid_token.team_id is not None"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "litellm/proxy/auth/user_api_key_auth.py",
+    "line": 2781,
+    "end_line": 2684,
+    "text": "        and \"all-team-models\" in valid_token.models",
+    "function": "get_api_key_from_custom_header",
+    "score": 4.7447,
+    "matched_terms": [
+     "all",
+     "team",
+     "models",
+     "all-team-models"
+    ],
+    "edit_line": 4,
+    "tool": "apply_patch",
+    "hunk_id": "L4#1",
+    "snippet": "2680:     elif (\n2681:         isinstance(valid_token.models, list)\n2682:         and \"all-team-models\" in valid_token.models\n2683:         and valid_token.team_id is not None\n2684:     ):",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 2682,
+    "hunk_start": 2680,
+    "context_lines": [
+     {
+      "line": 2681,
+      "text": "        isinstance(valid_token.models, list)"
+     },
+     {
+      "line": 2682,
+      "text": "        and \"all-team-models\" in valid_token.models"
+     },
+     {
+      "line": 2683,
+      "text": "        and valid_token.team_id is not None"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "tests/test_litellm/proxy/auth/test_auth_checks.py",
+    "line": 361,
+    "end_line": 409,
+    "text": "    model checks for a teamless key that carries all-team-models.\"\"\"",
+    "score": 1.459,
+    "matched_terms": [
+     "all",
+     "team",
+     "models",
+     "proxy",
+     "denied",
+     "model",
+     "chat",
+     "access",
+     "error",
+     "teamless",
+     "call",
+     "all-team-models"
+    ],
+    "edit_line": 5,
+    "tool": "apply_patch",
+    "hunk_id": "L5#2",
+    "snippet": "358: @pytest.mark.asyncio\n359: async def test_enforce_key_access_teamless_all_team_models_denied():\n360:     \"\"\"_enforce_key_and_fallback_model_access must not skip key-level\n361:     model checks for a teamless key that carries all-team-models.\"\"\"\n362:     from litellm.proxy._types import SpecialModelNames\n363:     from litellm.proxy.auth.user_api_key_auth import (\n364:         _enforce_key_and_fallback_model_access,\n365:     )\n366: \n367:     valid_token = UserAPIKeyAuth(",
+    "method": "deterministic_bm25",
+    "role": "test",
+    "role_weight": 0.1,
+    "edit_time_line": 361,
+    "hunk_start": 358,
+    "context_lines": [
+     {
+      "line": 360,
+      "text": "    \"\"\"_enforce_key_and_fallback_model_access must not skip key-level"
+     },
+     {
+      "line": 361,
+      "text": "    model checks for a teamless key that carries all-team-models.\"\"\""
+     },
+     {
+      "line": 362,
+      "text": "    from litellm.proxy._types import SpecialModelNames"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "litellm/proxy/auth/auth_checks.py",
+    "line": 3021,
+    "end_line": 3022,
+    "text": "        and SpecialModelNames.all_team_models.value in valid_token.models",
+    "function": "can_key_call_resolved_model",
+    "score": 1.4513,
+    "matched_terms": [
+     "all",
+     "team",
+     "models",
+     "model"
+    ],
+    "edit_line": 3,
+    "tool": "apply_patch",
+    "hunk_id": "L3#0",
+    "snippet": "3020:         isinstance(valid_token.models, list)\n3021:         and SpecialModelNames.all_team_models.value in valid_token.models\n3022:         and valid_token.team_id is not None",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 3021,
+    "hunk_start": 3020,
+    "context_lines": [
+     {
+      "line": 3020,
+      "text": "        isinstance(valid_token.models, list)"
+     },
+     {
+      "line": 3021,
+      "text": "        and SpecialModelNames.all_team_models.value in valid_token.models"
+     },
+     {
+      "line": 3022,
+      "text": "        and valid_token.team_id is not None"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "litellm/proxy/auth/user_api_key_auth.py",
+   "line": 2781,
+   "end_line": 2684,
+   "text": "        and \"all-team-models\" in valid_token.models",
+   "function": "get_api_key_from_custom_header",
+   "score": 4.7447,
+   "matched_terms": [
+    "all",
+    "team",
+    "models",
+    "all-team-models"
+   ],
+   "edit_line": 4,
+   "tool": "apply_patch",
+   "hunk_id": "L4#1",
+   "snippet": "2680:     elif (\n2681:         isinstance(valid_token.models, list)\n2682:         and \"all-team-models\" in valid_token.models\n2683:         and valid_token.team_id is not None\n2684:     ):",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 2682,
+   "hunk_start": 2680,
+   "context_lines": [
+    {
+     "line": 2681,
+     "text": "        isinstance(valid_token.models, list)"
+    },
+    {
+     "line": 2682,
+     "text": "        and \"all-team-models\" in valid_token.models"
+    },
+    {
+     "line": 2683,
+     "text": "        and valid_token.team_id is not None"
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 17408,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:tests/proxy_unit_tests/test_user_api_key_auth.py (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Production report: after upgrading the proxy, virtual keys that have no team and were created with models=[\"all-team-models\"] are now denied for every model. Listing models for the key returns nothing usable, and chat/batch calls with the key are rejected with a model-access error. Before the upgrade, these teamless keys could call any model.",
+   "edit": {
+    "file": "litellm/proxy/auth/user_api_key_auth.py",
+    "line": 2781,
+    "hunk": "         new_model_list = model_list\n         verbose_proxy_logger.debug(f\"\n new llm router model list {new_model_list}\")\n-    elif isinstance(valid_token.models, list) and \"all-team-models\" in valid_token.models:\n+    elif (\n+        isinstance(valid_token.models, list)\n+        and \"all-team-models\" in valid_token.models\n+        and valid_token.team_id is not None\n+    ):\n         pass\n     else:\n         model = _get_model_from_request_context("
+   },
+   "code_window": "2761:     *,\n2762:     valid_token: UserAPIKeyAuth,\n2763:     request_data: dict,\n2764:     route: str,\n2765:     request: Optional[Request],\n2766:     llm_model_list: Optional[list],\n2767:     llm_router: Optional[Any],\n2768: ) -> None:\n2769:     \"\"\"\n2770:     Key-level model allowlist and client fallbacks (same as standard auth).\n2771:     Not included in common_checks — common_checks enforces team/user/project model access only.\n2772:     \"\"\"\n2773:     config = valid_token.config\n2774: \n2775:     if config != {}:\n2776:         model_list = config.get(\"model_list\", [])\n2777:         new_model_list = model_list\n2778:         verbose_proxy_logger.debug(f\"\\n new llm router model list {new_model_list}\")\n2779:     elif (\n2780:         isinstance(valid_token.models, list)\n2781:         and \"all-team-models\" in valid_token.models\n2782:         and valid_token.team_id is not None\n2783:     ):\n2784:         pass\n2785:     else:\n2786:         model = _get_model_from_request_context(\n2787:             request_data=request_data,\n2788:             route=route,\n2789:             request=request,\n2790:             llm_router=llm_router,\n2791:         )\n2792: \n2793:         if model is not None:\n2794:             await can_key_call_model(\n2795:                 model=model,\n2796:                 llm_model_list=llm_model_list,\n2797:                 valid_token=valid_token,\n2798:                 llm_router=llm_router,\n2799:             )\n2800: \n2801:         # Validate every fallback model name reachable by this request.",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "litellm/proxy/auth/user_api_key_auth.py",
+     "line": 2781,
+     "function": "get_api_key_from_custom_header",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 4.7447,
+     "method": "deterministic_bm25",
+     "text": "2776:         model_list = config.get(\"model_list\", [])\n2777:         new_model_list = model_list\n2778:         verbose_proxy_logger.debug(f\"\\n new llm router model list {new_model_list}\")\n2779:     elif (\n2780:         isinstance(valid_token.models, list)\n2781:         and \"all-team-models\" in valid_token.models\n2782:         and valid_token.team_id is not None\n2783:     ):\n2784:         pass\n2785:     else:\n2786:         model = _get_model_from_request_context("
+    },
+    {
+     "label": "candidate 2",
+     "file": "tests/test_litellm/proxy/auth/test_auth_checks.py",
+     "line": 361,
+     "role": "test",
+     "role_weight": 0.1,
+     "anchor": "exact",
+     "score": 1.459,
+     "method": "deterministic_bm25",
+     "text": "356: \n357: \n358: @pytest.mark.asyncio\n359: async def test_enforce_key_access_teamless_all_team_models_denied():\n360:     \"\"\"_enforce_key_and_fallback_model_access must not skip key-level\n361:     model checks for a teamless key that carries all-team-models.\"\"\"\n362:     from litellm.proxy._types import SpecialModelNames\n363:     from litellm.proxy.auth.user_api_key_auth import (\n364:         _enforce_key_and_fallback_model_access,\n365:     )\n366: "
+    },
+    {
+     "label": "candidate 3",
+     "file": "litellm/proxy/auth/auth_checks.py",
+     "line": 3021,
+     "function": "can_key_call_resolved_model",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 1.4513,
+     "method": "deterministic_bm25",
+     "text": "3016:         user_api_key_cache,\n3017:     )\n3018: \n3019:     skip_key_model_check = valid_token.config or (\n3020:         isinstance(valid_token.models, list)\n3021:         and SpecialModelNames.all_team_models.value in valid_token.models\n3022:         and valid_token.team_id is not None\n3023:     )\n3024:     if not skip_key_model_check:\n3025:         await can_key_call_model(\n3026:             model=model,"
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "(PR-derived transcript: the original request is not public.)",
+    "understood": "fix(auth): deny model access for teamless keys with all-team-models\n\n## Relevant issues\n\nRelated to #30737 and PR #29746\n\n## Pre-Submission checklist\n\n- [x] I have added meaningful tests\n- [x] My PR passes all CI/CD checks (e.g., lint, format, unit tests)\n- [x] My PR's scope is as isolated as possible; it only solves 1 specific problem\n- [ ] I have requested a Greptile review by commenting `@greptileai` and received a **Confidence Score of at least 4/5** before requesting a maintainer review\n\n## Screenshots / Proof of Fix\n\nTo reproduce the bug and verify the fix, start a local proxy with at least one model configured and create a teamless key with `all-team-models`:\n\n```bash\n# create a teamless key with all-team-models\ncurl -s http://localhost:4000/key/generate \\\n  -H \"Authorization: Bearer $LITELLM_MASTER_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"models\": [\"all-team-models\"]}' | jq .\n\n# before fix: this succeeds (bug) - the key can call any model despite having no team\n# after fix: this returns 403 key_model_access_denied\ncurl -s http://localhost:4000/v1/chat/completions \\\n  -H \"Authorization: Bearer $GENERATED_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"model\": \"gpt-4o\", \"messages\": [{\"role\": \"user\", \"content\": \"hi\"}]}'\n```\n\n## Type\n\nBug Fix\n\n## Changes\n\nPR #29746 fixed `get_key_models` so that a key with `all-team-models` but no `team_id` returns an empty model list. However, two call-path functions still unconditionally skip key-level model checks when `all-team-models` is present, without checking whether the key actually belongs to a team:\n\n1. `_enforce_key_and_fallback_model_access` (the main auth entry point for `/chat/completions` etc.) had `elif \"all-team-models\" in valid_token.models: pass` - skipping the model check entirely regardless of team membership\n\n2. `can_key_call_resolved_model` (used by realtime endpoints and post-resolution checks) set `skip_key_model_check = True` whenever `all-team-models` was present, again without a team_id guard\n\nBoth now require `valid_token.team_id is not None` to skip the check. Teamless keys fall through to `can_key_call_model`, which via `_resolve_key_models_for_auth_check` correctly treats the unresolvable sentinel as a non-matching string and denies access\n\nLink to Devin session: https://app.devin.ai/sessions/68804be8677b4a0c9033e7c2663281bc\nRequested by: @mateo-berri\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> **Medium Risk**\n> Tightens proxy authorization on a sensitive path; behav",
+    "happened": "Production report: after upgrading the proxy, virtual keys that have no team and were created with models=[\"all-team-models\"] are now denied for every model. Listing models for the key returns nothing usable, and chat/batch calls with the key are rejected with a model-access error. Before the upgrade, these teamless keys could call any model.\n\n  at get_api_key_from_custom_header (litellm/proxy/auth/user_api_key_auth.py:2781)\n  2781: and \"all-team-models\" in valid_token.models\n\nWritten by transcript edit L4 (apply_patch):\n         new_model_list = model_list\n         verbose_proxy_logger.debug(f\"\n new llm router model list {new_model_list}\")\n-    elif isinstance(valid_token.models, list) and \"all-team-models\" in valid_token.models:\n+    elif (\n+        isinstance(valid_token.models, list)\n+        and \"all-team-models\" in valid_token.models\n+        and valid_token.team_id is not None\n+    ):\n         pass\n     else:\n         model = _get_model_from_request_context("
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L4)",
+     "text": "L1 [user] (PR-derived transcript: the original request is not public.)\nL2 [assistant] fix(auth): deny model access for teamless keys with all-team-models\nL2| \nL2| ## Relevant issues\nL2| \nL2| Related to #30737 and PR #29746\nL2| \nL2| ## Pre-Submission checklist\nL2| \nL2| - [x] I have added meaningful tests\nL2| - [x] My PR passes all CI/CD checks (e.g., lint, format, unit tests)\nL2| - [x] My PR's scope is as isolated as possible; it only solves 1 specific problem\nL2| - [ ] I have requested a Greptile review by commenting `@greptileai` and received a **Confidence Score of at least 4/5** before requesting a maintainer review\nL2| \nL2| ## Screenshots / Proof of Fix\nL2| \nL2| To reproduce the bug and verify the fix, start a local proxy with at least one model configured and create a teamless key with `all-team-models`:\nL2| \nL2| ```bash\nL2| # create a teamless key with all-team-models\nL2| curl -s http://localhost:4000/key/generate \\\nL2|   -H \"Authorization: Bearer $LITELLM_MASTER_KEY\" \\\nL2|   -H \"Content-Type: application/json\" \\\nL2|   -d '{\"models\": [\"all-team-models\"]}' | jq .\nL2| \nL2| # before fix: this succeeds (bug) - the key can call any model despite having no team\nL2| # after fix: this returns 403 key_model_access_denied\nL2| curl -s http://localhost:4000/v1/chat/completions \\\nL2|   -H \"Authorization: Bearer $GENERATED_KEY\" \\\nL2|   -H \"Content-Type: application/json\" \\\nL2|   -d '{\"model\": \"gpt-4o\", \"messages\": [{\"role\": \"user\", \"content\": \"hi\"}]}'\nL2| ```\nL2| \nL2| ## Type\nL2| \nL2| Bug Fix\nL2| \nL2| ## Changes\nL2| \nL2| PR #29746 fixed `get_key_models` so that a key with `all-team-models` but no `team_id` returns an empty model list. However, two call-path functions still unconditionally skip key-level model checks when `all-team-models` is present, without checking whether the key actually belongs to a team:\nL2| \nL2| 1. `_enforce_key_and_fallback_model_access` (the main auth entry point for `/chat/completions` etc.) had `elif \"all-team-models\" in valid_token.models: pass` - skipping the model check entirely regardless of team membership\nL2| \nL2| 2. `can_key_call_resolved_model` (used by realtime endpoints and post-resolution checks) set `skip_key_model_check = True` whenever `all-team-models` was present, again without a team_id guard\nL2| \nL2| Both now require `valid_token.team_id is not None` to skip the check. Teamless keys fall through to `can_key_call_model`, which via `_resolve_key_models_for_auth_check` correctly treats the unresolvable sentinel as a non-matching string and denies access\nL2| \nL2| Link to Devin session: https://app.devin.ai/sessions/68804be8677b4a0c9033e7c2663281bc\nL2| Requested by: @mateo-berri\nL2| \nL2| <!-- CURSOR_SUMMARY -->\nL2| ---\nL2| \nL2| > [!NOTE]\nL2| > **Medium Risk**\nL2| > Tightens proxy authorization on a sensitive path; behavior change only for teamless keys that incorrectly had `all-team-models`, which should now get 403 instead of unrestricted access.\nL2| > \nL2| > **Overview**\nL2| > Closes an auth bypass where **virtual keys with `all-team-models` but no `team_id`** could call any model because two paths skipped key-level checks whenever that sentinel appeared.\nL2| > \nL2| > **`can_key_call_resolved_model`** and **`_enforce_key_and_fallback_model_access`** now only skip those checks when **`valid_token.team_id is not None`**. Teamless keys run **`can_key_call_model`**, which denies access via the unresolved sentinel. Tests assert **`key_model_access_denied`** for teamless `all-team-models` on both paths.\nL2| > \nL2| > <sup>Reviewed by [Cursor Bugbot](https://cursor.com/bugbot) for commit 9737816b910e58edb6c9c5c6d8acdcb7e4386f4d. Bugbot is set up for automated code reviews on this repo. Configure [here](https://www.cursor.com/dashboard/bugbot).</sup>\nL2| <!-- /CURSOR_SUMMARY -->\nL3 [tool] TOOL: apply_patch {\"path\":\"litellm/proxy/auth/auth_checks.py\"}\nL3| CODE_WRITTEN: {\"path\":\"litellm/proxy/auth/auth_checks.py\"}\nL3| --- a/litellm/proxy/auth/auth_checks.py\nL3| +++ b/litellm/proxy/auth/auth_checks.py\nL3| @@ -3017,7 +3017,9 @@ async def can_key_call_resolved_model(\nL3|      )\nL3|  \nL3|      skip_key_model_check = valid_token.config or (\nL3| -        isinstance(valid_token.models, list) and SpecialModelNames.all_team_models.value in valid_token.models\nL3| +        isinstance(valid_token.models, list)\nL3| +        and SpecialModelNames.all_team_models.value in valid_token.models\nL3| +        and valid_token.team_id is not None\nL3|      )\nL3|      if not skip_key_model_check:\nL3|          await can_key_call_model(\nL3| \nL4 [tool] TOOL: apply_patch {\"path\":\"litellm/proxy/auth/user_api_key_auth.py\"}\nL4| CODE_WRITTEN: {\"path\":\"litellm/proxy/auth/user_api_key_auth.py\"}\nL4| --- a/litellm/proxy/auth/user_api_key_auth.py\nL4| +++ b/litellm/proxy/auth/user_api_key_auth.py\nL4| @@ -2676,7 +2676,11 @@ async def _enforce_key_and_fallback_model_access(\nL4|          model_list = config.get(\"model_list\", [])\nL4|          new_model_list = model_list\nL4|          verbose_proxy_logger.debug(f\"\nL4|  new llm router model list {new_model_list}\")\nL4| -    elif isinstance(valid_token.models, list) and \"all-team-models\" in valid_token.models:\nL4| +    elif (\nL4| +        isinstance(valid_token.models, list)\nL4| +        and \"all-team-models\" in valid_token.models\nL4| +        and valid_token.team_id is not None\nL4| +    ):\nL4|          pass\nL4|      else:\nL4|          model = _get_model_from_request_context(\nL4| \nL5 [tool] TOOL: apply_patch {\"path\":\"tests/test_litellm/proxy/auth/test_auth_checks.py\"}\nL5| CODE_WRITTEN: {\"path\":\"tests/test_litellm/proxy/auth/test_auth_checks.py\"}\nL5| --- a/tests/test_litellm/proxy/auth/test_auth_checks.py\nL5| +++ b/tests/test_litellm/proxy/auth/test_auth_checks.py\nL5| @@ -355,6 +355,58 @@ async def test_can_key_call_model_all_team_models_no_team_id_is_denied():\nL5|      assert exc_info.value.type == ProxyErrorTypes.key_model_access_denied\nL5|  \nL5|  \nL5| +@pytest.mark.asyncio\nL5| +async def test_enforce_key_access_teamless_all_team_models_denied():\nL5| +    \"\"\"_enforce_key_and_fallback_model_access must not skip key-level\nL5| +    model checks for a teamless key that carries all-team-models.\"\"\"\nL5| +    from litellm.proxy._types import SpecialModelNames\nL5| +    from litellm.proxy.auth.user_api_key_auth import (\nL5| +        _enforce_key_and_fallback_model_access,\nL5| +    )\nL5| +\nL5| +    valid_token = UserAPIKeyAuth(\nL5| +        api_key=\"sk-orphan-key\",\nL5| +        models=[SpecialModelNames.all_team_models.value],\nL5| +        team_models=[],\nL5| +    )\nL5| +\nL5| +    with pytest.raises(ProxyException) as exc_info:\nL5| +        await _enforce_key_and_fallback_model_access(\nL5| +            valid_token=valid_token,\nL5| +            request_data={\"model\": \"gpt-4o\"},\nL5| +            route=\"/v1/chat/completions\",\nL5| +            request=None,\nL5| +            llm_model_list=None,\nL5| +            llm_router=None,\nL5| +        )\nL5| +\nL5| +    assert exc_info.value.type == ProxyErrorTypes.key_model_access_denied\nL5| +\nL5| +\nL5| +@pytest.mark.asyncio\nL5| +async def test_can_key_call_resolved_model_teamless_all_team_models_denied():\nL5| +    \"\"\"can_key_call_resolved_model must not skip key-level model ch"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that the presence of \"all-team-models\" in a key's model list was sufficient to skip model access checks, without considering whether the key actually belonged to a team.",
+  "why_it_breaks": "The original code skipped the model-level access check whenever \"all-team-models\" appeared in the key's models list, regardless of whether the key had a team_id. After PR #29746 fixed `get_key_models` to return an empty model list for teamless keys with \"all-team-models\", the two call-path functions (`_enforce_key_and_fallback_model_access` and `can_key_call_resolved_model`) still had the old unconditional skip logic. This meant teamless keys with \"all-team-models\" bypassed model checks entirely and got unrestricted access. The fix adds `and valid_token.team_id is not None` to both locations so that only team-affiliated keys skip the check; teamless keys now fall through to `can_key_call_model`, which correctly denies access because the \"all-team-models\" sentinel cannot be resolved to an actual model.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 2,
+    "quote": "However, two call-path functions still unconditionally skip key-level model checks when `all-team-models` is present, without checking whether the key actually belongs to a team:",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "litellm/proxy/auth/user_api_key_auth.py",
+    "line": 2782,
+    "quote": "and valid_token.team_id is not None",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "litellm/proxy/auth/auth_checks.py",
+    "line": 3022,
+    "quote": "and valid_token.team_id is not None",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 1
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "litellm/proxy/auth/user_api_key_auth.py",
+  "line": 2781,
+  "hunk_id": "L4#1"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "high",
+  "capped": "high",
+  "margin": 0.6924989988829642,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": true
+ }
+}

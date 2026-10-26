@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/harness/caps.py:276
+stage: ok
+provider: nemotron
+frame: src/ta/harness/caps.py:276
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that halt_high_risk being True would block all high-risk buys, but the condition requires both halt_high_risk AND sleeve == "high_risk". A buy with a non-high-risk sleeve passes through even when the drawdown halt is active.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case04/report.html

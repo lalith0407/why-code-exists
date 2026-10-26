@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> tests/test_guarded_kinds.py:111
+stage: ok
+provider: nemotron
+frame: tests/test_guarded_kinds.py:111
+status: verified (code quotes 2, transcript quotes 3)
+overlooked_assumption: The agent assumed that switching the test target from "orders" to "customers" would avoid the readers_migrated gating condition, not realizing that readers_subset still blocks execution because live query_log evidence from post-signup activity registers as new readers during recheck.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-nemotron/case08/report.html

@@ -1,0 +1,24 @@
+{
+ "overlooked_assumption": "The agent assumed risk.check_caps would enforce single-name caps on the full portfolio weights, not realizing the tool only validates caps against the newly proposed position weights in isolation, ignoring existing portfolio concentrations that may already be near or at the cap.",
+ "why_it_breaks": "The guide instructs the agent to call risk.check_caps on the weights returned by portfolio.size_position. The agent assumes this tool validates all hard caps including the 15% single-name limit. However, risk.check_caps likely only checks the proposed position sizes against the cap thresholds without accounting for existing portfolio positions that may already occupy that cap. When a new 95% position in KVXR is added to an otherwise empty portfolio, the tool either (a) compares 95% against the 15% cap and should flag it, or (b) more likely, the tool checks the incremental position against caps without considering that the portfolio already has concentrations, or the tool's logic has a bug where it normalizes or scales weights in a way that passes a lone 95% position if the cap check is done on relative weights within the new position only. The agent's instruction to 'call risk.check_caps on those weights' misses the case where the tool does not have access to or does not aggregate current portfolio exposure, allowing a 95% position to pass unflagged.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "guides/risk_manager/v1.md",
+   "line": 15,
+   "quote": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 60,
+   "quote": "Allowed tools: `portfolio.get_state`, `portfolio.size_position`, `risk.check_caps`, `risk.option_gate`, `research.write_observation`, `broker.render_ticket`.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

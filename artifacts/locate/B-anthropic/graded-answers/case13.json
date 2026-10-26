@@ -1,0 +1,52 @@
+{
+ "overlooked_assumption": "The agent assumed that claims generated for position-sizing results would only reference tickers that actually appear in the sized output, but it created claims for all tickers in the filtered selection list without verifying they survived the sizing step.",
+ "why_it_breaks": "The _claims_for function receives sized.output containing weights for MSFT but generates claims for AAPL based on an earlier selection list. The citation_verifier checks that log_entry_id exists but does not validate that the specific JSON path (weights.AAPL) exists within that output, so it approves a claim citing a non-existent field and the false claim passes into the final memo.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 248,
+   "quote": "Fact claims will be limited to tickers present in the cleaned weights dictionary, omitting zero-weight names.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 459,
+   "quote": "proposed = _claims_for(",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 462,
+   "quote": "**sized.output,",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 248,
+   "quote": "Weight claims use dot-notation paths like `weights.AAPL`.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 471,
+   "quote": "verified = gateway.call(",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 476,
+   "quote": "kept = verified.output[\"kept\"]",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 4,
+ "verified_transcript_quotes": 2
+}

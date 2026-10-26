@@ -1,0 +1,7 @@
+locate: layer2_agentic -> src/components/selected-work.tsx:69
+stage: ok
+provider: anthropic
+frame: src/components/selected-work.tsx:67
+status: verified (code quotes 2, transcript quotes 1)
+overlooked_assumption: The agent assumed outcome.detail would be unique across all outcomes in all case studies, but multiple studies can have the same placeholder text like '[Outcome — what changed.]'
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case15/report.html

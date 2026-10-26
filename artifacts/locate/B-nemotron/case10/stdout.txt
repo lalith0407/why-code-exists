@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> guides/risk_manager/v1.md:15
+stage: ok
+provider: nemotron
+frame: guides/risk_manager/v1.md:15
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed risk.check_caps would enforce single-name caps on the full portfolio weights, not realizing the tool only validates caps against the newly proposed position weights in isolation, ignoring existing portfolio concentrations that may already be near or at the cap.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-nemotron/case10/report.html

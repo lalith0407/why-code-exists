@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that any Slack event with text starting \"/pulse feedback\" would be recognized and processed into a feedback item, without accounting for multi-line messages where the text continues on the next line after a line break.",
+ "why_it_breaks": "The Slack message was \"/pulse feedback Export is slow\\nIt takes 2 minutes for 10k rows\". The agent's code (route.ts line 27) only checks for the prefix \"/pulse feedback\" and likely extracts everything after it as the feedback text. Because Slack delivers multi-line messages with a literal newline character, the extracted text includes the line break, so the resulting feedback text does not match the expected single-line format, and no feedback item is created or displayed. The agent overlooked the case where the feedback text spans multiple lines.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 338,
+   "quote": "L338| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL338| +++ b//workspace/components/settings/invite-member-form.tsx\nL338| @@ -1,0 +1,57 @@\nL338| +\"use client\";\nL338| +",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "app/api/slack/events/[slug]/route.ts",
+   "line": 27,
+   "quote": "* For now we recognize messages of the form `/pulse feedback <text>` and\n* turn them into a feedback post \u2014 enough to wire real slash-command or\n* message-shortcut handling on top of later.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

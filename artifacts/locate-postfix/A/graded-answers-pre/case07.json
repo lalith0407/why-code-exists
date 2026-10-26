@@ -1,0 +1,41 @@
+{
+ "overlooked_assumption": "The agent assumed that the `action.target` value from the original agent input would be safe to use directly in SQL without sanitizing quote characters, believing the deprecation step's SQL would be gated by signed conditions.",
+ "why_it_breaks": "The `safe_plan` function constructs a deprecation step using `action.target` directly in raw SQL (`DELETE FROM _deprecations WHERE target = '{action.target}';`). When the original agent typed a table name with quote characters (e.g., `\"customers\"`), those quotes were preserved in `action.target`. The function then generates a PlanStep with that SQL, and because the step is added to the plan without any additional sanitization, the signed conditions gate the entire plan. However, the audit trail shows the step that executed the drop was the one recorded as \"safe to run with no conditions\" \u2014 the deprecation step's raw SQL containing the quoted table name was executed directly, bypassing the intended staged gating because the quote characters caused the SQL to be interpreted as an unquoted identifier match rather than a parameterized condition check, and no alert fired before the table was dropped.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 98,
+   "quote": "L98| +    \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\nL98| +\nL98| +    Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\nL98| +    there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\nL98| +    delete/update) don't have as clean an intermediate column-level fallback, so they get a\nL98| +    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\nL98| +    \"\"\"",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "blast_radius/reasoner/base.py",
+   "line": 31,
+   "quote": "new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "blast_radius/reasoner/base.py",
+   "line": 36,
+   "quote": "action.sql, gate",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "blast_radius/reasoner/base.py",
+   "line": 40,
+   "quote": "return [deprecate, PlanStep(2, f\"Drop table {action.table} after the window, only if every signed \"\\n                                          \"condition still holds\", action.sql, gate)]",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

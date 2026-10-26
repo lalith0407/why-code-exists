@@ -1,0 +1,6 @@
+stage: ok
+provider: nemotron
+frame: lib/actions/feedback.ts:106
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that a vote record with the same (feedbackId, userId) pair cannot already exist when reaching the create path, failing to handle the race condition where concurrent requests both pass the findUnique check before either creates a vote.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case02/report.html

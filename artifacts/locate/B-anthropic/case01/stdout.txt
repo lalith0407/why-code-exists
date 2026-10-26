@@ -1,0 +1,6 @@
+locate: layer2_agentic -> lib/slack.ts:45
+stage: no_edit (frame line lib/slack.ts:45 ("const match = text.trim().match(/^\/?pulse\s+feedback\s+(.+)$/i);") was not written by any edit in this transcript)
+provider: anthropic
+frame: lib/slack.ts:45
+
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case01/report.html

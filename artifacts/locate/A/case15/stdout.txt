@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/app/work/[slug]/page.tsx:47
+stage: ok
+provider: nemotron
+frame: src/app/work/[slug]/page.tsx:47
+status: unverified (code quotes 2, transcript quotes 0)
+overlooked_assumption: The agent assumed that the three case studies would always have distinct outcome bullet texts, so it did not add unique keys to the mapped outcome elements.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case15/report.html

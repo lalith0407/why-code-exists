@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that all orders would have a 'sleeve' attribute, but did not handle the case where an order might lack this attribute or have it set to None.",
+ "why_it_breaks": "When order.sleeve is None or missing, the condition 'order.sleeve == \"high_risk\"' evaluates to False even during a drawdown halt (halt_high_risk=True), allowing the buy order to proceed unchecked instead of being blocked.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 108,
+   "quote": "+        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 276,
+   "quote": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 261,
+   "quote": "    halt_high_risk = drawdown <= caps.drawdown_halt_high_risk",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

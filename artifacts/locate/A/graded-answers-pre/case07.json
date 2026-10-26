@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that table names in action.target would never contain quote characters, so it used them directly in SQL strings without escaping or parameterization, allowing the quoted table name to terminate the SQL command early and execute arbitrary DROP TABLE on the live customers table.",
+ "why_it_breaks": "When a drop_table action's target includes quote characters (e.g., `\"customers\"`), the f-string `f\"Drop table {action.table}...\"` places the quoted name directly into the SQL string. The embedded quotes prematurely terminate the SQL identifier, allowing an attacker-supplied or malformed table name to close the identifier and append a separate `DROP TABLE customers` command. Since the plan is recorded as \"safe to run with no conditions\" and the gate (signed conditions) is attached to the PlanStep but the SQL itself is not parameterized, the malicious SQL executes immediately without any signed conditions being satisfied.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "blast_radius/reasoner/base.py",
+   "line": 40,
+   "quote": "return [deprecate, PlanStep(2, f\"Drop table {action.table} after the window, only if every signed \"\\n                                          \"condition still holds\", action.sql, gate)]",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 98,
+   "quote": "L98| +    \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\nL98| +\nL98| +    Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\nL98| +    there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\nL98| +    delete/update) don't have as clean an intermediate column-level fallback, so they get a\nL98| +    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\nL98| +    \"\"\"",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

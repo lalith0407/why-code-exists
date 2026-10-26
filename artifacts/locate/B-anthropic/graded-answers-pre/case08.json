@@ -1,0 +1,39 @@
+{
+ "overlooked_assumption": "The agent assumed that the customers table has no scheduler/BI dependents and therefore the schema change would not affect any application constraints, but overlooked that the customers table has a unique email constraint enforced by an index that gets dropped and recreated during the ALTER TYPE migration plan.",
+ "why_it_breaks": "The agent focused only on whether the customers table had scheduler/BI query dependents, but did not consider that ALTER TYPE operations typically require recreating the table, which drops and recreates all indexes including the unique constraint on the email column. When d.plan[0].sql is executed (the first migration step), it drops the unique email index, allowing duplicate signups until the final step recreates it. The symptom shows a duplicate email was accepted between the schema change approval and completion, which matches this window of missing constraint enforcement.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 221,
+   "quote": "so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 221,
+   "quote": "Checking the finance_dashboard cards, I confirm BI/scheduler have zero textual references to \"customers,\" so readers_migrated should pass trivially for that table.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_guarded_kinds.py",
+   "line": 111,
+   "quote": "# so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_guarded_kinds.py",
+   "line": 98,
+   "quote": "guard.execute(d.plan[0].sql, cid)",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 1
+}

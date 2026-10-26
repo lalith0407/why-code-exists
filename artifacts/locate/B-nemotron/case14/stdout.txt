@@ -1,0 +1,6 @@
+stage: ok
+provider: nemotron
+frame: src/ta/replay.py:322
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The code assumes `end` is always a valid calendar date that remains valid when subtracting 5 years, ignoring that February 29 of a leap year shifts to a non-leap year where February has only 28 days.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-nemotron/case14/report.html

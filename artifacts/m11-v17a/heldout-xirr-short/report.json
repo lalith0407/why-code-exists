@@ -1,0 +1,669 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "ta-irr-missing",
+    "timestamp": "2026-10-25T02:59:44.042Z",
+    "severity": "warning",
+    "service": "trading-agent-system",
+    "message": "Memo renders IRR as n/a: PerformanceReport.irr is None for a 10-calendar-day backtest (start equity 100000.00, end equity 106000.00, no contributions). Cash flows passed to the IRR solver: [[\"2024-01-02\",-100000],[\"2024-01-12\",106000]].",
+    "frames": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 38,
+        "function": "_xirr"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 70,
+        "function": "performance"
+      },
+      {
+        "file": "src/ta/memo/render.py",
+        "line": 26,
+        "function": "_row"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout-xirr-short/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "repo"
+    }
+  },
+  "frame": {
+    "file": "src/ta/sim/metrics.py",
+    "line": 38,
+    "function": "_xirr"
+  },
+  "language": "python",
+  "provenance": {
+    "file": "src/ta/sim/metrics.py",
+    "function": "_xirr",
+    "frame_line": 38,
+    "later_edits": [],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 219,
+      "tool": "search_replace",
+      "fn_range": [
+        38,
+        67
+      ],
+      "frame_line_in_range": true,
+      "hunk_excerpt": "+\n+\n+def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n+    if len(cashflows) < 2:\n+        return None\n+    start = cashflows[0][0]\n+    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n+    amounts = [amount for _day, amount in cashflows]\n+\n+    def npv(rate: float) -> float:\n+        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n+\n+    def dnpv(rate: float) -> float:\n+        return sum(\n+            -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n+        )",
+      "fn_text": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n    if len(cashflows) < 2:\n        return None\n    start = cashflows[0][0]\n    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n    amounts = [amount for _day, amount in cashflows]\n\n    def npv(rate: float) -> float:\n        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n\n    def dnpv(rate: float) -> float:\n        return sum(\n            -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n        )\n\n    rate = 0.1\n    for _ in range(60):\n        value = npv(rate)\n        slope = dnpv(rate)\n        if abs(slope) < 1e-12:\n            break\n        nxt = rate - value / slope\n        nxt = min(max(nxt, -0.9), 5.0)\n        if abs(nxt - rate) < 1e-10:\n            rate = nxt\n            break\n        rate = nxt\n    if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n        return None\n    return rate"
+    },
+    "reasoning_before": {
+      "line": 213,
+      "words": 582,
+      "silent": false,
+      "excerpt": "The `sectors` dictionary may be unused. Ruff will catch it.\n\nThe simulation engine will be a shared stepper in `sim/engine.py` with an `AdvanceResult` dataclass. The agent loop and baselines will both call `engine.advance`. A security map h"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The code attempts to solve for IRR on cash flow spans of only 10 calendar days, which is too short for a meaningful IRR calculation. [fix: Insert a guard clause at the start of _xirr that checks if the date span (last_date - first_date) is below a minimum threshold (e.g., 30 days) and returns None or raises a ValueError immediately.]",
+          "The solver cannot find a finite IRR for very short cash flow spans, resulting in None. [fix: Wrap the Newton's method solver in a try/except or convergence check; if the solver fails or returns non-finite values, return a default (e.g., 0.0 or None) instead of propagating the failure.]"
+        ]
+      },
+      {
+        "causes": [
+          "The code attempts to solve for IRR on cash flow spans of only 10 calendar days, which is too short for a meaningful IRR calculation. [fix: Add a guard clause in _xirr that checks if the date span between the first and last cash flow is below a minimum threshold (e.g., 30 days) and returns None or raises an error immediately, preventing the solver from running on insufficient data.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "repo",
+    "root": "/workspace/trading-agent-system"
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T18:50:35.571Z",
+  "workspace": {
+    "root": "/workspace/trading-agent-system",
+    "origin": "repo",
+    "notes": [
+      "python: repo virtualenv /workspace/trading-agent-system/.venv/bin/python"
+    ],
+    "framework_shims": [],
+    "database": null,
+    "python": "/workspace/trading-agent-system/.venv/bin/python"
+  },
+  "code_under_test": {
+    "source": "repo:src/ta/sim/metrics.py:L38-67",
+    "text": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n    if len(cashflows) < 2:\n        return None\n    start = cashflows[0][0]\n    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n    amounts = [amount for _day, amount in cashflows]\n\n    def npv(rate: float) -> float:\n        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n\n    def dnpv(rate: float) -> float:\n        return sum(\n            -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n        )\n\n    rate = 0.1\n    for _ in range(60):\n        value = npv(rate)\n        slope = dnpv(rate)\n        if abs(slope) < 1e-12:\n            break\n        nxt = rate - value / slope\n        nxt = min(max(nxt, -0.9), 5.0)\n        if abs(nxt - rate) < 1e-10:\n            rate = nxt\n            break\n        rate = nxt\n    if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n        return None\n    return rate"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that IRR can be meaningfully computed for very short durations like 10 calendar days, so the code attempts to solve for IRR on such short cash flow spans, resulting in None because the solver cannot find a finite IRR.",
+        "evidence_line": "Memo renders IRR as n/a: PerformanceReport.irr is None for a 10-calendar-day backtest (start equity 100000.00, end equity 106000.00, no contributions). Cash flows passed to the IRR solver: [[\"2024-01-02\",-100000],[\"2024-01-12\",106000]].",
+        "explains_error": true
+      }
+    ],
+    "chosen_cause": "The agent assumed that IRR can be meaningfully computed for very short durations like 10 calendar days, so the code attempts to solve for IRR on such short cash flow spans, resulting in None because the solver cannot find a finite IRR.",
+    "claim": "The agent assumed that IRR can be meaningfully computed for very short durations like 10 calendar days, so the code attempts to solve for IRR on such short cash flow spans, resulting in None because the solver cannot find a finite IRR.",
+    "mechanism": "The _xirr function takes cashflows spanning only 10 calendar days and attempts to compute IRR via Newton's method without checking for minimum duration or feasibility, leading to a return of None when the solver fails.",
+    "belief_quote": "Cash flows passed to the IRR solver: [[\"2024-01-02\",-100000],[\"2024-01-12\",106000]]",
+    "belief_quote_source": "error",
+    "concept": "financial-metric-validity",
+    "language_framework": "Python",
+    "correct_rule": "The IRR computation should validate that the cash flow span is sufficiently long and that the solver converges to a finite rate before returning a numeric IRR; otherwise, it should return None or a special value indicating IRR is not computable.",
+    "cited_lines": [
+      "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:",
+      "    if len(cashflows) < 2:",
+      "        return None",
+      "    start = cashflows[0][0]"
+    ],
+    "rejected_alternatives": [],
+    "belief_quote_verified": false,
+    "cited_located": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 38,
+        "text": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 39,
+        "text": "if len(cashflows) < 2:"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 40,
+        "text": "return None"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 66,
+        "text": "return None"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 41,
+        "text": "start = cashflows[0][0]"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "financial-metric-validity",
+    "hits": []
+  },
+  "tests": {
+    "setup": "m = app(\"src/ta/sim/metrics.py\")\nfrom datetime import date",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction of IRR None for short 10-day cashflows",
+        "role": "reproduction",
+        "asserts": "The _xirr function returns None for cashflows spanning only 10 calendar days, indicating IRR is not computable for such short durations.",
+        "body": "arranged()\nout = m._xirr([(date(2024, 1, 2), -100000), (date(2024, 1, 12), 106000)])\nrecord(\"xirr\", out)\nharm_observed(out is None, \"IRR is None for short 10-day cashflows\")"
+      },
+      {
+        "name": "decoy: _xirr returns None for single cashflow input",
+        "role": "decoy",
+        "asserts": "The _xirr function returns None when given fewer than two cashflows, which is correct behavior.",
+        "body": "arranged()\nout = m._xirr([(date(2023, 1, 1), -100000), (date(2024, 1, 1), 110000)])\nrecord(\"xirr_long\", out)\ncheck(out is not None and isinstance(out, float) and -0.1 < out < 0.2, \"IRR is finite and reasonable for one-year cashflows\")"
+      },
+      {
+        "name": "decoy: _xirr returns a finite IRR for longer cashflows with positive return",
+        "role": "decoy",
+        "asserts": "The _xirr function returns a finite IRR value for cashflows spanning a longer period with a positive return, showing correct IRR computation.",
+        "body": "arranged()\nout = m._xirr([(date(2023, 1, 1), -100000), (date(2024, 1, 1), 110000)])\nrecord(\"xirr_long\", out)\ncheck(out is not None and isinstance(out, float), \"IRR is finite for longer cashflows\")"
+      }
+    ],
+    "trace": {
+      "file": "src/ta/sim/metrics.py",
+      "function": "_xirr"
+    },
+    "tests_sha256": "b8e67fec9aa4cdd8ad9148cffb77165ab5e7046c785616328a701e8c38cab06e",
+    "frozen_at": "2026-10-25T18:50:56.718Z",
+    "harness_sha256": "089596a3472f83269afde119cc8a3a5f6c5b7e337e1e25a2004ef54dd7eb9ad2",
+    "harness_repairs": [
+      {
+        "setup_changed": true,
+        "stubs": [],
+        "failure": "harness rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      }
+    ],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": [
+        {
+          "name": "decoy: _xirr returns None for single cashflow input",
+          "replaced": true
+        }
+      ]
+    },
+    "reproduction_sha256": "84534121ada46cdaddf18c6764123273e62459d61d105d76b10582b1aeb5106b",
+    "setup_probe": [
+      {
+        "ok": false,
+        "error": "rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      },
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"xirr\",\"value\":null}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [
+      {
+        "name": "decoy: _xirr returns None for single cashflow input",
+        "failed_with": "passed on no-op mutant (vacuous)",
+        "replaced": true
+      }
+    ],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n    if len(cashflows) < 2:\n        return None\n    start = cashflows[0][0]\n    end = cashflows[-1][0]\n    span_days = (end - start).days\n    if span_days < 30:  # Require at least about one month of span for IRR\n        return None\n    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n    amounts = [amount for _day, amount in cashflows]\n\n    def npv(rate: float) -> float:\n        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n\n    def dnpv(rate: float) -> float:\n        return sum(\n            -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n        )\n\n    rate = 0.1\n    for _ in range(60):\n        value = npv(rate)\n        slope = dnpv(rate)\n        if abs(slope) < 1e-12:\n            break\n        nxt = rate - value / slope\n        nxt = min(max(nxt, -0.9), 5.0)\n        if abs(nxt - rate) < 1e-10:\n            rate = nxt\n            break\n        rate = nxt\n    if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n        return None\n    return rate",
+    "file": "src/ta/sim/metrics.py",
+    "changed_lines": 4,
+    "diff": "         return None\n     start = cashflows[0][0]\n+    end = cashflows[-1][0]\n+    span_days = (end - start).days\n+    if span_days < 30:  # Require at least about one month of span for IRR\n+        return None\n     times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n     amounts = [amount for _day, amount in cashflows]",
+    "rationale": "Added a check for the duration of the cash flows in _xirr to ensure the span is at least 30 days before attempting to compute IRR. This prevents the solver from running on very short durations (like 10 days) where IRR is not meaningful and the solver fails, returning None instead of a numeric IRR. This matches the correct rule that IRR should only be computed for sufficiently long cash flow spans.",
+    "attempts": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "changed_lines": 4
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction of IRR None for short 10-day cashflows",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr",
+              "value": null
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _xirr returns None for single cashflow input",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr_long",
+              "value": 0.09999999999999984
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _xirr returns a finite IRR for longer cashflows with positive return",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr_long",
+              "value": 0.09999999999999984
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 686,
+      "tree": "/workspace/trading-agent-system"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction of IRR None for short 10-day cashflows",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr",
+              "value": null
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _xirr returns None for single cashflow input",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr_long",
+              "value": 0.09999999999999984
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _xirr returns a finite IRR for longer cashflows with positive return",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr_long",
+              "value": 0.09999999999999984
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 628,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout-xirr-short/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "len(cashflows) < 2 check",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if len(cashflows) < 2:\n        return None",
+        "quote_verified": true
+      },
+      {
+        "element": "Newton's method IRR solver loop",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "for _ in range(60):\n        value = npv(rate)\n        slope = dnpv(rate)\n        if abs(slope) < 1e-12:\n            break\n        nxt = rate - value / slope\n        nxt = min(max(nxt, -0.9), 5.0)\n        if abs(nxt - rate) < 1e-10:\n            rate = nxt\n            break\n        rate = nxt",
+        "quote_verified": true
+      },
+      {
+        "element": "post-solver finiteness and NPV check",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n        return None",
+        "quote_verified": true
+      },
+      {
+        "element": "rate bounds clamp after update",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "nxt = min(max(nxt, -0.9), 5.0)",
+        "quote_verified": true
+      },
+      {
+        "element": "early return for insufficient cashflows",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if len(cashflows) < 2:\n        return None",
+        "quote_verified": true
+      }
+    ],
+    "reason": "5 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 38,
+        "text": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 39,
+        "text": "if len(cashflows) < 2:"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 40,
+        "text": "return None"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 66,
+        "text": "return None"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 41,
+        "text": "start = cashflows[0][0]"
+      }
+    ],
+    "patch_file": "src/ta/sim/metrics.py",
+    "patch_touched_lines": [
+      41,
+      42
+    ],
+    "overlap": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 40,
+        "text": "return None"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 41,
+        "text": "start = cashflows[0][0]"
+      }
+    ],
+    "cause_gate": {
+      "harm_condition": "The test's check requires that the return value `out` is exactly `None`.",
+      "alternative_defect": "The code correctly guards against insufficient cashflows (len < 2) but the solver enters an infinite loop or fails to converge for a valid 2-entry cashflow spanning 10 days, returning a numeric rate instead of None.",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The test checks that _xirr returns None for a 10-day cashflow. The cited line `if len(cashflows) < 2: return None` does not trigger because the cashflow has 2 entries. The subsequent Newton loop runs and returns None only when the solver fails to find a finite rate. The production error confirms the outcome: IRR is None when it should be computable. The check asserts the specific symptom (None) the claim predicts, not just a generic failure. Therefore, the reproduction test pins down the claimed cause."
+    },
+    "rival": {
+      "status": "unavailable",
+      "proposal": {
+        "rival_cause": "The _xirr function computes times using calendar day differences divided by 365.0, which produces time fractions that are too coarse for a 10-day span, causing the Newton iteration to diverge or produce non-finite rates that trigger the early None return.",
+        "rival_rule": "Times should be computed using precise year fractions based on the actual calendar (e.g., 365.2425 days per year or day-count conventions like ACT/365) rather than a simple /365.0 division, so that short-duration cash flows yield meaningful rate estimates.",
+        "rival_location": "times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]"
+      },
+      "attempts": [
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged"
+      ]
+    },
+    "claim_causes": [
+      "The code attempts to solve for IRR on cash flow spans of only 10 calendar days, which is too short for a meaningful IRR calculation. [fix: Add a guard clause in _xirr that checks if the date span between the first and last cash flow is below a minimum threshold (e.g., 30 days) and returns None or raises an error immediately, preventing the solver from running on insufficient data.]"
+    ]
+  },
+  "verdict": "patch_ineffective",
+  "reasons": [
+    "reproduction test passes on the original code (bug reproduced on the real code)",
+    "reproduction test still passes on the patch: the corrected belief does not remove the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function src/ta/sim/metrics.py:_xirr",
+    "patch changes the cited line(s) src/ta/sim/metrics.py:40, src/ta/sim/metrics.py:41",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: not checked (unavailable)",
+    "mechanism gate (nemotron): consistent (5 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T18:51:35.526Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T18:51:35.526Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 3,
+        "sample": [
+          {
+            "error_id": "ta-irr-missing",
+            "ts": "2026-10-25T02:59:44.042Z",
+            "severity": "warning",
+            "service": "trading-agent-system",
+            "message": "Memo renders IRR as n/a: PerformanceReport.irr is None for a 10-calendar-day backtest (start equity 100000.00, end equity 106000.00, no contributions). Cash flows passed to the IRR solver: [[\"2024-01-02\",-100000],[\"2024-01-12\",106000]].",
+            "frame_index": 0,
+            "frame_file": "src/ta/sim/metrics.py",
+            "frame_line": 38,
+            "frame_function": "_xirr",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout-xirr-short/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          },
+          {
+            "error_id": "ta-irr-missing",
+            "ts": "2026-10-25T02:59:44.042Z",
+            "severity": "warning",
+            "service": "trading-agent-system",
+            "message": "Memo renders IRR as n/a: PerformanceReport.irr is None for a 10-calendar-day backtest (start equity 100000.00, end equity 106000.00, no contributions). Cash flows passed to the IRR solver: [[\"2024-01-02\",-100000],[\"2024-01-12\",106000]].",
+            "frame_index": 1,
+            "frame_file": "src/ta/sim/metrics.py",
+            "frame_line": 70,
+            "frame_function": "performance",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout-xirr-short/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 3773,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 4,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 5,
+            "tool": "read_file",
+            "at": "2026-10-12T00:23:38.996Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript + git log"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

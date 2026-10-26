@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that if a security is not found in the store, skipping it with 'continue' is safe, but this silently omits new securities from risk checks.",
+ "why_it_breaks": "When KVXR is proposed for the first time, security_by_ticker returns None, causing _meta_for to skip it and return an empty meta dict for that ticker. The enforce_caps function then receives weights containing KVXR at 95% but meta without KVXR, so it cannot apply the 15% single-name cap to a ticker it has no metadata for, allowing the violation to pass unchecked.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 155,
+   "quote": "+        if security is None:\n+            continue",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/risk_tools.py",
+   "line": 19,
+   "quote": "        if security is None:",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/risk_tools.py",
+   "line": 20,
+   "quote": "            continue",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 155,
+   "quote": "+    meta = _meta_for(ctx, list(weights))\n+    outcome = enforce_caps(weights, meta, ctx.settings.risk)",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 2
+}

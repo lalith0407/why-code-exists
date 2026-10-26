@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that the three case studies would always have distinct outcome texts, so it did not add unique keys to the outcome elements, causing React to warn about duplicate keys when the same outcome text appears across different studies.",
+ "why_it_breaks": "The `field` function renders outcome text (e.g., `[Outcome \u2014 what changed.]`) without a unique `key` prop. Since the three case studies share similar placeholder outcome text, React encounters two children with the same key and logs the warning six times (once per outcome element per study). Adding a unique key (such as the study slug or index) would prevent the duplicate-key warning.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 127,
+   "quote": "export default async function CaseStudyPage({\nL127|   params,\nL127| }: {\nL127|   params: Promise<{ slug: string }>;\nL127|}) {\nL127|   const { slug } = await params;\nL127|   const study = getCaseStudy(slug);\nL127|   if (!study) {\nL127|     notFound();\nL127|   }\nL127| +\nL127| +  return (\nL127| +    <main id=\"main\" className=\"py-12 sm:py-16\">\nL127| +      <Container className=\"max-w-[760px]\">\nL127| +        <Link\nL127| +\nL128| [assistant] (empty message)",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/app/work/[slug]/page.tsx",
+   "line": 62,
+   "quote": "{field(study, study.dates)} \u00b7 {study.number} / 03\n63:           {study.placeholder ? <PlaceholderLabel /> : null}\n64:         </div>\n65: \n66:         <h1 className=\"mt-4 text-3xl font-medium tracking-tight sm:text-4xl\">",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that a non-empty FrameworkPattern string would always be a valid glob pattern to match against asset RelativePaths, without considering that the pattern might be syntactically invalid or empty after trimming, causing the matcher to silently fail or produce no matches.",
+ "why_it_breaks": "When the FrameworkPattern is set but contains an invalid or unmatched glob (e.g., malformed syntax or patterns that never match any asset's RelativePath), CreateFrameworkMatcher returns a non-null matcher. The subsequent code likely uses this matcher to set SourceType=Framework on matching assets. If the matcher fails to match anything (or throws/returns false silently), no assets get SourceType=Framework, so the framework JS files remain with their original SourceType and are not emitted to the _framework output directory, causing the 404.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 141,
+   "quote": "if (string.IsNullOrEmpty(FrameworkPattern))",
+   "verified": false,
+   "reason": "cited line does not exist"
+  },
+  {
+   "kind": "code",
+   "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+   "line": 139,
+   "quote": "private StaticWebAssetGlobMatcher CreateFrameworkMatcher()\n    {\n        if (string.IsNullOrEmpty(FrameworkPattern))\n        {\n            return null;\n        }",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

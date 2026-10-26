@@ -1,0 +1,770 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "ta-caps-unknown-ticker",
+    "timestamp": "2026-10-25T04:09:43.136Z",
+    "severity": "critical",
+    "service": "trading-agent-system",
+    "message": "Hard-cap breach: risk.check_caps was asked for a 95% weight in ZZZZ, a ticker with no row in the securities table, and returned ok=true with weights {\"ZZZZ\":0.95} and violations []; the single-name cap is 0.15.",
+    "frames": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 39,
+        "function": "enforce_caps"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout4-caps-unknown/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "repo"
+    }
+  },
+  "frame": {
+    "file": "src/ta/harness/caps.py",
+    "line": 39,
+    "function": "enforce_caps"
+  },
+  "language": "python",
+  "provenance": {
+    "file": "src/ta/harness/caps.py",
+    "function": "enforce_caps",
+    "frame_line": 39,
+    "later_edits": [
+      {
+        "edit_line": 366,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": "             )\n \n-    sleeve_total = sum(weight for ticker, weight in original.items() if ticker in meta and _in_sleeve(meta[ticker], caps))\n+    sleeve_total = sum(\n+        weight for ticker, weight in original.items() if ticker in meta and _in_sleeve(meta[ticker], caps)\n+    )\n     if sleeve_total > caps.high_risk_sleeve_pct + 1e-9:\n         violations.append(\n             {"
+      },
+      {
+        "edit_line": 8931,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": " \n \n+def equal_weight_targets(\n+    names: list[str],\n+    meta: dict[str, NameMeta],\n+    caps: RiskCaps,\n+) -> dict[str, float]:\n+    \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n+    priced = [name for name in names if name in meta and meta[name].price > 0]\n+    if not priced:\n+        return {}\n+    share = 1.0 / len(priced)\n+    return {name: min(share, _name_cap(meta[name], caps)) for name in priced}\n+"
+      }
+    ],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 108,
+      "tool": "search_replace",
+      "fn_range": [
+        39,
+        134
+      ],
+      "frame_line_in_range": true,
+      "hunk_excerpt": "+\n+\n+def enforce_caps(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> CapOutcome:\n+    \"\"\"Clip weights in place-copies. Cash is the residual and is unconstrained.\"\"\"\n+    original = {ticker: max(0.0, float(weight)) for ticker, weight in weights.items() if weight}\n+    adjusted = dict(original)\n+    violations: list[dict[str, str]] = []\n+\n+    for ticker, weight in original.items():\n+        if ticker not in meta:\n+            continue\n+        limit = _name_cap(meta[ticker], caps)\n+        if weight > limit + 1e-9:\n+            violations.append(\n+                {\n+                    \"code\": \"single_name\",",
+      "fn_text": "def enforce_caps(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> CapOutcome:\n    \"\"\"Clip weights in place-copies. Cash is the residual and is unconstrained.\"\"\"\n    original = {ticker: max(0.0, float(weight)) for ticker, weight in weights.items() if weight}\n    adjusted = dict(original)\n    violations: list[dict[str, str]] = []\n\n    for ticker, weight in original.items():\n        if ticker not in meta:\n            continue\n        limit = _name_cap(meta[ticker], caps)\n        if weight > limit + 1e-9:\n            violations.append(\n                {\n                    \"code\": \"single_name\",\n                    \"ticker\": ticker,\n                    \"detail\": f\"{ticker} weight {weight:.4f} exceeds {limit:.4f}\",\n                }\n            )\n\n    sectors: dict[str, float] = defaultdict(float)\n    for ticker, weight in original.items():\n        if ticker in meta:\n            sectors[meta[ticker].sector] += weight\n    for sector, total in sectors.items():\n        if sector and total > caps.sector_pct + 1e-9:\n            violations.append(\n                {\n                    \"code\": \"sector\",\n                    \"ticker\": sector,\n                    \"detail\": f\"{sector} weight {total:.4f} exceeds {caps.sector_pct:.4f}\",\n                }\n            )\n\n    sleeve_total = sum(weight for ticker, weight in original.items() if ticker in meta and _in_sleeve(meta[ticker], caps))\n    if sleeve_total > caps.high_risk_sleeve_pct + 1e-9:\n        violations.append(\n            {\n                \"code\": \"high_risk_sleeve\",\n                \"ticker\": \"*\",\n                \"detail\": f\"high-risk sleeve {sleeve_total:.4f} exceeds {caps.high_risk_sleeve_pct:.4f}\",\n            }\n        )\n\n    penny_total = sum(\n        weight\n        for ticker, weight in original.items()\n        if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n    )\n    if penny_total > caps.penny_total_pct + 1e-9:\n        violations.append(\n            {\n                \"code\": \"penny_total\",\n                \"ticker\": \"*\",\n                \"detail\": f\"penny sleeve {penny_total:.4f} exceeds {caps.penny_total_pct:.4f}\",\n            }\n        )\n\n    for _ in range(4):\n        for ticker in list(adjusted):\n            if ticker not in meta:\n                continue\n            limit = _name_cap(meta[ticker], caps)\n            if adjusted[ticker] > limit:\n                adjusted[ticker] = limit\n        by_sector: dict[str, list[str]] = defaultdict(list)\n        for ticker in adjusted:\n            if ticker in meta:\n                by_sector[meta[ticker].sector].append(ticker)\n        for tickers in by_sector.values():\n            total = sum(adjusted[ticker] for ticker in tickers)\n            if total > caps.sector_pct + 1e-12:\n                scale = caps.sector_pct / total\n                for ticker in tickers:\n                    adjusted[ticker] *= scale\n        sleeve_names = [ticker for ticker in adjusted if ticker in meta and _in_sleeve(meta[ticker], caps)]\n        total = sum(adjusted[ticker] for ticker in sleeve_names)\n        if total > caps.high_risk_sleeve_pct + 1e-12:\n            scale = caps.high_risk_sleeve_pct / total\n            for ticker in sleeve_names:\n                adjusted[ticker] *= scale\n        penny_names = [\n            ticker for ticker in adjusted if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n        ]\n        total = sum(adjusted[ticker] for ticker in penny_names)\n        if total > caps.penny_total_pct + 1e-12:\n            scale = caps.penny_total_pct / total\n            for ticker in penny_names:\n                adjusted[ticker] *= scale\n        gross = sum(adjusted.values())\n        if gross > 1 + 1e-12:\n            scale = 1 / gross\n            for ticker in adjusted:\n                adjusted[ticker] *= scale\n\n    cleaned = {ticker: round(weight, 6) for ticker, weight in adjusted.items() if weight > 1e-6}\n    return CapOutcome(ok=not violations, weights=cleaned, violations=viola"
+    },
+    "reasoning_before": {
+      "line": 102,
+      "words": 5251,
+      "silent": false,
+      "excerpt": "The next components to build are caps, portfolio, gateway, and tools.\n\nToolContext is being designed as the central context object for tool execution. The build order is portfolio and costs first, then caps, then tools, then gateway. Portfo"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The code silently skips tickers not present in the meta dictionary when checking caps, allowing unchecked weights for unknown tickers to pass through. [fix: Add a validation step at the start of the function to check that all tickers in original are present in meta. If a ticker is missing, raise a ValueError or log a warning and exclude it, rather than using a bare `continue` statement that skips the cap check entirely.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "repo",
+    "root": "/workspace/trading-agent-system"
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T18:59:26.095Z",
+  "workspace": {
+    "root": "/workspace/trading-agent-system",
+    "origin": "repo",
+    "notes": [
+      "python: repo virtualenv /workspace/trading-agent-system/.venv/bin/python"
+    ],
+    "framework_shims": [],
+    "database": null,
+    "python": "/workspace/trading-agent-system/.venv/bin/python"
+  },
+  "code_under_test": {
+    "source": "repo:src/ta/harness/caps.py:L39-136",
+    "text": "def enforce_caps(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> CapOutcome:\n    \"\"\"Clip weights in place-copies. Cash is the residual and is unconstrained.\"\"\"\n    original = {ticker: max(0.0, float(weight)) for ticker, weight in weights.items() if weight}\n    adjusted = dict(original)\n    violations: list[dict[str, str]] = []\n\n    for ticker, weight in original.items():\n        if ticker not in meta:\n            continue\n        limit = _name_cap(meta[ticker], caps)\n        if weight > limit + 1e-9:\n            violations.append(\n                {\n                    \"code\": \"single_name\",\n                    \"ticker\": ticker,\n                    \"detail\": f\"{ticker} weight {weight:.4f} exceeds {limit:.4f}\",\n                }\n            )\n\n    sectors: dict[str, float] = defaultdict(float)\n    for ticker, weight in original.items():\n        if ticker in meta:\n            sectors[meta[ticker].sector] += weight\n    for sector, total in sectors.items():\n        if sector and total > caps.sector_pct + 1e-9:\n            violations.append(\n                {\n                    \"code\": \"sector\",\n                    \"ticker\": sector,\n                    \"detail\": f\"{sector} weight {total:.4f} exceeds {caps.sector_pct:.4f}\",\n                }\n            )\n\n    sleeve_total = sum(\n        weight for ticker, weight in original.items() if ticker in meta and _in_sleeve(meta[ticker], caps)\n    )\n    if sleeve_total > caps.high_risk_sleeve_pct + 1e-9:\n        violations.append(\n            {\n                \"code\": \"high_risk_sleeve\",\n                \"ticker\": \"*\",\n                \"detail\": f\"high-risk sleeve {sleeve_total:.4f} exceeds {caps.high_risk_sleeve_pct:.4f}\",\n            }\n        )\n\n    penny_total = sum(\n        weight\n        for ticker, weight in original.items()\n        if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n    )\n    if penny_total > caps.penny_total_pct + 1e-9:\n        violations.append(\n            {\n                \"code\": \"penny_total\",\n                \"ticker\": \"*\",\n                \"detail\": f\"penny sleeve {penny_total:.4f} exceeds {caps.penny_total_pct:.4f}\",\n            }\n        )\n\n    for _ in range(4):\n        for ticker in list(adjusted):\n            if ticker not in meta:\n                continue\n            limit = _name_cap(meta[ticker], caps)\n            if adjusted[ticker] > limit:\n                adjusted[ticker] = limit\n        by_sector: dict[str, list[str]] = defaultdict(list)\n        for ticker in adjusted:\n            if ticker in meta:\n                by_sector[meta[ticker].sector].append(ticker)\n        for tickers in by_sector.values():\n            total = sum(adjusted[ticker] for ticker in tickers)\n            if total > caps.sector_pct + 1e-12:\n                scale = caps.sector_pct / total\n                for ticker in tickers:\n                    adjusted[ticker] *= scale\n        sleeve_names = [ticker for ticker in adjusted if ticker in meta and _in_sleeve(meta[ticker], caps)]\n        total = sum(adjusted[ticker] for ticker in sleeve_names)\n        if total > caps.high_risk_sleeve_pct + 1e-12:\n            scale = caps.high_risk_sleeve_pct / total\n            for ticker in sleeve_names:\n                adjusted[ticker] *= scale\n        penny_names = [\n            ticker for ticker in adjusted if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n        ]\n        total = sum(adjusted[ticker] for ticker in penny_names)\n        if total > caps.penny_total_pct + 1e-12:\n            scale = caps.penny_total_pct / total\n            for ticker in penny_names:\n                adjusted[ticker] *= scale\n        gross = sum(adjusted.values())\n        if gross > 1 + 1e-12:\n            scale = 1 / gross\n            for ticker in adjusted:\n                adjusted[ticker] *= scale\n\n    cleaned = {ticker: round(weight, 6) for ticker, weight in adjusted.items() if weight > 1e-6}\n    return CapOutcome(ok=not violations, weights=cleaned, violations=violations)"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that tickers not present in the meta dictionary should be ignored and not cause violations, so the code skips any ticker not in meta when checking caps.",
+        "evidence_line": "for ticker, weight in original.items():\n        if ticker not in meta:\n            continue",
+        "explains_error": true
+      }
+    ],
+    "chosen_cause": "The agent assumed that tickers not present in the meta dictionary should be ignored and not cause violations, so the code skips any ticker not in meta when checking caps.",
+    "claim": "The agent assumed that tickers not present in the meta dictionary should be ignored and not cause violations, so the code skips any ticker not in meta when checking caps.",
+    "mechanism": "The code uses a loop over original.items() and includes a conditional `if ticker not in meta: continue` which causes the function to skip checking caps for any ticker missing from the meta dictionary, thus allowing weights for unknown tickers to pass unchecked.",
+    "belief_quote": "if ticker not in meta:\n    continue",
+    "belief_quote_source": "code",
+    "concept": "missing-data-validation",
+    "language_framework": "python",
+    "correct_rule": "The function should validate and enforce caps on all tickers in the weights dictionary, including those not present in the meta dictionary, or explicitly handle unknown tickers as violations.",
+    "cited_lines": [
+      "for ticker, weight in original.items():",
+      "    if ticker not in meta:",
+      "        continue",
+      "    limit = _name_cap(meta[ticker], caps)"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The error is not caused by incorrect rounding or floating point precision because the violation message shows a large difference between weight and cap.",
+        "why_rejected": "The error message explicitly states a single-name cap of 0.15 was breached by a weight of 0.95, which is a large difference, so rounding errors are not the cause."
+      },
+      {
+        "cause": "The error is not caused by incorrect cap values in the RiskCaps configuration because the caps are read correctly and used consistently.",
+        "why_rejected": "The RiskCaps values are defined and used consistently; the error message shows the cap as 0.15, matching the config, so the problem is not with cap values."
+      },
+      {
+        "cause": "The error is not caused by a failure to scale weights after clipping because the violation occurs before scaling and the code does scale weights after clipping.",
+        "why_rejected": "The code includes scaling loops after clipping weights, so failure to scale is unlikely to cause the violation reported."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 45,
+        "text": "for ticker, weight in original.items():"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 59,
+        "text": "for ticker, weight in original.items():"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 86,
+        "text": "for ticker, weight in original.items()"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 46,
+        "text": "if ticker not in meta:"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 100,
+        "text": "if ticker not in meta:"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 47,
+        "text": "continue"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 101,
+        "text": "continue"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 48,
+        "text": "limit = _name_cap(meta[ticker], caps)"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 102,
+        "text": "limit = _name_cap(meta[ticker], caps)"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "missing-data-validation",
+    "hits": []
+  },
+  "tests": {
+    "setup": "m_caps = app(\"src/ta/harness/caps.py\")\nfrom ta.config import RiskCaps\n\n# Prepare meta with a known ticker and a ticker not in meta\nmeta = {\n    \"AAPL\": m_caps.NameMeta(ticker=\"AAPL\", sleeve=\"core\", sector=\"Technology\", price=150.0),\n    # No entry for ZZZZ to simulate missing ticker\n}\n\n# Prepare caps with default values\ncaps = RiskCaps()\n\n# Prepare weights with a ticker not in meta (ZZZZ) with a large weight to trigger violation\nweights = {\"ZZZZ\": 0.95}\n",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: ticker not in meta is ignored and no violation recorded",
+        "role": "reproduction",
+        "asserts": "harm_observed(outcome.ok is True and len(outcome.violations) == 0, \"ticker not in meta ignored and no violation\")",
+        "body": "arranged()\noutcome = m_caps.enforce_caps(weights, meta, caps)\nrecord(\"ok\", outcome.ok)\nrecord(\"weights\", outcome.weights)\nrecord(\"violations\", outcome.violations)\nharm_observed(outcome.ok is True and len(outcome.violations) == 0, \"ticker not in meta ignored and no violation\")"
+      },
+      {
+        "name": "decoy: single-name cap violation is detected for known ticker",
+        "role": "decoy",
+        "asserts": "check(not outcome.ok and any(v[\"code\"] == \"single_name\" for v in outcome.violations), \"single-name cap violation detected\")",
+        "body": "arranged()\nweights2 = {\"AAPL\": 0.5}\noutcome = m_caps.enforce_caps(weights2, meta, caps)\nrecord(\"ok\", outcome.ok)\nrecord(\"violations\", outcome.violations)\ncheck(not outcome.ok and any(v[\"code\"] == \"single_name\" for v in outcome.violations), \"single-name cap violation detected\")"
+      },
+      {
+        "name": "decoy: sector cap violation is detected when sector overweighted",
+        "role": "decoy",
+        "asserts": "check(not outcome.ok and any(v[\"code\"] == \"sector\" for v in outcome.violations), \"sector cap violation detected\")",
+        "body": "arranged()\n# Create multiple tickers in same sector to exceed sector cap\nmeta2 = {\n    \"AAA\": m_caps.NameMeta(ticker=\"AAA\", sleeve=\"core\", sector=\"Tech\", price=100),\n    \"BBB\": m_caps.NameMeta(ticker=\"BBB\", sleeve=\"core\", sector=\"Tech\", price=100),\n}\nweights3 = {\"AAA\": 0.3, \"BBB\": 0.3}  # sector cap default 0.35 exceeded\noutcome = m_caps.enforce_caps(weights3, meta2, caps)\nrecord(\"ok\", outcome.ok)\nrecord(\"violations\", outcome.violations)\ncheck(not outcome.ok and any(v[\"code\"] == \"sector\" for v in outcome.violations), \"sector cap violation detected\")"
+      }
+    ],
+    "trace": {
+      "file": "src/ta/harness/caps.py",
+      "function": "enforce_caps"
+    },
+    "tests_sha256": "c505dc8eb971f22b7812e16d2d0520ed53bba79f4905c9a6a02c57dbe857da00",
+    "frozen_at": "2026-10-25T18:59:47.799Z",
+    "harness_sha256": "11e6fc68286760405ad379283a75328475dd4e5f23abf2d91c89fa721a2021ad",
+    "harness_repairs": [
+      {
+        "setup_changed": true,
+        "stubs": [],
+        "failure": "harness rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      }
+    ],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": []
+    },
+    "reproduction_sha256": "7b671514da51ef988a667297ced544014d94c06354e58039ab589dc6f36d0cac",
+    "setup_probe": [
+      {
+        "ok": false,
+        "error": "rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      },
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"ok\",\"value\":true},{\"name\":\"weights\",\"value\":{\"ZZZZ\":0.95}},{\"name\":\"violations\",\"value\":[]}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "    for ticker, weight in original.items():\n        if ticker not in meta:\n            violations.append(\n                {\n                    \"code\": \"unknown_ticker\",\n                    \"ticker\": ticker,\n                    \"detail\": f\"{ticker} is not recognized in metadata\",\n                }\n            )\n            continue\n        limit = _name_cap(meta[ticker], caps)\n        if weight > limit + 1e-9:\n            violations.append(\n                {\n                    \"code\": \"single_name\",\n                    \"ticker\": ticker,\n                    \"detail\": f\"{ticker} weight {weight:.4f} exceeds {limit:.4f}\",\n                }\n            )",
+    "file": "src/ta/harness/caps.py",
+    "changed_lines": 7,
+    "diff": "     for ticker, weight in original.items():\n         if ticker not in meta:\n+            violations.append(\n+                {\n+                    \"code\": \"unknown_ticker\",\n+                    \"ticker\": ticker,\n+                    \"detail\": f\"{ticker} is not recognized in metadata\",\n+                }\n+            )\n             continue\n         limit = _name_cap(meta[ticker], caps)",
+    "rationale": "The original code skips tickers not present in the meta dictionary, allowing unknown tickers to bypass cap checks and causing the error where a ticker with no metadata is assigned a weight exceeding the single-name cap without violation. The fix is to explicitly add a violation for unknown tickers and continue, ensuring all tickers are validated and violations are reported for unknown tickers.",
+    "attempts": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "changed_lines": 7
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: ticker not in meta is ignored and no violation recorded",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "ok",
+              "value": true
+            },
+            {
+              "name": "weights",
+              "value": {
+                "ZZZZ": 0.95
+              }
+            },
+            {
+              "name": "violations",
+              "value": []
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: single-name cap violation is detected for known ticker",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "ok",
+              "value": false
+            },
+            {
+              "name": "violations",
+              "value": [
+                {
+                  "code": "single_name",
+                  "ticker": "AAPL",
+                  "detail": "AAPL weight 0.5000 exceeds 0.1500"
+                },
+                {
+                  "code": "sector",
+                  "ticker": "Technology",
+                  "detail": "Technology weight 0.5000 exceeds 0.3500"
+                }
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: sector cap violation is detected when sector overweighted",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "ok",
+              "value": false
+            },
+            {
+              "name": "violations",
+              "value": [
+                {
+                  "code": "single_name",
+                  "ticker": "AAA",
+                  "detail": "AAA weight 0.3000 exceeds 0.1500"
+                },
+                {
+                  "code": "single_name",
+                  "ticker": "BBB",
+                  "detail": "BBB weight 0.3000 exceeds 0.1500"
+                },
+                {
+                  "code": "sector",
+                  "ticker": "Tech",
+                  "detail": "Tech weight 0.6000 exceeds 0.3500"
+                }
+              ]
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 643,
+      "tree": "/workspace/trading-agent-system"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: ticker not in meta is ignored and no violation recorded",
+          "role": "reproduction",
+          "pass": false,
+          "error": "AssertionError: harmful outcome not observed: ticker not in meta ignored and no violation | File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-caps-unknown/app-patched/.wce/1630027-mvo6zpaj-b6vtla/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcom",
+          "stack": "Traceback (most recent call last):\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-caps-unknown/app-patched/.wce/1630027-mvo6zpaj-b6vtla/t0.py\", line 52, in <module>\n    asyncio.run(_wce_main())\n    ~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 195, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/base_events.py\", line 725, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-caps-unknown/app-patched/.wce/1630027-mvo6zpaj-b6vtla/t0.py\", line 49, in _wce_main\n    harm_observed(outcome.ok is True and len(outcome.violations) == 0, \"ticker not in meta ignored and no violation\")\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-caps-unknown/app-patched/.wce/1630027-mvo6zpaj-b6vtla/t0.py\", line 10, in harm_observed\n    raise AssertionError(\"harmful outcome not observed: \" + msg)\nAssertionError: harmful outcome not observed: ticker not in meta ignored and no violation\n",
+          "recorded": [
+            {
+              "name": "ok",
+              "value": false
+            },
+            {
+              "name": "weights",
+              "value": {
+                "ZZZZ": 0.95
+              }
+            },
+            {
+              "name": "violations",
+              "value": [
+                {
+                  "code": "unknown_ticker",
+                  "ticker": "ZZZZ",
+                  "detail": "ZZZZ is not recognized in metadata"
+                }
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: single-name cap violation is detected for known ticker",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "ok",
+              "value": false
+            },
+            {
+              "name": "violations",
+              "value": [
+                {
+                  "code": "single_name",
+                  "ticker": "AAPL",
+                  "detail": "AAPL weight 0.5000 exceeds 0.1500"
+                },
+                {
+                  "code": "sector",
+                  "ticker": "Technology",
+                  "detail": "Technology weight 0.5000 exceeds 0.3500"
+                }
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: sector cap violation is detected when sector overweighted",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "ok",
+              "value": false
+            },
+            {
+              "name": "violations",
+              "value": [
+                {
+                  "code": "single_name",
+                  "ticker": "AAA",
+                  "detail": "AAA weight 0.3000 exceeds 0.1500"
+                },
+                {
+                  "code": "single_name",
+                  "ticker": "BBB",
+                  "detail": "BBB weight 0.3000 exceeds 0.1500"
+                },
+                {
+                  "code": "sector",
+                  "ticker": "Tech",
+                  "detail": "Tech weight 0.6000 exceeds 0.3500"
+                }
+              ]
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 629,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-caps-unknown/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "conditional skip for tickers not in meta",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if ticker not in meta:\n            continue",
+        "quote_verified": true
+      },
+      {
+        "element": "loop over original.items()",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "for ticker, weight in original.items():\n        if ticker not in meta:\n            continue\n        limit = _name_cap(meta[ticker], caps)\n        if weight > limit + 1e-9:\n            violations.append(\n                {\n                    \"code\": \"single_name\",\n                    \"ticker\": ticker,\n                    \"detail\": f\"{ticker} weight {weight:.4f} exceeds {limit:.4f}\",\n                }\n            )\n",
+        "quote_verified": true
+      }
+    ],
+    "reason": "2 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 45,
+        "text": "for ticker, weight in original.items():"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 59,
+        "text": "for ticker, weight in original.items():"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 86,
+        "text": "for ticker, weight in original.items()"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 46,
+        "text": "if ticker not in meta:"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 100,
+        "text": "if ticker not in meta:"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 47,
+        "text": "continue"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 101,
+        "text": "continue"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 48,
+        "text": "limit = _name_cap(meta[ticker], caps)"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 102,
+        "text": "limit = _name_cap(meta[ticker], caps)"
+      }
+    ],
+    "patch_file": "src/ta/harness/caps.py",
+    "patch_touched_lines": [
+      46,
+      47
+    ],
+    "overlap": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 45,
+        "text": "for ticker, weight in original.items():"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 46,
+        "text": "if ticker not in meta:"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 47,
+        "text": "continue"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 48,
+        "text": "limit = _name_cap(meta[ticker], caps)"
+      }
+    ],
+    "cause_gate": {
+      "harm_condition": "The test asserts that outcome.ok is True AND len(outcome.violations) == 0, meaning the function must produce no violations and return ok=True when a ticker not in meta is present.",
+      "alternative_defect": "The code fails to validate tickers not present in meta, but instead of skipping them entirely, it should raise an error or reject the weight because an unknown ticker cannot be validated against any cap rules.",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The claimed defect (skipping tickers not in meta) directly causes the test to pass when an unknown ticker is allowed a 95% weight with no violations. The test's check requires that the cited `if ticker not in meta: continue` lines produce the observed ok=True/violations=[] outcome; without them, the function would validate the unknown ticker against caps and likely produce a violation. The production error confirms the real bug: an unknown ticker passed ok=true with a weight that violates the 0.15 cap, which is the opposite of the claimed 'ignore and skip' behaviour."
+    },
+    "rival": {
+      "status": "ran",
+      "proposal": {
+        "rival_cause": "The code adjusts weights in-place within the `adjusted` dictionary after initial construction, but never re-validates the single-name cap against the adjusted values for tickers absent from `meta`, allowing a weight originally exceeding the limit to be silently scaled down without ever recording a violation.",
+        "rival_rule": "After each scaling pass (sector, sleeve, penny), the function must re-check every ticker in `adjusted` against its individual name cap and append a `single_name` violation if the adjusted weight exceeds the limit, regardless of whether the ticker was present in the original `meta` lookup during the first pass.",
+        "rival_location": "for ticker, weight in adjusted.items(): if ticker not in meta: continue; limit = _name_cap(meta[ticker], caps); if weight > limit + 1e-9: violations.append({\"code\": \"single_name\", \"ticker\": ticker, \"detail\": f\"{ticker} weight {weight:.4f} exceeds {limit:.4f}\"})"
+      },
+      "patch": {
+        "file": "src/ta/harness/caps.py",
+        "diff": "             if adjusted[ticker] > limit:\n                 adjusted[ticker] = limit\n+\n+        # After initial clipping, check single-name cap violations\n+        for ticker, weight in adjusted.items():\n+            if ticker in meta:\n+                limit = _name_cap(meta[ticker], caps)\n+                if weight > limit + 1e-9:\n+                    violations.append(\n+                        {\n+                            \"code\": \"single_name\",\n+                            \"ticker\": ticker,\n+                            \"detail\": f\"{ticker} weight {weight:.4f} exceeds {limit:.4f}\",\n+                        }\n+                    )\n+\n         by_sector: dict[str, list[str]] = defaultdict(list)\n         for ticker in adjusted:\n                 for ticker in tickers:\n                     adjusted[ticker] *= scale\n+\n         sleeve_names = [ticker for ticker in adjusted if ticker in meta and _in_sleeve(meta[ticker], caps)]\n         total = sum(adjusted[ticker] for ticker in sleeve_names)\n             for ticker in sleeve_names:\n                 adjusted[ticker] *= scale\n+\n         penny_names = [\n             ticker for ticker in adjusted if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n             for ticker in penny_names:\n                 adjusted[ticker] *= scale\n+\n         gross = sum(adjusted.values())\n         if gross > 1 + 1e-12:\n             for ticker in adjusted:\n                 adjusted[ticker] *= scale\n+\n+        # After all scaling, check single-name cap violations again\n+        for ticker, weight in adjusted.items():\n+            if ticker in meta:\n+                limit = _name_cap(meta[ticker], caps)\n+                if weight > limit + 1e-9:\n+                    violations.append(\n+                        {\n+                            \"code\": \"single_name\",\n+                            \"ticker\": ticker,\n+                            \"detail\": f\"{ticker} weight {weight:.4f} exceeds {limit:.4f}\",\n+                        }\n+                    )",
+        "touched": [
+          104,
+          105,
+          114,
+          115,
+          120,
+          121,
+          128,
+          129,
+          133
+        ],
+        "rationale": "The original code only checked single-name cap violations once before scaling adjustments. However, after scaling by sector, sleeve, and penny constraints, some weights might still exceed their single-name caps. The fix adds checks for single-name cap violations immediately after the initial clipping and again after all scaling passes, ensuring that any violations are recorded regardless of when they occur during the adjustment process. This prevents silent breaches of single-name caps, especially for tickers present in meta, addressing the reported error."
+      },
+      "reproduction_passes": true,
+      "decoys_pass": true,
+      "attempts": []
+    },
+    "claim_causes": [
+      "The code silently skips tickers not present in the meta dictionary when checking caps, allowing unchecked weights for unknown tickers to pass through. [fix: Add a validation step at the start of the function to check that all tickers in original are present in meta. If a ticker is missing, raise a ValueError or log a warning and exclude it, rather than using a bare `continue` statement that skips the cap check entirely.]"
+    ]
+  },
+  "verdict": "proven_false",
+  "reasons": [
+    "reproduction test passes on the original code (bug reproduced on the real code)",
+    "reproduction test fails on the patch (AssertionError: harmful outcome not observed: ticker not in meta ignored and no violation | File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout4-caps-unknown/app-patched/.wce/1630027-mvo6zpaj-b6vtla/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outcom): correcting the belief removes the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function src/ta/harness/caps.py:enforce_caps",
+    "patch changes the cited line(s) src/ta/harness/caps.py:45, src/ta/harness/caps.py:46, src/ta/harness/caps.py:47, src/ta/harness/caps.py:48",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: the rival fix leaves the harm in place (the reproduction discriminates the claimed cause)",
+    "mechanism gate (nemotron): consistent (2 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T19:00:24.118Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T19:00:24.118Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "ta-caps-unknown-ticker",
+            "ts": "2026-10-25T04:09:43.136Z",
+            "severity": "critical",
+            "service": "trading-agent-system",
+            "message": "Hard-cap breach: risk.check_caps was asked for a 95% weight in ZZZZ, a ticker with no row in the securities table, and returned ok=true with weights {\"ZZZZ\":0.95} and violations []; the single-name cap is 0.15.",
+            "frame_index": 0,
+            "frame_file": "src/ta/harness/caps.py",
+            "frame_line": 39,
+            "frame_function": "enforce_caps",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout4-caps-unknown/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 3773,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 4,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 5,
+            "tool": "read_file",
+            "at": "2026-10-12T00:23:38.996Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript + git log"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

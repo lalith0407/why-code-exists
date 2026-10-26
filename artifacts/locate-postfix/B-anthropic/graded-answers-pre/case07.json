@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that `node.this` on an Identifier always returns the unquoted logical name, but sqlglot preserves quote characters in the `this` attribute when the identifier was quoted in the original SQL.",
+ "why_it_breaks": "When the agent typed a table name with quotes like `\"customers\"`, the _name() function returned the string including the quote characters. This mismatched table name failed to match any existing contract (which would have the unquoted name), so the system classified it as safe to run with no conditions, executing the DROP TABLE immediately instead of requiring staged approval.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 76,
+   "quote": "Now let me write the hardened `models.py` with sqlglot-based parsing.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "blast_radius/models.py",
+   "line": 83,
+   "quote": "return node.this",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 78,
+   "quote": "('ALTER TABLE \"orders\" DROP COLUMN \"x\"', \"drop_column\", \"orders.x\"),",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

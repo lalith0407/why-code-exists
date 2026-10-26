@@ -1,0 +1,654 @@
+{
+  "version": "gen-v18-patch-revision",
+  "error": {
+    "id": "br-sqlite-retype-drops-unique",
+    "timestamp": "2026-10-25T03:52:10.514Z",
+    "severity": "error",
+    "service": "blast-radius",
+    "message": "After the guard ran a signed 'ALTER TABLE customers ALTER COLUMN tier SET DATA TYPE BIGINT' on the SQLite backend, customers lost its unique index on email (indexes now: []); a second row with the same email was accepted (2 rows for ana@example.com).",
+    "frames": [
+      {
+        "file": "world/db.py",
+        "line": 101,
+        "function": "_sqlite_script"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout3-retype-unique/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "repo"
+    }
+  },
+  "frame": {
+    "file": "world/db.py",
+    "line": 101,
+    "function": "_sqlite_script"
+  },
+  "language": "python",
+  "provenance": {
+    "file": "world/db.py",
+    "function": "_sqlite_script",
+    "frame_line": 101,
+    "later_edits": [
+      {
+        "edit_line": 164,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": "             self.conn.execute(sql)          # simple-query protocol: multi-statement OK\n         else:\n-            self.conn.executescript(sql)\n+            _sqlite_script(self.conn, sql)\n \n     def columns(self, table: str) -> list[str]:\n         if self.pg:"
+      }
+    ],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 161,
+      "tool": "search_replace",
+      "fn_range": [
+        101,
+        108
+      ],
+      "frame_line_in_range": true,
+      "hunk_excerpt": "+    conn.execute(f'ALTER TABLE \"{tmp}\" RENAME TO \"{table}\"')\n+\n+def _sqlite_script(conn: sqlite3.Connection, sql: str) -> None:\n+    if m := _TRUNCATE_RE.match(sql):\n+        conn.execute(f'DELETE FROM \"{m.group(1)}\"')\n+        return\n+    if m := _RETYPE_RE.match(sql):\n+        _retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3))\n+        return\n+    conn.executescript(sql)\n+\n class DB:\n     def __init__(self, root: Path):\n         self.cfg = config(root)",
+      "fn_text": "def _sqlite_script(conn: sqlite3.Connection, sql: str) -> None:\n    if m := _TRUNCATE_RE.match(sql):\n        conn.execute(f'DELETE FROM \"{m.group(1)}\"')\n        return\n    if m := _RETYPE_RE.match(sql):\n        _retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3))\n        return\n    conn.executescript(sql)"
+    },
+    "reasoning_before": {
+      "line": 159,
+      "words": 32,
+      "silent": false,
+      "excerpt": "I need to add a sqlite compatibility shim that detects canonical TRUNCATE and ALTER COLUMN TYPE statements and translates them for sqlite, using PRAGMA table_info to safely rebuild tables for type changes."
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The code relies on _retype_column_sqlite to preserve indexes, but the helper function does not re-create the unique index on email after the table rebuild. A fix requires adding an explicit re-creation of the unique index on the email column after the _retype_column_sqlite call. [fix: After the _retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3)) call, add: CREATE UNIQUE INDEX IF NOT EXISTS email_unique ON users(email);]",
+          "The helper function _retype_column_sqlite is designed to rebuild a table column type but does not include logic to preserve or re-create indexes. The code's assumption that it handles indexes is unfounded. A fix requires modifying _retype_column_sqlite to preserve indexes during the table rebuild process. [fix: Update _retype_column_sqlite to use a rebuild strategy that preserves existing indexes (e.g., using CREATE TABLE ... AS SELECT with index definitions, or recreating indexes after column type change).]"
+        ]
+      },
+      {
+        "causes": [
+          "The code relies on _retype_column_sqlite to preserve indexes, but the function does not re-create the unique index on email after the table rebuild. The fix requires adding an explicit re-creation of the unique index on the email column after the _retype_column_sqlite function completes. [fix: After the _retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3)) call, add: CREATE UNIQUE INDEX idx_users_email ON users(email);]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "repo",
+    "root": "/workspace/open-agent/heldout3-src/blast-radius-hardened"
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T20:16:30.187Z",
+  "workspace": {
+    "root": "/workspace/open-agent/heldout3-src/blast-radius-hardened",
+    "origin": "repo",
+    "notes": [
+      "python: repo virtualenv /workspace/open-agent/heldout3-src/blast-radius-hardened/.venv/bin/python"
+    ],
+    "framework_shims": [],
+    "database": null,
+    "python": "/workspace/open-agent/heldout3-src/blast-radius-hardened/.venv/bin/python"
+  },
+  "code_under_test": {
+    "source": "repo:world/db.py:L101-108",
+    "text": "def _sqlite_script(conn: sqlite3.Connection, sql: str) -> None:\n    if m := _TRUNCATE_RE.match(sql):\n        conn.execute(f'DELETE FROM \"{m.group(1)}\"')\n        return\n    if m := _RETYPE_RE.match(sql):\n        _retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3))\n        return\n    conn.executescript(sql)"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that the _retype_column_sqlite function preserves all indexes when rebuilding the table, so it calls _retype_column_sqlite without re-creating indexes afterwards, causing the unique index on email to be lost after the ALTER COLUMN TYPE operation.",
+        "evidence_line": "_retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3))",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that SQLite supports ALTER COLUMN TYPE natively without side effects, so it executes the ALTER TABLE statement directly, causing loss of indexes due to SQLite limitations.",
+        "evidence_line": "After the guard ran a signed 'ALTER TABLE customers ALTER COLUMN tier SET DATA TYPE BIGINT' on the SQLite backend, customers lost its unique index on email (indexes now: []); a second row with the same email was accepted (2 rows for ana@example.com).",
+        "explains_error": false
+      },
+      {
+        "cause": "The agent assumed that the _sqlite_script function's fallback conn.executescript(sql) preserves indexes during ALTER COLUMN TYPE statements, but it does not, causing index loss.",
+        "evidence_line": "conn.executescript(sql)",
+        "explains_error": false
+      }
+    ],
+    "chosen_cause": "The agent assumed that the _retype_column_sqlite function preserves all indexes when rebuilding the table, so it calls _retype_column_sqlite without re-creating indexes afterwards, causing the unique index on email to be lost after the ALTER COLUMN TYPE operation.",
+    "claim": "The agent assumed that the _retype_column_sqlite function preserves all indexes when rebuilding the table, so the code calls _retype_column_sqlite without re-creating indexes afterwards, causing the unique index on email to be lost after the ALTER COLUMN TYPE operation.",
+    "mechanism": "The call to _retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3)) in the _sqlite_script function implements the belief that the helper function handles all aspects of the table rebuild, including preserving indexes, but the helper does not re-create the unique index on email, leading to its loss.",
+    "belief_quote": "_retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3))",
+    "belief_quote_source": "code",
+    "concept": "missing-index-preservation-on-table-rebuild",
+    "language_framework": "Python sqlite3",
+    "correct_rule": "When rebuilding a SQLite table to change a column's type, the code must explicitly preserve all indexes, unique constraints, and triggers by re-creating them after the table rebuild.",
+    "cited_lines": [
+      "if m := _RETYPE_RE.match(sql):",
+      "    _retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3))",
+      "    return"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed that SQLite supports ALTER COLUMN TYPE natively without side effects, so it executes the ALTER TABLE statement directly, causing loss of indexes due to SQLite limitations.",
+        "why_rejected": "The code explicitly detects ALTER COLUMN TYPE statements and routes them to _retype_column_sqlite, so it does not execute the ALTER TABLE statement directly on SQLite."
+      },
+      {
+        "cause": "The agent assumed that the _sqlite_script function's fallback conn.executescript(sql) preserves indexes during ALTER COLUMN TYPE statements, but it does not, causing index loss.",
+        "why_rejected": "The fallback executes only if the statement is not TRUNCATE or ALTER COLUMN TYPE; ALTER COLUMN TYPE is handled by _retype_column_sqlite, so the fallback is not responsible for index loss."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "world/db.py",
+        "line": 105,
+        "text": "if m := _RETYPE_RE.match(sql):"
+      },
+      {
+        "file": "world/db.py",
+        "line": 106,
+        "text": "_retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3))"
+      },
+      {
+        "file": "world/db.py",
+        "line": 104,
+        "text": "return"
+      },
+      {
+        "file": "world/db.py",
+        "line": 107,
+        "text": "return"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "missing-index-preservation-on-table-rebuild",
+    "hits": []
+  },
+  "tests": {
+    "setup": "m = app(\"world/db.py\")\nimport sqlite3\nconn = sqlite3.connect(\":memory:\")\n\n# Helper to create a table with a unique index on email\ndef create_customers_with_unique_email(conn):\n    conn.execute(\"CREATE TABLE customers (id INTEGER PRIMARY KEY, email TEXT NOT NULL, tier TEXT);\")\n    conn.execute(\"CREATE UNIQUE INDEX unique_email ON customers(email);\")\n    conn.execute(\"INSERT INTO customers (email, tier) VALUES ('ana@example.com', 'silver');\")\n    conn.commit()\n\n# Helper to count rows with a given email\ndef count_email(conn, email):\n    cur = conn.execute(\"SELECT COUNT(*) FROM customers WHERE email = ?\", (email,))\n    return cur.fetchone()[0]\n\n# Helper to check if unique index exists\ndef unique_index_exists(conn, index_name):\n    cur = conn.execute(\"SELECT name FROM sqlite_master WHERE type='index' AND name=?\", (index_name,))\n    return cur.fetchone() is not None\n\ncreate_customers_with_unique_email(conn)",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: unique index lost after ALTER COLUMN TYPE with _retype_column_sqlite",
+        "role": "reproduction",
+        "asserts": "harm_observed(not unique_index_exists(conn, 'unique_email'), 'unique index on email lost after ALTER COLUMN TYPE')",
+        "body": "arranged()\n# Run the _sqlite_script with an ALTER TABLE ALTER COLUMN SET DATA TYPE command\nsql = 'ALTER TABLE customers ALTER COLUMN tier SET DATA TYPE BIGINT'\nm._sqlite_script(conn, sql)\n\n# Check if the unique index still exists\nindex_exists = unique_index_exists(conn, 'unique_email')\nrecord('unique_index_exists', index_exists)\n\n# Check if duplicate emails can be inserted (should fail if unique index preserved)\nerr = None\ntry:\n    conn.execute(\"INSERT INTO customers (email, tier) VALUES ('ana@example.com', 2);\")\n    conn.commit()\nexcept sqlite3.IntegrityError as e:\n    err = e\nrecord('insert_error', str(err) if err else None)\n\n# Count rows with the duplicate email\ncount = count_email(conn, 'ana@example.com')\nrecord('duplicate_email_count', count)\n\nharm_observed(not index_exists, 'unique index on email lost after ALTER COLUMN TYPE')\n"
+      },
+      {
+        "name": "decoy: _sqlite_script executes TRUNCATE TABLE by deleting all rows",
+        "role": "decoy",
+        "asserts": "check(count == 0, 'table is empty after TRUNCATE TABLE')",
+        "body": "arranged()\n# Insert some rows\nconn.execute(\"INSERT INTO customers (email, tier) VALUES ('bob@example.com', 'gold');\")\nconn.commit()\n\n# Run TRUNCATE TABLE command\nm._sqlite_script(conn, 'TRUNCATE TABLE customers;')\n\n# Check that table is empty\ncount = conn.execute('SELECT COUNT(*) FROM customers').fetchone()[0]\nrecord('count', count)\ncheck(count == 0, 'table is empty after TRUNCATE TABLE')\n"
+      }
+    ],
+    "trace": {
+      "file": "world/db.py",
+      "function": "_sqlite_script"
+    },
+    "tests_sha256": "377edab6b96df5fef307c9e772ceb5f1e3268273aaf86ab6aecc3ca62e29a93f",
+    "frozen_at": "2026-10-25T20:16:54.108Z",
+    "harness_sha256": "6984b4b5d3a1592e4c40079ca732317d6937703c416e6e1cb20c6673f850e964",
+    "harness_repairs": [
+      {
+        "setup_changed": true,
+        "stubs": [],
+        "failure": "harness rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      }
+    ],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": [
+        {
+          "name": "decoy: _sqlite_script executes arbitrary SQL script when no special pattern matched",
+          "replaced": false
+        }
+      ],
+      "rejected": [
+        "decoy: _sqlite_script executes arbitrary SQL script when no special pattern matched"
+      ]
+    },
+    "reproduction_sha256": "4844f80e1bd6d7f00438c066b3523186116d11f08ca785547f19523e3509946f",
+    "setup_probe": [
+      {
+        "ok": false,
+        "error": "rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      },
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"tables\",\"value\":[[\"test_table\"]]}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [
+      {
+        "name": "decoy: _sqlite_script executes arbitrary SQL script when no special pattern matched",
+        "failed_with": "passed on no-op mutant (vacuous)",
+        "replaced": false
+      }
+    ],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "def _retype_column_sqlite(conn: sqlite3.Connection, table: str, column: str, new_type: str) -> None:\n    \"\"\"Rebuild `table` with `column`'s declared type changed to `new_type` (SQLite's documented\n    12-step ALTER TABLE procedure, simplified for tables with no foreign keys/triggers/indexes\n    other than the primary key -- true of every table in this project's mock world).\"\"\"\n    cols = conn.execute(f'PRAGMA table_info(\"{table}\")').fetchall()\n    if not any(c[1] == column for c in cols):\n        raise sqlite3.OperationalError(f\"no such column: {table}.{column}\")\n    names, defs = [], []\n    for _cid, name, typ, notnull, dflt, pk in cols:\n        names.append(f'\"{name}\"')\n        d = f'\"{name}\" {new_type if name == column else (typ or \"\")}'\n        if pk:\n            d += \" PRIMARY KEY\"\n        if notnull:\n            d += \" NOT NULL\"\n        if dflt is not None:\n            d += f\" DEFAULT {dflt}\"\n        defs.append(d)\n    tmp = f\"{table}__br_retype_tmp\"\n\n    # Preserve indexes and triggers\n    indexes = conn.execute(f'PRAGMA index_list(\"{table}\")').fetchall()\n    index_sqls = []\n    for idx in indexes:\n        idx_name = idx[1]\n        sql = conn.execute(f'SELECT sql FROM sqlite_master WHERE type = \"index\" AND name = ?', (idx_name,)).fetchone()[0]\n        if sql:\n            # Replace old table name with tmp table name\n            sql = sql.replace(f'\"{table}\"', f'\"{tmp}\"')\n            index_sqls.append(sql)\n\n    triggers = conn.execute(f'SELECT sql FROM sqlite_master WHERE type = \"trigger\" AND tbl_name = ?', (table,)).fetchall()\n    trigger_sqls = []\n    for (sql,) in triggers:\n        if sql:\n            # Replace old table name with tmp table name\n            trigger_sqls.append(sql.replace(f'\"{table}\"', f'\"{tmp}\"'))\n\n    conn.execute(f'CREATE TABLE \"{tmp}\" ({\", \".join(defs)})')\n    conn.execute(f'INSERT INTO \"{tmp}\" SELECT {\", \".join(names)} FROM \"{table}\"')\n    conn.execute(f'DROP TABLE \"{table}\"')\n    conn.execute(f'ALTER TABLE \"{tmp}\" RENAME TO \"{table}\"')\n\n    for sql in index_sqls:\n        conn.execute(sql)\n    for sql in trigger_sqls:\n        conn.execute(sql)",
+    "file": "world/db.py",
+    "changed_lines": 24,
+    "diff": "         defs.append(d)\n     tmp = f\"{table}__br_retype_tmp\"\n+\n+    # Preserve indexes and triggers\n+    indexes = conn.execute(f'PRAGMA index_list(\"{table}\")').fetchall()\n+    index_sqls = []\n+    for idx in indexes:\n+        idx_name = idx[1]\n+        sql = conn.execute(f'SELECT sql FROM sqlite_master WHERE type = \"index\" AND name = ?', (idx_name,)).fetchone()[0]\n+        if sql:\n+            # Replace old table name with tmp table name\n+            sql = sql.replace(f'\"{table}\"', f'\"{tmp}\"')\n+            index_sqls.append(sql)\n+\n+    triggers = conn.execute(f'SELECT sql FROM sqlite_master WHERE type = \"trigger\" AND tbl_name = ?', (table,)).fetchall()\n+    trigger_sqls = []\n+    for (sql,) in triggers:\n+        if sql:\n+            # Replace old table name with tmp table name\n+            trigger_sqls.append(sql.replace(f'\"{table}\"', f'\"{tmp}\"'))\n+\n     conn.execute(f'CREATE TABLE \"{tmp}\" ({\", \".join(defs)})')\n     conn.execute(f'INSERT INTO \"{tmp}\" SELECT {\", \".join(names)} FROM \"{table}\"')\n     conn.execute(f'DROP TABLE \"{table}\"')\n     conn.execute(f'ALTER TABLE \"{tmp}\" RENAME TO \"{table}\"')\n+\n+    for sql in index_sqls:\n+        conn.execute(sql)\n+    for sql in trigger_sqls:\n+        conn.execute(sql)",
+    "rationale": "The original _retype_column_sqlite function rebuilt the table but did not preserve indexes or triggers, causing unique indexes like on email to be lost after an ALTER COLUMN TYPE operation. The fix is to query and save the CREATE statements for all indexes and triggers on the original table, adjust them to refer to the temporary table during the rebuild, then after renaming the temp table back to the original name, re-create all those indexes and triggers. This preserves unique constraints and other indexes, fixing the data integrity issue.",
+    "attempts": [
+      {
+        "file": "world/db.py",
+        "changed_lines": 24
+      },
+      {
+        "file": "world/db.py",
+        "changed_lines": 24
+      },
+      {
+        "file": "world/db.py",
+        "changed_lines": 24
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: unique index lost after ALTER COLUMN TYPE with _retype_column_sqlite",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "unique_index_exists",
+              "value": false
+            },
+            {
+              "name": "insert_error",
+              "value": null
+            },
+            {
+              "name": "duplicate_email_count",
+              "value": 2
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _sqlite_script executes TRUNCATE TABLE by deleting all rows",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "count",
+              "value": 0
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 146,
+      "tree": "/workspace/open-agent/heldout3-src/blast-radius-hardened"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: unique index lost after ALTER COLUMN TYPE with _retype_column_sqlite",
+          "role": "reproduction",
+          "pass": false,
+          "error": "AssertionError: harmful outcome not observed: unique index on email lost after ALTER COLUMN TYPE | File \"/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout3-retype-unique/app-patched/.wce/1685164-mvo9rcp9-30yqrl/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outco",
+          "stack": "Traceback (most recent call last):\n  File \"/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout3-retype-unique/app-patched/.wce/1685164-mvo9rcp9-30yqrl/t0.py\", line 77, in <module>\n    asyncio.run(_wce_main())\n    ~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 195, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/base_events.py\", line 725, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout3-retype-unique/app-patched/.wce/1685164-mvo9rcp9-30yqrl/t0.py\", line 74, in _wce_main\n    harm_observed(not index_exists, 'unique index on email lost after ALTER COLUMN TYPE')\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout3-retype-unique/app-patched/.wce/1685164-mvo9rcp9-30yqrl/t0.py\", line 10, in harm_observed\n    raise AssertionError(\"harmful outcome not observed: \" + msg)\nAssertionError: harmful outcome not observed: unique index on email lost after ALTER COLUMN TYPE\n",
+          "recorded": [
+            {
+              "name": "unique_index_exists",
+              "value": true
+            },
+            {
+              "name": "insert_error",
+              "value": "UNIQUE constraint failed: customers.email"
+            },
+            {
+              "name": "duplicate_email_count",
+              "value": 1
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _sqlite_script executes TRUNCATE TABLE by deleting all rows",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "count",
+              "value": 0
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 143,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout3-retype-unique/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "mechanism_mismatch",
+    "elements": [
+      {
+        "element": "_retype_column_sqlite call in _sqlite_script",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "conn.executescript(sql)  // simplified - actual code shows the function delegates to _retype_column_sqlite for _RETYPE_RE matches",
+        "quote_verified": false
+      },
+      {
+        "element": "_retype_column_sqlite function body",
+        "claimed": "present",
+        "actual": "absent",
+        "quote": ""
+      },
+      {
+        "element": "index preservation logic after table rebuild",
+        "claimed": "present",
+        "actual": "absent",
+        "quote": ""
+      }
+    ],
+    "reason": "claim says \"_retype_column_sqlite function body\" is present; code: absent",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "world/db.py",
+        "line": 105,
+        "text": "if m := _RETYPE_RE.match(sql):"
+      },
+      {
+        "file": "world/db.py",
+        "line": 106,
+        "text": "_retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3))"
+      },
+      {
+        "file": "world/db.py",
+        "line": 104,
+        "text": "return"
+      },
+      {
+        "file": "world/db.py",
+        "line": 107,
+        "text": "return"
+      }
+    ],
+    "patch_file": "world/db.py",
+    "patch_touched_lines": [
+      95,
+      96,
+      99
+    ],
+    "overlap": [],
+    "cause_gate": {
+      "harm_condition": "The test passes when the unique index on 'unique_email' does NOT exist after running the ALTER TABLE command, meaning the harmful outcome (index loss) is observed.",
+      "alternative_defect": "The _retype_column_sqlite function executes the ALTER COLUMN TYPE command but does not re-create the unique index on the 'email' column after the table rebuild, which is a plausible different defect that could cause the same index loss.",
+      "alternative_also_satisfies_harm": true,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The test checks for the absence of the unique index after the ALTER TABLE operation. The cited lines call _retype_column_sqlite, which the claim says preserves indexes but actually does not re-create them. If the code followed the claim's correct behaviour (re-creating indexes), the test's check for index loss would fail, confirming the cited lines are the cause of the observed harm."
+    },
+    "rival": {
+      "status": "unavailable",
+      "proposal": {
+        "rival_cause": "The code constructs the ALTER TABLE statement with the IF NOT EXISTS clause, which silently skips index preservation when the target column already exists in the new type, causing the unique index to be dropped without re-creation.",
+        "rival_rule": "The ALTER TABLE ... ALTER COLUMN ... SET DATA TYPE command does not automatically preserve or recreate indexes; indexes must be explicitly dropped and re-added after the type change.",
+        "rival_location": "if m := _RETYPE_RE.match(sql):"
+      },
+      "attempts": [
+        "edit changes 22 lines (> 12)",
+        "edit changes 24 lines (> 12)",
+        "edit changes 24 lines (> 12)"
+      ]
+    },
+    "claim_causes": [
+      "The code relies on _retype_column_sqlite to preserve indexes, but the function does not re-create the unique index on email after the table rebuild. The fix requires adding an explicit re-creation of the unique index on the email column after the _retype_column_sqlite function completes. [fix: After the _retype_column_sqlite(conn, m.group(1), m.group(2), m.group(3)) call, add: CREATE UNIQUE INDEX idx_users_email ON users(email);]"
+    ]
+  },
+  "verdict": "patch_not_minimal",
+  "reasons": [
+    "reproduction test passes on the original code (bug reproduced on the real code)",
+    "reproduction test fails on the patch (AssertionError: harmful outcome not observed: unique index on email lost after ALTER COLUMN TYPE | File \"/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout3-retype-unique/app-patched/.wce/1685164-mvo9rcp9-30yqrl/t0.py\", line 10, in harm_observed     raise AssertionError(\"harmful outco): correcting the belief removes the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function world/db.py:_sqlite_script",
+    "patch changes 24 lines (> 12)",
+    "patch changes world/db.py lines 95,96,99 but the claim cites world/db.py:105, world/db.py:106, world/db.py:104, world/db.py:107: the fix is not at the claimed cause",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant (vacuous decoy(s) decoy: _sqlite_script executes arbitrary SQL script when no special pattern matched rejected after repair failed)",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: not checked (unavailable)",
+    "mechanism gate (nemotron): mechanism_mismatch (claim says \"_retype_column_sqlite function body\" is present; code: absent)"
+  ],
+  "finished_at": "2026-10-25T20:17:47.615Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T20:17:47.615Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "br-sqlite-retype-drops-unique",
+            "ts": "2026-10-25T03:52:10.514Z",
+            "severity": "error",
+            "service": "blast-radius",
+            "message": "After the guard ran a signed 'ALTER TABLE customers ALTER COLUMN tier SET DATA TYPE BIGINT' on the SQLite backend, customers lost its unique index on email (indexes now: []); a second row with the same email was accepted (2 rows for ana@example.com).",
+            "frame_index": 0,
+            "frame_file": "world/db.py",
+            "frame_line": 101,
+            "frame_function": "_sqlite_script",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout3-retype-unique/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 43,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "/home/ubuntu/.cursor/projects/workspace/agent-tools/b72710a0-caf5-4f80-a92f-210a4805f66f.txt",
+            "edit_line": 23,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "/home/ubuntu/.cursor/projects/workspace/agent-tools/b72710a0-caf5-4f80-a92f-210a4805f66f.txt",
+            "edit_line": 24,
+            "tool": "read_file",
+            "at": "2026-10-22T19:28:30.495Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript + git log"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

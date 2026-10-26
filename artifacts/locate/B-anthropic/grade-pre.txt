@@ -1,0 +1,18 @@
+case      grounded  quotes_ok  transcript  code  proximity errors
+case01    False     False      False       False False     missing answer file: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/graded-answers-pre/case01.json
+case02    True      True       True        True  True      
+case03    True      True       True        True  True      
+case04    False     True       True        True  False     
+case05    False     False      True        True  True      
+case06    True      True       True        True  True      
+case07    True      True       True        True  True      
+case08    False     False      True        True  False     
+case09    True      True       True        True  True      
+case10    False     True       True        True  False     
+case11    False     False      False       True  False     
+case12    False     True       True        True  False     
+case13    False     True       True        True  False     
+case14    True      True       True        True  True      
+case15    False     False      True        True  True      
+
+Grounded (mechanical): 6/15

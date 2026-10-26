@@ -1,0 +1,24 @@
+{
+ "overlooked_assumption": "The agent assumed that a drawdown halt (-20% threshold) would block all new trades, but the code only blocks trades that would *drop a holding* requiring a new fact; a new buy of a name not currently held can bypass the halt gate if it passes quality scoring.",
+ "why_it_breaks": "The symptom shows a trade filled during a -30% drawdown when the halt threshold is -20%. The code on line 184 explicitly states that a trade that would *drop a holding* must cite a new fact to be blocked, but it does not say that a new buy of an unheld name is blocked by drawdown. The agent's edit replaced the original text that likely had a broader halt guard, but the new version only blocks trades that reduce existing holdings. Since FALN was a new buy (not an existing holding), the drawdown review gate did not activate, and the order passed through the quality-score clearance (`high_conviction_quality` 0.05) and was filled without the halt rejection.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "README.md",
+   "line": 184,
+   "quote": "A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through.",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 7051,
+   "quote": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

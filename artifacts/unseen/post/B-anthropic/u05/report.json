@@ -1,0 +1,634 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u05",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+   "line": 1264
+  },
+  "asked": {
+   "text": "(PR-derived transcript: the original request is not public.)",
+   "citation": "u05.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 60
+  },
+  "understood": {
+   "text": "Avoid false circular dependency edges for unchanged unique index values during update batching\n\nThe reported failure is a false circular-dependency detection when saving multiple entities that use a unique, store-generated clustering key alongside a composite key. In this shape, update command ordering treated unchanged unique-index values as conflicting dependencies and produced a cycle.\n\n- **Update pipeline: narrow unique-index edge creation**\n  - In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.\n  - This preserves ordering for real unique-value transitions while removing synthetic cycles from placeholder/store-generated values.\n\n- **Regression coverage for composite key + generated unique index**\n  - Added a targeted test in `CommandBatchPreparerTest` that models:\n    - composite PK (`TestId`, enum category),\n    - store-generated unique clustering key,\n    - multiple modified rows where clustering key remains unchanged.\n  - The scenario now batches without triggering circular dependency detection.\n\n- **Illustrative change**\n  ```csharp\n  // Before adding unique-index dependency edges for Modified commands:\n  var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n  var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n\n  if (Equals(originalValue, currentValue))\n  {\n      continue; // unchanged unique index value: no ordering edge\n  }\n  ```",
+   "citation": "u05.jsonl#L2 (assistant, 187 words, 1 line(s) before the edit at L3)",
+   "valid": true,
+   "full_length": 1583
+  },
+  "happened": {
+   "text": "Bug report: reassigning a 1:1 relationship that has a unique index (foreign key on the dependent side, shadow property) to an entity that is already attached, then calling DbContext.SaveChangesAsync(), throws a unique constraint violation: duplicate key value violates unique constraint \"IX_...\". It works in EF Core 9, EF Core 10 and 11.0.0-preview.6, and fails in 11.0.0-preview.7. Seen on PostgreSQL (Npgsql), SQL Server and SQLite.\n\n  at ? (src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs:1264)\n  1264: var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n\nWritten by transcript edit L3 (apply_patch):\n                         continue;\n                     }\n \n-                    var (value, hasNullValue) = ((TableIndex)index).GetRowIndexValueFactory()\n-                        .CreateEquatableIndexValue(command);\n+                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n+                    var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n+\n+                    if (command.EntityState == EntityState.Modified)\n+                    {\n+                        var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n+                        if (Equals(originalValue, value))",
+   "citation": "error u05 frame src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs:1264; u05.jsonl#L3",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Bug report: reassigning a 1:1 relationship that has a unique index (foreign key on the dependent side, shadow property) to an entity that is already attached, then calling DbContext.SaveChangesAsync(), throws a unique constraint violation: duplicate key value violates unique constraint \"IX_...\". It works in EF Core 9, EF Core 10 and 11.0.0-preview.6, and fails in 11.0.0-preview.7. Seen on PostgreSQL (Npgsql), SQL Server and SQLite.\n",
+  "terms": [
+   "ix_...",
+   "bug report",
+   "it works in ef",
+   "ef core",
+   "seen on postgresql",
+   "sql server and sqlite",
+   "1",
+   "9",
+   "10",
+   "11.0",
+   "0",
+   "6",
+   "7",
+   "db",
+   "context",
+   "save",
+   "changes",
+   "async",
+   "postgre",
+   "sql",
+   "report",
+   "reassigning",
+   "relationship",
+   "unique",
+   "index",
+   "foreign",
+   "dependent",
+   "side",
+   "shadow",
+   "property",
+   "entity",
+   "already",
+   "attached",
+   "calling",
+   "throws",
+   "constraint",
+   "violation",
+   "duplicate",
+   "value",
+   "violates",
+   "works",
+   "core",
+   "preview",
+   "fails",
+   "seen",
+   "npgsql",
+   "server",
+   "lite"
+  ],
+  "layer1": {
+   "symbols_indexed": 124,
+   "edited_hunks_indexed": 5,
+   "candidates": [
+    {
+     "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+     "line": 1264,
+     "end_line": 1246,
+     "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();",
+     "score": 1.4275,
+     "matched_terms": [
+      "index",
+      "entity",
+      "value"
+     ],
+     "edit_line": 3,
+     "tool": "apply_patch",
+     "hunk_id": "L3#1",
+     "snippet": "1236:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1237:                     var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1238: \n1239:                     if (command.EntityState == EntityState.Modified)\n1240:                     {\n1241:                         var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1242:                         if (Equals(originalValue, value))\n1243:                         {\n1244:                             continue;\n1245:                         }",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 1236,
+     "hunk_start": 1236,
+     "context_lines": [
+      {
+       "line": 1236,
+       "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();"
+      },
+      {
+       "line": 1237,
+       "text": "                    var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+     "line": 1172,
+     "end_line": 1155,
+     "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();",
+     "score": 1.4265,
+     "matched_terms": [
+      "index",
+      "entity",
+      "value"
+     ],
+     "edit_line": 3,
+     "tool": "apply_patch",
+     "hunk_id": "L3#0",
+     "snippet": "1144:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1145:                     var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1146: \n1147:                     if (command.EntityState == EntityState.Modified)\n1148:                     {\n1149:                         var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1150:                         if (Equals(value, currentValue))\n1151:                         {\n1152:                             continue;\n1153:                         }",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 1144,
+     "hunk_start": 1144,
+     "context_lines": [
+      {
+       "line": 1144,
+       "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();"
+      },
+      {
+       "line": 1145,
+       "text": "                    var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+     "line": 565,
+     "end_line": 601,
+     "text": "        var configuration = CreateContextServices(model);",
+     "score": 0.4028,
+     "matched_terms": [
+      "context",
+      "unique",
+      "index",
+      "property",
+      "entity",
+      "value"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#2",
+     "snippet": "561:     [Fact]\n562:     public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\n563:     {\n564:         var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\n565:         var configuration = CreateContextServices(model);\n566:         var stateManager = configuration.GetRequiredService<IStateManager>();\n567: \n568:         var testId = Guid.NewGuid();\n569: \n570:         var modifiedBasic = stateManager.GetOrCreateEntry(",
+     "method": "deterministic_bm25",
+     "role": "test",
+     "role_weight": 0.1,
+     "edit_time_line": 565,
+     "hunk_start": 561,
+     "context_lines": [
+      {
+       "line": 564,
+       "text": "        var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();"
+      },
+      {
+       "line": 565,
+       "text": "        var configuration = CreateContextServices(model);"
+      },
+      {
+       "line": 566,
+       "text": "        var stateManager = configuration.GetRequiredService<IStateManager>();"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+     "line": 1181,
+     "end_line": 1216,
+     "text": "    private static IModel CreateCompositeKeyModelWithGeneratedUniqueIndex()",
+     "score": 0.3815,
+     "matched_terms": [
+      "unique",
+      "index",
+      "property",
+      "entity",
+      "value"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#3",
+     "snippet": "1202:     private static IModel CreateCompositeKeyModelWithGeneratedUniqueIndex()\n1203:     {\n1204:         var modelBuilder = FakeRelationalTestHelpers.Instance.CreateConventionBuilder();\n1205: \n1206:         modelBuilder.Entity<CompositeKeyEntity>(b =>\n1207:         {\n1208:             b.HasKey(e => new { e.TestId, e.Category });\n1209:             b.Property(e => e.ClusteringKey).ValueGeneratedOnAdd();\n1210:             b.Property(e => e.Payload);\n1211:             b.HasIndex(e => e.ClusteringKey).IsUnique();",
+     "method": "deterministic_bm25",
+     "role": "test",
+     "role_weight": 0.1,
+     "edit_time_line": 1202,
+     "hunk_start": 1202,
+     "context_lines": [
+      {
+       "line": 1202,
+       "text": "    private static IModel CreateCompositeKeyModelWithGeneratedUniqueIndex()"
+      },
+      {
+       "line": 1203,
+       "text": "    {"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+     "line": 1215,
+     "end_line": 1250,
+     "text": "    private class CompositeKeyEntity",
+     "score": 0.0116,
+     "matched_terms": [
+      "entity"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#4",
+     "snippet": "1236:     private class CompositeKeyEntity\n1237:     {\n1238:         public Guid TestId { get; set; }\n1239:         public CompositeCategory Category { get; set; }\n1240:         public int ClusteringKey { get; set; }\n1241:         public string Payload { get; set; }\n1242:     }\n1243: \n1244:     private enum CompositeCategory\n1245:     {",
+     "method": "deterministic_bm25",
+     "role": "test",
+     "role_weight": 0.1,
+     "edit_time_line": 1236,
+     "hunk_start": 1236,
+     "context_lines": [
+      {
+       "line": 1236,
+       "text": "    private class CompositeKeyEntity"
+      },
+      {
+       "line": 1237,
+       "text": "    {"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1264,
+    "end_line": 1246,
+    "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();",
+    "score": 1.4275,
+    "matched_terms": [
+     "index",
+     "entity",
+     "value"
+    ],
+    "edit_line": 3,
+    "tool": "apply_patch",
+    "hunk_id": "L3#1",
+    "snippet": "1236:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1237:                     var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1238: \n1239:                     if (command.EntityState == EntityState.Modified)\n1240:                     {\n1241:                         var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1242:                         if (Equals(originalValue, value))\n1243:                         {\n1244:                             continue;\n1245:                         }",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 1236,
+    "hunk_start": 1236,
+    "context_lines": [
+     {
+      "line": 1236,
+      "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();"
+     },
+     {
+      "line": 1237,
+      "text": "                    var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1172,
+    "end_line": 1155,
+    "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();",
+    "score": 1.4265,
+    "matched_terms": [
+     "index",
+     "entity",
+     "value"
+    ],
+    "edit_line": 3,
+    "tool": "apply_patch",
+    "hunk_id": "L3#0",
+    "snippet": "1144:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1145:                     var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1146: \n1147:                     if (command.EntityState == EntityState.Modified)\n1148:                     {\n1149:                         var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1150:                         if (Equals(value, currentValue))\n1151:                         {\n1152:                             continue;\n1153:                         }",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 1144,
+    "hunk_start": 1144,
+    "context_lines": [
+     {
+      "line": 1144,
+      "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();"
+     },
+     {
+      "line": 1145,
+      "text": "                    var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+    "line": 565,
+    "end_line": 601,
+    "text": "        var configuration = CreateContextServices(model);",
+    "score": 0.4028,
+    "matched_terms": [
+     "context",
+     "unique",
+     "index",
+     "property",
+     "entity",
+     "value"
+    ],
+    "edit_line": 4,
+    "tool": "apply_patch",
+    "hunk_id": "L4#2",
+    "snippet": "561:     [Fact]\n562:     public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\n563:     {\n564:         var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\n565:         var configuration = CreateContextServices(model);\n566:         var stateManager = configuration.GetRequiredService<IStateManager>();\n567: \n568:         var testId = Guid.NewGuid();\n569: \n570:         var modifiedBasic = stateManager.GetOrCreateEntry(",
+    "method": "deterministic_bm25",
+    "role": "test",
+    "role_weight": 0.1,
+    "edit_time_line": 565,
+    "hunk_start": 561,
+    "context_lines": [
+     {
+      "line": 564,
+      "text": "        var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();"
+     },
+     {
+      "line": 565,
+      "text": "        var configuration = CreateContextServices(model);"
+     },
+     {
+      "line": 566,
+      "text": "        var stateManager = configuration.GetRequiredService<IStateManager>();"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+   "line": 1264,
+   "end_line": 1246,
+   "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();",
+   "score": 1.4275,
+   "matched_terms": [
+    "index",
+    "entity",
+    "value"
+   ],
+   "edit_line": 3,
+   "tool": "apply_patch",
+   "hunk_id": "L3#1",
+   "snippet": "1236:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1237:                     var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1238: \n1239:                     if (command.EntityState == EntityState.Modified)\n1240:                     {\n1241:                         var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1242:                         if (Equals(originalValue, value))\n1243:                         {\n1244:                             continue;\n1245:                         }",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 1236,
+   "hunk_start": 1236,
+   "context_lines": [
+    {
+     "line": 1236,
+     "text": "                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();"
+    },
+    {
+     "line": 1237,
+     "text": "                    var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);"
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "unique.*constraint|IX_.*constraint"
+     },
+     "result": "no matches"
+    },
+    {
+     "step": 2,
+     "action": "list_edits",
+     "args": {},
+     "result": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs:1168-1181 (edit at L3, apply_patch)\n  1168:                     {\n  1170:                     }\n  1172:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n  1173:                     var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n\nsrc/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs:1225-1270 (edit at L3, apply_patch)\n  1225:                     {\n  1228:                             continue;\n  1235:                         {\n  1238:                         }\n\ntest/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs:561-600 (edit at L4, apply_patch)\n  561:     [Fact]\n  562:     public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\n  563:     {\n  564:         var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\n\ntest/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs:1181-1213 (edit at L4, apply_patch)\n  1181:     private static IModel CreateCompositeKeyModelWithGeneratedUniqueIndex()\n  1183:         var modelBuilder = FakeRelationalTestHelpers.Instance.CreateConventionBuilder();\n  1185:         modelBuilder.Entity<CompositeKeyEntity>(b =>\n  1186:         {\n\ntest/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs:1215-1261 (edit at L4, apply_patch)\n  1215:     private class CompositeKeyEntity\n  1217:         public Guid TestId { get; set; }\n  1218:         public CompositeCategory Category { get; set; }\n  1219:         public int ClusteringKey { get; set; }"
+    },
+    {
+     "step": 3,
+     "action": "read",
+     "args": {
+      "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+      "start": 1168,
+      "end": 1181
+     },
+     "result": "1168:                     {\n1169:                         continue;\n1170:                     }\n1171: \n1172:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1173:                     var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1174: \n1175:                     if (command.EntityState == EntityState.Modified)\n1176:                     {\n1177:                         var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1178:                         if (Equals(value, currentValue))\n1179:                         {\n1180:                             continue;\n1181:                         }"
+    },
+    {
+     "step": 4,
+     "action": "read",
+     "args": {
+      "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+      "start": 1150,
+      "end": 1200
+     },
+     "result": "1150: \n1151:     private void AddUniqueValueEdges()\n1152:     {\n1153:         Dictionary<object, List<IReadOnlyModificationCommand>>? indexPredecessorsMap = null;\n1154:         var keyPredecessorsMap = new Dictionary<object, List<IReadOnlyModificationCommand>>();\n1155:         foreach (var command in _modificationCommandGraph.Vertices)\n1156:         {\n1157:             if (command.EntityState is EntityState.Added)\n1158:             {\n1159:                 continue;\n1160:             }\n1161: \n1162:             if (command.Table != null)\n1163:             {\n1164:                 foreach (var index in command.Table.Indexes)\n1165:                 {\n1166:                     if (!index.IsUnique\n1167:                         || !IsModified(index.Columns, command))\n1168:                     {\n1169:                         continue;\n1170:                     }\n1171: \n1172:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1173:                     var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1174: \n1175:                     if (command.EntityState == EntityState.Modified)\n1176:                     {\n1177:                         var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1178:                         if (Equals(value, currentValue))\n1179:                         {\n1180:                             continue;\n1181:                         }\n1182:                     }\n1183: \n1184:                     if (value != null)\n1185:                     {\n1186:                         indexPredecessorsMap ??= [];\n1187:                         if (!indexPredecessorsMap.TryGetValue(value, out var predecessorCommands))\n1188:                         {\n1189:                             predecessorCommands = [];\n1190:                             indexPredecessorsMap.Add(value, predecessorCommands);\n1191:                         }\n1192: \n1193:                         predecessorCommands.Add(command);\n1194:                     }\n1195:                 }\n1196:             }\n1197: \n1198:             if (command.EntityState is not EntityState.Deleted)\n1199:             {\n1200:                 continue;"
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+      "start": 1200,
+      "end": 1270
+     },
+     "result": "1200:                 continue;\n1201:             }\n1202: \n1203:             if (command.Table != null)\n1204:             {\n1205:                 foreach (var key in command.Table.UniqueConstraints)\n1206:                 {\n1207:                     var keyValue = ((UniqueConstraint)key).GetRowKeyValueFactory()\n1208:                         .CreateEquatableKeyValue(command, fromOriginalValues: true);\n1209:                     Check.DebugAssert(keyValue != null, \"null keyValue\");\n1210:                     if (!keyPredecessorsMap.TryGetValue((key, keyValue), out var predecessorCommands))\n1211:                     {\n1212:                         predecessorCommands = [];\n1213:                         keyPredecessorsMap.Add((key, keyValue), predecessorCommands);\n1214:                     }\n1215: \n1216:                     predecessorCommands.Add(command);\n1217:                 }\n1218:             }\n1219:             else\n1220:             {\n1221:                 for (var entryIndex = 0; entryIndex < command.Entries.Count; entryIndex++)\n1222:                 {\n1223:                     var entry = command.Entries[entryIndex];\n1224:                     foreach (var key in entry.EntityType.GetKeys())\n1225:                     {\n1226:                         if (!CanCreateDependency(key, command))\n1227:                         {\n1228:                             continue;\n1229:                         }\n1230: \n1231:                         var keyValue = key.GetPrincipalKeyValueFactory()\n1232:                             .CreateEquatableKey(entry, fromOriginalValues: true);\n1233:                         Check.DebugAssert(keyValue != null, \"null keyValue\");\n1234:                         if (!keyPredecessorsMap.TryGetValue((key, keyValue), out var predecessorCommands))\n1235:                         {\n1236:                             predecessorCommands = [];\n1237:                             keyPredecessorsMap.Add((key, keyValue), predecessorCommands);\n1238:                         }\n1239: \n1240:                         predecessorCommands.Add(command);\n1241:                     }\n1242:                 }\n1243:             }\n1244:         }\n1245: \n1246:         if (indexPredecessorsMap != null)\n1247:         {\n1248:             foreach (var command in _modificationCommandGraph.Vertices)\n1249:             {\n1250:                 if (command.EntityState is EntityState.Deleted\n1251:                     || command.Table == null)\n1252:                 {\n1253:                     continue;\n1254:                 }\n1255: \n1256:                 foreach (var index in command.Table.Indexes)\n1257:                 {\n1258:                     if (!index.IsUnique\n1259:                         || !IsModified(index.Columns, command))\n1260:                     {\n1261:                         continue;\n1262:                     }\n1263: \n1264:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1265:                     var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1266: \n1267:                     if (command.EntityState == EntityState.Modified)\n1268:                     {\n1269:                         var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1270:                         if (Equals(originalValue, value))"
+    },
+    {
+     "step": 6,
+     "action": "read",
+     "args": {
+      "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+      "start": 1270,
+      "end": 1290
+     },
+     "result": "1270:                         if (Equals(originalValue, value))\n1271:                         {\n1272:                             continue;\n1273:                         }\n1274:                     }\n1275: \n1276:                     if (value != null)\n1277:                     {\n1278:                         AddMatchingPredecessorEdge(\n1279:                             indexPredecessorsMap, value, command,\n1280:                             new CommandDependency(index, Breakable: index.Filter != null || hasNullValue));\n1281:                     }\n1282:                 }\n1283:             }\n1284:         }\n1285: \n1286:         if (keyPredecessorsMap != null)\n1287:         {\n1288:             foreach (var command in _modificationCommandGraph.Vertices)\n1289:             {\n1290:                 if (command.EntityState is not EntityState.Added)"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step:invalid_json_retry",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 15716,
+   "truncated": false,
+   "dropped_sections": []
+  },
+  "prompt_user": {
+   "symptom": "Bug report: reassigning a 1:1 relationship that has a unique index (foreign key on the dependent side, shadow property) to an entity that is already attached, then calling DbContext.SaveChangesAsync(), throws a unique constraint violation: duplicate key value violates unique constraint \"IX_...\". It works in EF Core 9, EF Core 10 and 11.0.0-preview.6, and fails in 11.0.0-preview.7. Seen on PostgreSQL (Npgsql), SQL Server and SQLite.",
+   "edit": {
+    "file": "EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1264,
+    "hunk": "                         continue;\n                     }\n \n-                    var (value, hasNullValue) = ((TableIndex)index).GetRowIndexValueFactory()\n-                        .CreateEquatableIndexValue(command);\n+                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n+                    var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n+\n+                    if (command.EntityState == EntityState.Modified)\n+                    {\n+                        var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n+                        if (Equals(originalValue, value))"
+   },
+   "code_window": "1244:         }\n1245: \n1246:         if (indexPredecessorsMap != null)\n1247:         {\n1248:             foreach (var command in _modificationCommandGraph.Vertices)\n1249:             {\n1250:                 if (command.EntityState is EntityState.Deleted\n1251:                     || command.Table == null)\n1252:                 {\n1253:                     continue;\n1254:                 }\n1255: \n1256:                 foreach (var index in command.Table.Indexes)\n1257:                 {\n1258:                     if (!index.IsUnique\n1259:                         || !IsModified(index.Columns, command))\n1260:                     {\n1261:                         continue;\n1262:                     }\n1263: \n1264:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1265:                     var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1266: \n1267:                     if (command.EntityState == EntityState.Modified)\n1268:                     {\n1269:                         var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1270:                         if (Equals(originalValue, value))\n1271:                         {\n1272:                             continue;\n1273:                         }\n1274:                     }\n1275: \n1276:                     if (value != null)\n1277:                     {\n1278:                         AddMatchingPredecessorEdge(\n1279:                             indexPredecessorsMap, value, command,\n1280:                             new CommandDependency(index, Breakable: index.Filter != null || hasNullValue));\n1281:                     }\n1282:                 }\n1283:             }\n1284:         }",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+     "line": 1264,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 1.4275,
+     "method": "deterministic_bm25",
+     "text": "1259:                         || !IsModified(index.Columns, command))\n1260:                     {\n1261:                         continue;\n1262:                     }\n1263: \n1264:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1265:                     var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n1266: \n1267:                     if (command.EntityState == EntityState.Modified)\n1268:                     {\n1269:                         var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);"
+    },
+    {
+     "label": "candidate 2",
+     "file": "EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+     "line": 1172,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 1.4265,
+     "method": "deterministic_bm25",
+     "text": "1167:                         || !IsModified(index.Columns, command))\n1168:                     {\n1169:                         continue;\n1170:                     }\n1171: \n1172:                     var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n1173:                     var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n1174: \n1175:                     if (command.EntityState == EntityState.Modified)\n1176:                     {\n1177:                         var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);"
+    },
+    {
+     "label": "candidate 3",
+     "file": "test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs",
+     "line": 565,
+     "role": "test",
+     "role_weight": 0.1,
+     "anchor": "exact",
+     "score": 0.4028,
+     "method": "deterministic_bm25",
+     "text": "560: \n561:     [Fact]\n562:     public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\n563:     {\n564:         var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\n565:         var configuration = CreateContextServices(model);\n566:         var stateManager = configuration.GetRequiredService<IStateManager>();\n567: \n568:         var testId = Guid.NewGuid();\n569: \n570:         var modifiedBasic = stateManager.GetOrCreateEntry("
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "(PR-derived transcript: the original request is not public.)",
+    "understood": "Avoid false circular dependency edges for unchanged unique index values during update batching\n\nThe reported failure is a false circular-dependency detection when saving multiple entities that use a unique, store-generated clustering key alongside a composite key. In this shape, update command ordering treated unchanged unique-index values as conflicting dependencies and produced a cycle.\n\n- **Update pipeline: narrow unique-index edge creation**\n  - In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.\n  - This preserves ordering for real unique-value transitions while removing synthetic cycles from placeholder/store-generated values.\n\n- **Regression coverage for composite key + generated unique index**\n  - Added a targeted test in `CommandBatchPreparerTest` that models:\n    - composite PK (`TestId`, enum category),\n    - store-generated unique clustering key,\n    - multiple modified rows where clustering key remains unchanged.\n  - The scenario now batches without triggering circular dependency detection.\n\n- **Illustrative change**\n  ```csharp\n  // Before adding unique-index dependency edges for Modified commands:\n  var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n  var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n\n  if (Equals(originalValue, currentValue))\n  {\n      continue; // unchanged unique index value: no ordering edge\n  }\n  ```",
+    "happened": "Bug report: reassigning a 1:1 relationship that has a unique index (foreign key on the dependent side, shadow property) to an entity that is already attached, then calling DbContext.SaveChangesAsync(), throws a unique constraint violation: duplicate key value violates unique constraint \"IX_...\". It works in EF Core 9, EF Core 10 and 11.0.0-preview.6, and fails in 11.0.0-preview.7. Seen on PostgreSQL (Npgsql), SQL Server and SQLite.\n\n  at ? (src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs:1264)\n  1264: var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n\nWritten by transcript edit L3 (apply_patch):\n                         continue;\n                     }\n \n-                    var (value, hasNullValue) = ((TableIndex)index).GetRowIndexValueFactory()\n-                        .CreateEquatableIndexValue(command);\n+                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\n+                    var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);\n+\n+                    if (command.EntityState == EntityState.Modified)\n+                    {\n+                        var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n+                        if (Equals(originalValue, value))"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L3)",
+     "text": "L1 [user] (PR-derived transcript: the original request is not public.)\nL2 [assistant] Avoid false circular dependency edges for unchanged unique index values during update batching\nL2| \nL2| The reported failure is a false circular-dependency detection when saving multiple entities that use a unique, store-generated clustering key alongside a composite key. In this shape, update command ordering treated unchanged unique-index values as conflicting dependencies and produced a cycle.\nL2| \nL2| - **Update pipeline: narrow unique-index edge creation**\nL2|   - In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.\nL2|   - This preserves ordering for real unique-value transitions while removing synthetic cycles from placeholder/store-generated values.\nL2| \nL2| - **Regression coverage for composite key + generated unique index**\nL2|   - Added a targeted test in `CommandBatchPreparerTest` that models:\nL2|     - composite PK (`TestId`, enum category),\nL2|     - store-generated unique clustering key,\nL2|     - multiple modified rows where clustering key remains unchanged.\nL2|   - The scenario now batches without triggering circular dependency detection.\nL2| \nL2| - **Illustrative change**\nL2|   ```csharp\nL2|   // Before adding unique-index dependency edges for Modified commands:\nL2|   var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\nL2|   var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\nL2| \nL2|   if (Equals(originalValue, currentValue))\nL2|   {\nL2|       continue; // unchanged unique index value: no ordering edge\nL2|   }\nL2|   ```\nL3 [tool] TOOL: apply_patch {\"path\":\"src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\"}\nL3| CODE_WRITTEN: {\"path\":\"src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\"}\nL3| --- a/src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\nL3| +++ b/src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs\nL3| @@ -1141,8 +1141,18 @@ private void AddUniqueValueEdges()\nL3|                          continue;\nL3|                      }\nL3|  \nL3| -                    var (value, _) = ((TableIndex)index).GetRowIndexValueFactory()\nL3| -                        .CreateEquatableIndexValue(command, fromOriginalValues: true);\nL3| +                    var rowIndexValueFactory = ((TableIndex)index).GetRowIndexValueFactory();\nL3| +                    var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\nL3| +\nL3| +                    if (command.EntityState == EntityState.Modified)\nL3| +                    {\nL3| +                        var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);\nL3| +                        if (Equals(value, currentValue))\nL3| +                        {\nL3| +                            continue;\nL3| +                        }\nL3| +                    }\nL3| +\nL3|                      if (value != null)\nL3|                      {\nL3|                          indexPredecessorsMap ??= new Dictionary<object, List<IReadOnlyModificationCommand>>();\nL3| @@ -1223,8 +1233,17 @@ private void AddUniqueValueEdges()\nL3|                          continue;\nL3|                      }\nL3|  \nL3| -                    var (value, hasNullValue) = ((TableIndex)index).GetRowIndexValueFactory()\nL3| -                   \nL4 [tool] TOOL: apply_patch {\"path\":\"test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs\"}\nL4| CODE_WRITTEN: {\"path\":\"test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs\"}\nL4| --- a/test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs\nL4| +++ b/test/EFCore.Relational.Tests/Update/CommandBatchPreparerTest.cs\nL4| @@ -558,6 +558,47 @@ public void BatchCommands_works_with_duplicate_values_for_unique_indexes()\nL4|              e => Assert.Equal(EntityState.Modified, e.EntityState));\nL4|      }\nL4|  \nL4| +    [Fact]\nL4| +    public void BatchCommands_skips_unique_index_edges_for_unchanged_store_generated_values()\nL4| +    {\nL4| +        var model = CreateCompositeKeyModelWithGeneratedUniqueIndex();\nL4| +        var configuration = CreateContextServices(model);\nL4| +        var stateManager = configuration.GetRequiredService<IStateManager>();\nL4| +\nL4| +        var testId = Guid.NewGuid();\nL4| +\nL4| +        var modifiedBasic = stateManager.GetOrCreateEntry(\nL4| +            new CompositeKeyEntity\nL4| +            {\nL4| +                TestId = testId,\nL4| +                Category = CompositeCategory.Basic,\nL4| +                Payload = \"new-basic\"\nL4| +            });\nL4| +        modifiedBasic.SetEntityState(EntityState.Modified);\nL4| +        modifiedBasic.SetOriginalValue(modifiedBasic.EntityType.FindProperty(nameof(CompositeKeyEntity.Payload)), \"old-basic\");\nL4| +\nL4| +        var modifiedPro = stateManager.GetOrCreateEntry(\nL4| +            new CompositeKeyEntity\nL4| +            {\nL4| +                TestId = testId,\nL4| +                Category = CompositeCategory.Pro,\nL4| +                Payload = \"new-pro\"\nL4| +            });\nL4| +        modifiedPro.SetEntityState(EntityState.Mo"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that for Modified entities, the current value should be compared against the original value to skip unchanged unique indexes, but the code at line 1264 processes Added/Modified commands in a second loop where it should compare original against current (not current against original) to detect transitions that create new conflicts.",
+  "why_it_breaks": "The code at line 1264 creates edges based on the *current* value of unique indexes for Added/Modified commands, but when a 1:1 relationship is reassigned, the new current value may collide with another entity's existing value; the agent's check at line 1270 compares originalValue to current value and skips the edge if they are equal, but this prevents the necessary ordering edge when the current value conflicts with a predecessor's original value, leading to the unique constraint violation because commands execute in the wrong order.",
+  "confidence": "medium",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 2,
+    "quote": "In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1265,
+    "quote": "var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1269,
+    "quote": "var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1173,
+    "quote": "var (value, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+    "line": 1177,
+    "quote": "var (currentValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command);",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 4,
+  "verified_transcript_quotes": 1
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+  "line": 1264,
+  "hunk_id": "L3#1"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "medium",
+  "capped": "medium",
+  "margin": 0.000700525394045457,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": true
+ }
+}

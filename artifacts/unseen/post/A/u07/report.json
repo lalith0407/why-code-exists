@@ -1,0 +1,709 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u07",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+   "line": 32
+  },
+  "asked": {
+   "text": "(PR-derived transcript: the original request is not public.)",
+   "citation": "u07.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 60
+  },
+  "understood": {
+   "text": "Clear `AssetGroups` on framework assets at P2P project boundaries\n\n- [x] New task `ApplyStaticWebAssetFrameworkPattern` that applies glob patterns to update matching `SourceType=Discovered` assets to `SourceType=Framework`\n- [x] Register task and invoke it in `ResolveProjectStaticWebAssets` after `DefineStaticWebAssets` when `StaticWebAssetFrameworkPattern` is set\n- [x] New target `MaterializeProjectReferenceFrameworkAssets` to materialize P2P framework assets at build time\n- [x] New test asset `FrameworkAssetsP2PConsumer` for integration testing\n- [x] Integration tests covering P2P materialization, base path rebasing, endpoint generation, and incremental builds (27 tests pass)\n- [x] Unit tests for `ApplyStaticWebAssetFrameworkPattern` (9 tests pass)\n- [x] All 684 unit tests pass\n- [x] Fix skipped test to use `Skip` parameter instead of commented-out code",
+   "citation": "u07.jsonl#L2 (assistant, 109 words, 4 line(s) before the edit at L6)",
+   "valid": true,
+   "full_length": 867
+  },
+  "happened": {
+   "text": "Bug report: a Blazor WebAssembly app built with the .NET 11 Preview 6 SDK fails to boot. The browser requests _framework/blazor.webassembly.<fingerprint>.js and gets HTTP 404, so Blazor never starts. dotnet.<fingerprint>.js is served fine; only blazor.webassembly.js returns 404.\n\n  at ? (src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:32)\n  32: /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n\nWritten by transcript edit L6 (apply_patch):\n \n     public bool MakeReferencedAssetOriginalItemSpecAbsolute { get; set; }\n \n+    /// <summary>\n+    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n+    /// Assets whose <c>RelativePath</c> matches any pattern will have their\n+    /// <c>SourceType</c> set to <c>Framework</c>.\n+    /// </summary>\n+    public string FrameworkPattern { get; set; }\n+\n     [Output]",
+   "citation": "error u07 frame src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:32; u07.jsonl#L6",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 141,
+    "quote": "if (string.IsNullOrEmpty(FrameworkPattern))",
+    "reason": "cited line does not exist"
+   },
+   {
+    "kind": "code",
+    "file": "StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+    "line": 139,
+    "quote": "private StaticWebAssetGlobMatcher CreateFrameworkMatcher()\n    {\n        if (string.IsNullOrEmpty(FrameworkPattern))\n        {\n            return null;\n        }",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Bug report: a Blazor WebAssembly app built with the .NET 11 Preview 6 SDK fails to boot. The browser requests _framework/blazor.webassembly.<fingerprint>.js and gets HTTP 404, so Blazor never starts. dotnet.<fingerprint>.js is served fine; only blazor.webassembly.js returns 404.\n",
+  "terms": [
+   "bug report",
+   "blazor webassembly app built",
+   "sdk fails to boot",
+   "the browser requests",
+   "blazor never starts",
+   "11",
+   "6",
+   "404",
+   "web",
+   "assembly",
+   "framework",
+   "blazor",
+   "webassembly",
+   "js",
+   "report",
+   "built",
+   "preview",
+   "fails",
+   "boot",
+   "browser",
+   "requests",
+   "fingerprint",
+   "gets",
+   "http",
+   "never",
+   "starts",
+   "dotnet",
+   "served",
+   "fine",
+   "returns"
+  ],
+  "layer1": {
+   "symbols_indexed": 308,
+   "edited_hunks_indexed": 27,
+   "candidates": [
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+     "line": 32,
+     "end_line": 37,
+     "text": "    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).",
+     "score": 3.1411,
+     "matched_terms": [
+      "framework",
+      "js"
+     ],
+     "edit_line": 6,
+     "tool": "apply_patch",
+     "hunk_id": "L6#5",
+     "snippet": "31:     /// <summary>\n32:     /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n33:     /// Assets whose <c>RelativePath</c> matches any pattern will have their\n34:     /// <c>SourceType</c> set to <c>Framework</c>.\n35:     /// </summary>\n36:     public string FrameworkPattern { get; set; }\n37: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 32,
+     "hunk_start": 31,
+     "context_lines": [
+      {
+       "line": 31,
+       "text": "    /// <summary>"
+      },
+      {
+       "line": 32,
+       "text": "    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>)."
+      },
+      {
+       "line": 33,
+       "text": "    /// Assets whose <c>RelativePath</c> matches any pattern will have their"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs",
+     "line": 1144,
+     "end_line": 1195,
+     "text": "    /// Returns the old identity and old base path so callers can remap endpoints and related assets.",
+     "score": 2.966,
+     "matched_terms": [
+      "web",
+      "framework",
+      "returns"
+     ],
+     "edit_line": 7,
+     "tool": "apply_patch",
+     "hunk_id": "L7#11",
+     "snippet": "1140:     /// <summary>\n1141:     /// Materializes a framework asset by copying it to the consuming project's intermediate directory\n1142:     /// and updating its metadata (Identity, ContentRoot, SourceId, BasePath, SourceType, AssetMode).\n1143:     /// Used by both the P2P and NuGet package paths.\n1144:     /// Returns the old identity and old base path so callers can remap endpoints and related assets.\n1145:     /// </summary>\n1146:     public static (StaticWebAsset Asset, string OldIdentity, string OldBasePath) MaterializeFrameworkAsset(\n1147:         StaticWebAsset asset,\n1148:         string intermediateOutputPath,\n1149:         string projectPackageId,",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 1144,
+     "hunk_start": 1140,
+     "context_lines": [
+      {
+       "line": 1143,
+       "text": "    /// Used by both the P2P and NuGet package paths."
+      },
+      {
+       "line": 1144,
+       "text": "    /// Returns the old identity and old base path so callers can remap endpoints and related assets."
+      },
+      {
+       "line": 1145,
+       "text": "    /// </summary>"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+     "line": 139,
+     "end_line": 185,
+     "text": "    private StaticWebAssetGlobMatcher CreateFrameworkMatcher()",
+     "score": 1.5253,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 6,
+     "tool": "apply_patch",
+     "hunk_id": "L6#9",
+     "snippet": "139:     private StaticWebAssetGlobMatcher CreateFrameworkMatcher()\n140:     {\n141:         if (string.IsNullOrEmpty(FrameworkPattern))\n142:         {\n143:             return null;\n144:         }\n145: \n146:         var patterns = FrameworkPattern\n147:             .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)\n148:             .Select(s => s.Trim())",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 139,
+     "hunk_start": 139,
+     "context_lines": [
+      {
+       "line": 139,
+       "text": "    private StaticWebAssetGlobMatcher CreateFrameworkMatcher()"
+      },
+      {
+       "line": 140,
+       "text": "    {"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets",
+     "line": 190,
+     "end_line": 190,
+     "text": "        FrameworkPattern=\"$(StaticWebAssetFrameworkPattern)\"",
+     "score": 1.3664,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 4,
+     "tool": "apply_patch",
+     "hunk_id": "L4#2",
+     "snippet": "190:         FrameworkPattern=\"$(StaticWebAssetFrameworkPattern)\"",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 190,
+     "hunk_start": 190,
+     "context_lines": [
+      {
+       "line": 190,
+       "text": "        FrameworkPattern=\"$(StaticWebAssetFrameworkPattern)\""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+     "line": 54,
+     "end_line": 55,
+     "text": "            var matchContext = frameworkMatcher != null ? StaticWebAssetGlobMatcher.CreateMatchContext() : default;",
+     "score": 1.3255,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 6,
+     "tool": "apply_patch",
+     "hunk_id": "L6#6",
+     "snippet": "52: \n53:             var frameworkMatcher = CreateFrameworkMatcher();\n54:             var matchContext = frameworkMatcher != null ? StaticWebAssetGlobMatcher.CreateMatchContext() : default;\n55: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 54,
+     "hunk_start": 52,
+     "context_lines": [
+      {
+       "line": 53,
+       "text": "            var frameworkMatcher = CreateFrameworkMatcher();"
+      },
+      {
+       "line": 54,
+       "text": "            var matchContext = frameworkMatcher != null ? StaticWebAssetGlobMatcher.CreateMatchContext() : default;"
+      },
+      {
+       "line": 55,
+       "text": ""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets",
+     "line": 862,
+     "end_line": 862,
+     "text": "      <StaticWebAssetEndpoint Remove=\"@(_OriginalFrameworkEndpoints)\" />",
+     "score": 1.2969,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 5,
+     "tool": "apply_patch",
+     "hunk_id": "L5#4",
+     "snippet": "861:       <!-- Remove original framework endpoints (with old routes) and add remapped ones (with new routes) -->\n862:       <StaticWebAssetEndpoint Remove=\"@(_OriginalFrameworkEndpoints)\" />",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 862,
+     "hunk_start": 861,
+     "context_lines": [
+      {
+       "line": 861,
+       "text": "      <!-- Remove original framework endpoints (with old routes) and add remapped ones (with new routes) -->"
+      },
+      {
+       "line": 862,
+       "text": "      <StaticWebAssetEndpoint Remove=\"@(_OriginalFrameworkEndpoints)\" />"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs",
+     "line": 58,
+     "end_line": 63,
+     "text": "                    var (transformed, oldPath, oldBasePath) = StaticWebAsset.MaterializeFrameworkAsset(",
+     "score": 1.2609,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 10,
+     "tool": "apply_patch",
+     "hunk_id": "L10#20",
+     "snippet": "57:                     var asset = StaticWebAsset.FromV1TaskItem(candidate);\n58:                     var (transformed, oldPath, oldBasePath) = StaticWebAsset.MaterializeFrameworkAsset(\n59:                         asset, IntermediateOutputPath, ProjectPackageId, ProjectBasePath, Log);\n63:                         assetMapping[oldPath] = (transformed.Identity, oldBasePath);",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 58,
+     "hunk_start": 57,
+     "context_lines": [
+      {
+       "line": 57,
+       "text": "                    var asset = StaticWebAsset.FromV1TaskItem(candidate);"
+      },
+      {
+       "line": 58,
+       "text": "                    var (transformed, oldPath, oldBasePath) = StaticWebAsset.MaterializeFrameworkAsset("
+      },
+      {
+       "line": 59,
+       "text": "                        asset, IntermediateOutputPath, ProjectPackageId, ProjectBasePath, Log);"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs",
+     "line": 78,
+     "end_line": 95,
+     "text": "            if (StaticWebAsset.SourceTypes.IsFramework(asset.SourceType))",
+     "score": 1.2547,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 9,
+     "tool": "apply_patch",
+     "hunk_id": "L9#16",
+     "snippet": "61:         // Filter by group FIRST so that framework assets tagged with groups that the consuming\n62:         // project doesn't accept are excluded before materialization.\n63:         var (filteredAssets, excludedAssetFiles) = StaticWebAsset.FilterByGroup(assets, groupLookup, skipDeferred: true);\n64: \n65:         // Rebuild the assets array from filtered results for subsequent processing.\n66:         // Also build a set to identify which original input items survived filtering.\n67:         var filteredSet = new HashSet<string>(filteredAssets.Select(a => a.Identity), OSPath.PathComparer);\n68: \n70:         var originalFrameworkAssetItems = new List<ITaskItem>();\n71:         var assetMapping = new Dictionary<string, (string NewIdentity, string OldBasePath)>(OSPath.PathComparer);",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 78,
+     "hunk_start": 61,
+     "context_lines": [
+      {
+       "line": 77,
+       "text": "            // Materialize framework assets from P2P references."
+      },
+      {
+       "line": 78,
+       "text": "            if (StaticWebAsset.SourceTypes.IsFramework(asset.SourceType))"
+      },
+      {
+       "line": 79,
+       "text": "            {"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs",
+     "line": 130,
+     "end_line": 141,
+     "text": "                        StaticWebAssetEndpoint.RemapEndpointRoute(endpoint, info.OldBasePath, ProjectBasePath, routeSegments, basePathSegments);",
+     "score": 1.0314,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 10,
+     "tool": "apply_patch",
+     "hunk_id": "L10#22",
+     "snippet": "120:                 foreach (var (endpoint, originalIndex) in group)\n122:                     // Capture the original endpoint task item for removal.\n123:                     originalEndpointItems.Add(Endpoints[originalIndex]);\n124: \n125:                     if (!string.IsNullOrEmpty(endpoint.AssetFile) && assetMapping.TryGetValue(endpoint.AssetFile, out var info))\n127:                         var oldAssetFile = endpoint.AssetFile;\n128:                         endpoint.AssetFile = info.NewIdentity;\n129: \n130:                         StaticWebAssetEndpoint.RemapEndpointRoute(endpoint, info.OldBasePath, ProjectBasePath, routeSegments, basePathSegments);\n131: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 130,
+     "hunk_start": 120,
+     "context_lines": [
+      {
+       "line": 129,
+       "text": ""
+      },
+      {
+       "line": 130,
+       "text": "                        StaticWebAssetEndpoint.RemapEndpointRoute(endpoint, info.OldBasePath, ProjectBasePath, routeSegments, basePathSegments);"
+      },
+      {
+       "line": 131,
+       "text": ""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs",
+     "line": 615,
+     "end_line": 671,
+     "text": "        StaticWebAssetEndpoint endpoint,",
+     "score": 1.0071,
+     "matched_terms": [
+      "web",
+      "framework"
+     ],
+     "edit_line": 8,
+     "tool": "apply_patch",
+     "hunk_id": "L8#12",
+     "snippet": "608: \n609:     /// <summary>\n610:     /// Remaps the Route (and label endpoint property) on an endpoint by stripping the old base path\n611:     /// prefix and prepending the new base path. Used when materializing framework assets to update\n612:     /// endpoint routes from the library's base path to the consuming project's base path.\n613:     /// </summary>\n614:     public static void RemapEndpointRoute(\n615:         StaticWebAssetEndpoint endpoint,\n616:         string oldBasePath,\n617:         string newBasePath,",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 615,
+     "hunk_start": 608,
+     "context_lines": [
+      {
+       "line": 614,
+       "text": "    public static void RemapEndpointRoute("
+      },
+      {
+       "line": 615,
+       "text": "        StaticWebAssetEndpoint endpoint,"
+      },
+      {
+       "line": 616,
+       "text": "        string oldBasePath,"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+    "line": 32,
+    "end_line": 37,
+    "text": "    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).",
+    "score": 3.1411,
+    "matched_terms": [
+     "framework",
+     "js"
+    ],
+    "edit_line": 6,
+    "tool": "apply_patch",
+    "hunk_id": "L6#5",
+    "snippet": "31:     /// <summary>\n32:     /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n33:     /// Assets whose <c>RelativePath</c> matches any pattern will have their\n34:     /// <c>SourceType</c> set to <c>Framework</c>.\n35:     /// </summary>\n36:     public string FrameworkPattern { get; set; }\n37: ",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 32,
+    "hunk_start": 31,
+    "context_lines": [
+     {
+      "line": 31,
+      "text": "    /// <summary>"
+     },
+     {
+      "line": 32,
+      "text": "    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>)."
+     },
+     {
+      "line": 33,
+      "text": "    /// Assets whose <c>RelativePath</c> matches any pattern will have their"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs",
+    "line": 1144,
+    "end_line": 1195,
+    "text": "    /// Returns the old identity and old base path so callers can remap endpoints and related assets.",
+    "score": 2.966,
+    "matched_terms": [
+     "web",
+     "framework",
+     "returns"
+    ],
+    "edit_line": 7,
+    "tool": "apply_patch",
+    "hunk_id": "L7#11",
+    "snippet": "1140:     /// <summary>\n1141:     /// Materializes a framework asset by copying it to the consuming project's intermediate directory\n1142:     /// and updating its metadata (Identity, ContentRoot, SourceId, BasePath, SourceType, AssetMode).\n1143:     /// Used by both the P2P and NuGet package paths.\n1144:     /// Returns the old identity and old base path so callers can remap endpoints and related assets.\n1145:     /// </summary>\n1146:     public static (StaticWebAsset Asset, string OldIdentity, string OldBasePath) MaterializeFrameworkAsset(\n1147:         StaticWebAsset asset,\n1148:         string intermediateOutputPath,\n1149:         string projectPackageId,",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 1144,
+    "hunk_start": 1140,
+    "context_lines": [
+     {
+      "line": 1143,
+      "text": "    /// Used by both the P2P and NuGet package paths."
+     },
+     {
+      "line": 1144,
+      "text": "    /// Returns the old identity and old base path so callers can remap endpoints and related assets."
+     },
+     {
+      "line": 1145,
+      "text": "    /// </summary>"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+    "line": 139,
+    "end_line": 185,
+    "text": "    private StaticWebAssetGlobMatcher CreateFrameworkMatcher()",
+    "score": 1.5253,
+    "matched_terms": [
+     "web",
+     "framework"
+    ],
+    "edit_line": 6,
+    "tool": "apply_patch",
+    "hunk_id": "L6#9",
+    "snippet": "139:     private StaticWebAssetGlobMatcher CreateFrameworkMatcher()\n140:     {\n141:         if (string.IsNullOrEmpty(FrameworkPattern))\n142:         {\n143:             return null;\n144:         }\n145: \n146:         var patterns = FrameworkPattern\n147:             .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)\n148:             .Select(s => s.Trim())",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 139,
+    "hunk_start": 139,
+    "context_lines": [
+     {
+      "line": 139,
+      "text": "    private StaticWebAssetGlobMatcher CreateFrameworkMatcher()"
+     },
+     {
+      "line": 140,
+      "text": "    {"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+   "line": 32,
+   "end_line": 37,
+   "text": "    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).",
+   "score": 3.1411,
+   "matched_terms": [
+    "framework",
+    "js"
+   ],
+   "edit_line": 6,
+   "tool": "apply_patch",
+   "hunk_id": "L6#5",
+   "snippet": "31:     /// <summary>\n32:     /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n33:     /// Assets whose <c>RelativePath</c> matches any pattern will have their\n34:     /// <c>SourceType</c> set to <c>Framework</c>.\n35:     /// </summary>\n36:     public string FrameworkPattern { get; set; }\n37: ",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 32,
+   "hunk_start": 31,
+   "context_lines": [
+    {
+     "line": 31,
+     "text": "    /// <summary>"
+    },
+    {
+     "line": 32,
+     "text": "    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>)."
+    },
+    {
+     "line": 33,
+     "text": "    /// Assets whose <c>RelativePath</c> matches any pattern will have their"
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 19732,
+   "truncated": true,
+   "dropped_sections": [
+    "transcript_window:reasoning mentioning \"patterns\" (L2) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Bug report: a Blazor WebAssembly app built with the .NET 11 Preview 6 SDK fails to boot. The browser requests _framework/blazor.webassembly.<fingerprint>.js and gets HTTP 404, so Blazor never starts. dotnet.<fingerprint>.js is served fine; only blazor.webassembly.js returns 404.",
+   "edit": {
+    "file": "StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+    "line": 32,
+    "hunk": " \n     public bool MakeReferencedAssetOriginalItemSpecAbsolute { get; set; }\n \n+    /// <summary>\n+    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n+    /// Assets whose <c>RelativePath</c> matches any pattern will have their\n+    /// <c>SourceType</c> set to <c>Framework</c>.\n+    /// </summary>\n+    public string FrameworkPattern { get; set; }\n+\n     [Output]"
+   },
+   "code_window": "12: {\n13:     [Required]\n14:     public ITaskItem[] Assets { get; set; }\n15: \n16:     public ITaskItem[] Patterns { get; set; }\n17: \n18:     [Required]\n19:     public string AssetKind { get; set; }\n20: \n21:     [Required]\n22:     public string ProjectMode { get; set; }\n23: \n24:     [Required]\n25:     public string Source { get; set; }\n26: \n27:     public bool UpdateSourceType { get; set; } = true;\n28: \n29:     public bool MakeReferencedAssetOriginalItemSpecAbsolute { get; set; }\n30: \n31:     /// <summary>\n32:     /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n33:     /// Assets whose <c>RelativePath</c> matches any pattern will have their\n34:     /// <c>SourceType</c> set to <c>Framework</c>.\n35:     /// </summary>\n36:     public string FrameworkPattern { get; set; }\n37: \n38:     [Output]\n39:     public ITaskItem[] StaticWebAssets { get; set; }\n40: \n41:     [Output]\n42:     public ITaskItem[] DiscoveryPatterns { get; set; }\n43: \n44:     public override bool Execute()\n45:     {\n46:         try\n47:         {\n48:             var existingAssets = StaticWebAsset.AssetsByTargetPath(Assets, Source, AssetKind);\n49: \n50:             var resultAssets = new List<StaticWebAsset>(existingAssets.Count);\n51:             var groupSet = new HashSet<string>(StringComparer.Ordinal);\n52: ",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+     "line": 32,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 3.1411,
+     "method": "deterministic_bm25",
+     "text": "27:     public bool UpdateSourceType { get; set; } = true;\n28: \n29:     public bool MakeReferencedAssetOriginalItemSpecAbsolute { get; set; }\n30: \n31:     /// <summary>\n32:     /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n33:     /// Assets whose <c>RelativePath</c> matches any pattern will have their\n34:     /// <c>SourceType</c> set to <c>Framework</c>.\n35:     /// </summary>\n36:     public string FrameworkPattern { get; set; }\n37: "
+    },
+    {
+     "label": "candidate 2",
+     "file": "StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs",
+     "line": 1144,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 2.966,
+     "method": "deterministic_bm25",
+     "text": "1139: \n1140:     /// <summary>\n1141:     /// Materializes a framework asset by copying it to the consuming project's intermediate directory\n1142:     /// and updating its metadata (Identity, ContentRoot, SourceId, BasePath, SourceType, AssetMode).\n1143:     /// Used by both the P2P and NuGet package paths.\n1144:     /// Returns the old identity and old base path so callers can remap endpoints and related assets.\n1145:     /// </summary>\n1146:     public static (StaticWebAsset Asset, string OldIdentity, string OldBasePath) MaterializeFrameworkAsset(\n1147:         StaticWebAsset asset,\n1148:         string intermediateOutputPath,\n1149:         string projectPackageId,"
+    },
+    {
+     "label": "candidate 3",
+     "file": "StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+     "line": 139,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 1.5253,
+     "method": "deterministic_bm25",
+     "text": "134:         }\n135: \n136:         return !Log.HasLoggedErrors;\n137:     }\n138: \n139:     private StaticWebAssetGlobMatcher CreateFrameworkMatcher()\n140:     {\n141:         if (string.IsNullOrEmpty(FrameworkPattern))\n142:         {\n143:             return null;\n144:         }"
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "(PR-derived transcript: the original request is not public.)",
+    "understood": "Clear `AssetGroups` on framework assets at P2P project boundaries\n\n- [x] New task `ApplyStaticWebAssetFrameworkPattern` that applies glob patterns to update matching `SourceType=Discovered` assets to `SourceType=Framework`\n- [x] Register task and invoke it in `ResolveProjectStaticWebAssets` after `DefineStaticWebAssets` when `StaticWebAssetFrameworkPattern` is set\n- [x] New target `MaterializeProjectReferenceFrameworkAssets` to materialize P2P framework assets at build time\n- [x] New test asset `FrameworkAssetsP2PConsumer` for integration testing\n- [x] Integration tests covering P2P materialization, base path rebasing, endpoint generation, and incremental builds (27 tests pass)\n- [x] Unit tests for `ApplyStaticWebAssetFrameworkPattern` (9 tests pass)\n- [x] All 684 unit tests pass\n- [x] Fix skipped test to use `Skip` parameter instead of commented-out code",
+    "happened": "Bug report: a Blazor WebAssembly app built with the .NET 11 Preview 6 SDK fails to boot. The browser requests _framework/blazor.webassembly.<fingerprint>.js and gets HTTP 404, so Blazor never starts. dotnet.<fingerprint>.js is served fine; only blazor.webassembly.js returns 404.\n\n  at ? (src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:32)\n  32: /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n\nWritten by transcript edit L6 (apply_patch):\n \n     public bool MakeReferencedAssetOriginalItemSpecAbsolute { get; set; }\n \n+    /// <summary>\n+    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\n+    /// Assets whose <c>RelativePath</c> matches any pattern will have their\n+    /// <c>SourceType</c> set to <c>Framework</c>.\n+    /// </summary>\n+    public string FrameworkPattern { get; set; }\n+\n     [Output]"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L6)",
+     "text": "L3 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Publish.targets\"}\nL3| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Publish.targets\"}\nL3| --- a/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Publish.targets\nL3| +++ b/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Publish.targets\nL3| @@ -170,6 +170,9 @@ Copyright (c) .NET Foundation. All rights reserved.\nL3|        Assets=\"@(_ReferencedProjectPublishStaticWebAssetsUpdateCandidates)\"\nL3|        Endpoints=\"@(_ReferencedProjectPublishStaticWebAssetEndpointsUpdateCandidates)\"\nL3|        FingerprintInferenceExpressions=\"@(StaticWebAssetFingerprintInferenceExpression)\"\nL3| +      IntermediateOutputPath=\"$(_StaticWebAssetsIntermediateOutputPath)\"\nL3| +      ProjectPackageId=\"$(PackageId)\"\nL3| +      ProjectBasePath=\"$(StaticWebAssetBasePath)\"\nL3|      >\nL3|        <Output TaskParameter=\"UpdatedAssets\" ItemName=\"_ReferencedProjectPublishStaticWebAssets\" />\nL3|        <Output TaskParameter=\"UpdatedEndpoints\" ItemName=\"_ReferencedProjectPublishStaticWebAssetEndpoints\" />\nL3| \nL4 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets\"}\nL4| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets\"}\nL4| --- a/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets\nL4| +++ b/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets\nL4| @@ -133,6 +133,9 @@ Copyright (c) .NET Foundation. All rights reserved.\nL4|          Endpoints=\"@(_ReferencedProjectBuildStaticWebAssetEndpointsUpdateCandidates)\"\nL4|          FingerprintInferenceExpressions=\"@(StaticWebAssetFingerprintInferenceExpression)\"\nL4|          StaticWebAssetGroups=\"@(StaticWebAssetGroup)\"\nL4| +        IntermediateOutputPath=\"$(_StaticWebAssetsIntermediateOutputPath)\"\nL4| +        ProjectPackageId=\"$(PackageId)\"\nL4| +        ProjectBasePath=\"$(StaticWebAssetBasePath)\"\nL4|        >\nL4|          <Output TaskParameter=\"UpdatedAssets\" ItemName=\"_ResolvedReferencedProjectBuildStaticWebAssets\" />\nL4|          <Output TaskParameter=\"UpdatedEndpoints\" ItemName=\"_ResolvedReferencedProjectBuildStaticWebAssetEndpoints\" />\nL4| @@ -184,6 +187,7 @@ Copyright (c) .NET Foundation. All rights reserved.\nL4|          AssetKind=\"Build\"\nL4|          MakeReferencedAssetOriginalItemSpecAbsolute=\"$(StaticWebAssetMakeReferencedAssetOriginalItemSpecAbsolute)\"\nL4|          Source=\"$(PackageId)\"\nL4| +        FrameworkPattern=\"$(StaticWebAssetFrameworkPattern)\"\nL4|        >\nL4|          <Output TaskParameter=\"StaticWebAssets\" ItemName=\"_CachedBuildReferencedStaticWebAsset\" />\nL4|          <Output TaskParameter=\"DiscoveryPatterns\" ItemName=\"_CachedBuildReferencedStaticWebAsset\nL5 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets\"}\nL5| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets\"}\nL5| --- a/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets\nL5| +++ b/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets\nL5| @@ -840,6 +840,7 @@ Copyright (c) .NET Foundation. All rights reserved.\nL5|        <Output TaskParameter=\"UpdatedAssets\" ItemName=\"_UpdatedPackageAssets\" />\nL5|        <Output TaskParameter=\"OriginalAssets\" ItemName=\"_OriginalPackageAssets\" />\nL5|        <Output TaskParameter=\"RemappedEndpoints\" ItemName=\"_RemappedFrameworkEndpoints\" />\nL5| +      <Output TaskParameter=\"OriginalFrameworkEndpoints\" ItemName=\"_OriginalFrameworkEndpoints\" />\nL5|      </UpdatePackageStaticWebAssets>\nL5|  \nL5|      <ItemGroup>\nL5| @@ -857,8 +858,8 @@ Copyright (c) .NET Foundation. All rights reserved.\nL5|        <StaticWebAsset Remove=\"@(_OriginalPackageAssets)\"/>\nL5|        <StaticWebAsset Include=\"@(_UpdatedPackageAssets)\" />\nL5|        <StaticWebAssetEndpoint Include=\"@(_UpdatedPackageAssetsEndpoint)\" />\nL5| -      <!-- Remap endpoints for materialized framework assets -->\nL5| -      <StaticWebAssetEndpoint Remove=\"@(_RemappedFrameworkEndpoints)\" />\nL5| +      <!-- Remove original framework endpoints (with old routes) and add remapped ones (with new routes) -->\nL5| +      <StaticWebAssetEndpoint Remove=\"@(_OriginalFrameworkEndpoints)\" />\nL5|        <StaticWebAssetEndpoint Include=\"@(_RemappedFrameworkEndpoints)\" />\nL5|      </ItemGroup>\nL5|  \nL5| \nL6 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs\"}\nL6| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs\"}\nL6| --- a/src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs\nL6| +++ b/src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs\nL6| @@ -28,6 +28,13 @@ public class ComputeReferenceStaticWebAssetItems : Task\nL6|  \nL6|      public bool MakeReferencedAssetOriginalItemSpecAbsolute { get; set; }\nL6|  \nL6| +    /// <summary>\nL6| +    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\nL6| +    /// Assets whose <c>RelativePath</c> matches any pattern will have their\nL6| +    /// <c>SourceType</c> set to <c>Framework</c>.\nL6| +    /// </summary>\nL6| +    public string FrameworkPattern { get; set; }\nL6| +\nL6|      [Output]\nL6|      public ITaskItem[] StaticWebAssets { get; set; }\nL6|  \nL6| @@ -42,6 +49,10 @@ public override bool Execute()\nL6|  \nL6|              var resultAssets = new List<StaticWebAsset>(existingAssets.Count);\nL6|              var groupSet = new HashSet<string>(StringComparer.Ordinal);\nL6| +\nL6| +            var frameworkMatcher = CreateFrameworkMatcher();\nL6| +            var matchContext = frameworkMatcher != null ? StaticWebAssetGlobMatcher.CreateMatchContext() : default;\nL6| +\nL6|              foreach (var kvp in existingAssets)\nL6|              {\nL6|                  var targetPath = kvp.Key;\nL6| @@ -55,6 +66,7 @@ public override bool Execute()\nL6|                          {\nL6|                              if (ShouldIncludeAssetAsReference(groupedAsset, out var groupReason))\nL6|                              {\nL6| +                                ApplyFrameworkPatt\nL7 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs\"}\nL7| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs\"}\nL7| --- a/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs\nL7| +++ b/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs\nL7| @@ -9,6 +9,7 @@\nL7|  using System.Security.Cryptography;\nL7|  using Microsoft.AspNetCore.StaticWebAssets.Tasks.Utils;\nL7|  using Microsoft.Build.Framework;\nL7| +using Microsoft.Build.Utilities;\nL7|  \nL7|  namespace Microsoft.AspNetCore.StaticWebAssets.Tasks;\nL7|  \nL7| @@ -1136,6 +1137,62 @@ public bool ShouldCopyToPublishDirectory()\nL7|      public bool HasContentRoot(string path) =>\nL7|          string.Equals(ContentRoot, NormalizeContentRootPath(path), StringComparison.Ordinal);\nL7|  \nL7| +    /// <summary>\nL7| +    /// Materializes a framework asset by copying it to the consuming project's intermediate directory\nL7| +    /// and updating its metadata (Identity, ContentRoot, SourceId, BasePath, SourceType, AssetMode).\nL7| +    /// Used by both the P2P and NuGet package paths.\nL7| +    /// Returns the old identity and old base path so callers can remap endpoints and related assets.\nL7| +    /// </summary>\nL7| +    public static (StaticWebAsset Asset, string OldIdentity, string OldBasePath) MaterializeFrameworkAsset(\nL7| +        StaticWebAsset asset,\nL7| +        string intermediateOutputPath,\nL7| +        string projectPackageId,\nL7| +        string projectBasePath,\nL7| +        TaskLoggingHelper log)\nL7| +    {\nL7| +        var originalSourceId = asset.SourceId;\nL7| +        var oldBasePath = asset.BasePath;\nL7| +        var relativePath = asset.RelativePath;\nL7| +        var oldIdentity = asset.Identity;\nL7| +\nL8 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs\"}\nL8| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs\"}\nL8| --- a/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs\nL8| +++ b/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs\nL8| @@ -605,4 +605,68 @@ public static bool RouteHasPathPrefix(\nL8|  \nL8|          return true;\nL8|      }\nL8| +\nL8| +    /// <summary>\nL8| +    /// Remaps the Route (and label endpoint property) on an endpoint by stripping the old base path\nL8| +    /// prefix and prepending the new base path. Used when materializing framework assets to update\nL8| +    /// endpoint routes from the library's base path to the consuming project's base path.\nL8| +    /// </summary>\nL8| +    public static void RemapEndpointRoute(\nL8| +        StaticWebAssetEndpoint endpoint,\nL8| +        string oldBasePath,\nL8| +        string newBasePath,\nL8| +        List<PathTokenizer.Segment> routeSegments,\nL8| +        List<PathTokenizer.Segment> basePathSegments)\nL8| +    {\nL8| +        var normalizedOldBase = oldBasePath is null or \"/\" ? \"\" : StaticWebAsset.Normalize(oldBasePath);\nL8| +\nL8| +        if (!string.IsNullOrEmpty(normalizedOldBase) &&\nL8| +            RouteHasPathPrefix(endpoint.Route, normalizedOldBase, routeSegments, basePathSegments))\nL8| +        {\nL8| +            var remaining = endpoint.Route.Length > normalizedOldBase.Length\nL8| +                ? endpoint.Route.Substring(normalizedOldBase.Length).TrimStart('/')\nL8| +                : \"\";\nL8| +            endpoint.Route = StaticWebAsset.CombineNormalizedPaths(\"\", newBasePath, remaining, '/');\nL8| +\nL8| +            // Also remap the label endpoint\nL9 [tool] TOOL: apply_patch {\"path\":\"src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs\"}\nL9| CODE_WRITTEN: {\"path\":\"src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs\"}\nL9| --- a/src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs\nL9| +++ b/src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs\nL9| @@ -15,6 +15,8 @@ namespace Microsoft.AspNetCore.StaticWebAssets.Tasks;\nL9|  // For example, the JavaScript Project Tools SDK integrates with the static web asset protocol for SPA applications\nL9|  // but it doesn't support integrity or fingerprinting, which causes issues when we reference the project and we try\nL9|  // to further process the assets.\nL9| +// Additionally, this task handles incoming framework assets from P2P references by materializing them\nL9| +// (copying files to an intermediate directory and updating metadata) so they become local to the consuming project.\nL9|  public class UpdateExternallyDefinedStaticWebAssets : Task\nL9|  {\nL9|      [Required]\nL9| @@ -27,6 +29,12 @@ public class UpdateExternallyDefinedStaticWebAssets : Task\nL9|  \nL9|      public ITaskItem[] StaticWebAssetGroups { get; set; }\nL9|  \nL9| +    public string IntermediateOutputPath { get; set; }\nL9| +\nL9| +    public string ProjectPackageId { get; set; }\nL9| +\nL9| +    public string ProjectBasePath { get; set; }\nL9| +\nL9|      [Output]\nL9|      public ITaskItem[] UpdatedAssets { get; set; }\nL9|  \nL9| @@ -36,6 +44,9 @@ public class UpdateExternallyDefinedStaticWebAssets : Task\nL9|      [Output]\nL9|      public ITaskItem[] AssetsWithoutEndpoints { get; set; }\nL9|  \nL9| +    [Output]\nL9| +    public ITaskItem[] OriginalFrameworkAssets { get; set; }\nL9| +\nL9|      public override"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that a non-empty FrameworkPattern string would always be a valid glob pattern to match against asset RelativePaths, without considering that the pattern might be syntactically invalid or empty after trimming, causing the matcher to silently fail or produce no matches.",
+  "why_it_breaks": "When the FrameworkPattern is set but contains an invalid or unmatched glob (e.g., malformed syntax or patterns that never match any asset's RelativePath), CreateFrameworkMatcher returns a non-null matcher. The subsequent code likely uses this matcher to set SourceType=Framework on matching assets. If the matcher fails to match anything (or throws/returns false silently), no assets get SourceType=Framework, so the framework JS files remain with their original SourceType and are not emitted to the _framework output directory, causing the 404.",
+  "confidence": "low",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 141,
+    "quote": "if (string.IsNullOrEmpty(FrameworkPattern))",
+    "verified": false,
+    "reason": "cited line does not exist"
+   },
+   {
+    "kind": "code",
+    "file": "StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+    "line": 139,
+    "quote": "private StaticWebAssetGlobMatcher CreateFrameworkMatcher()\n    {\n        if (string.IsNullOrEmpty(FrameworkPattern))\n        {\n            return null;\n        }",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The code assumes that a non-empty FrameworkPattern string always represents valid glob patterns, but it does not handle the case where FrameworkPattern is set to a non-empty value that contains no actual matching glob patterns (e.g., empty string after splitting, or patterns that never match any asset).",
+  "why_it_breaks": "The CreateFrameworkMatcher method returns null only when FrameworkPattern is null or empty. If FrameworkPattern is set to a non-empty string (e.g., from StaticWebAssetFrameworkPattern property) but contains no valid glob patterns or patterns that never match any asset, the matcher remains non-null but may not match any assets. This causes the framework asset matching logic to behave unexpectedly, potentially leaving blazor.webassembly.js unmarked as a framework asset and thus not copied to the output, resulting in a 404 when the browser requests it.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 141,
+    "quote": "if (string.IsNullOrEmpty(FrameworkPattern))",
+    "verified": false,
+    "reason": "cited line does not exist"
+   },
+   {
+    "kind": "code",
+    "file": "StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+    "line": 139,
+    "quote": "private StaticWebAssetGlobMatcher CreateFrameworkMatcher()\n    {\n        if (string.IsNullOrEmpty(FrameworkPattern))\n        {\n            return null;\n        }",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 0
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "low",
+  "capped": "low",
+  "margin": 0.05574480277609742,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": false
+ }
+}

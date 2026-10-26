@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/decisions/call.py:179
+stage: ok
+provider: nemotron
+frame: litellm/decisions/call.py:179
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that provider_config.canonical_model() would always succeed for any valid model/provider combination, but it raises ValueError when the model is not recognized as a decisions model by that provider's config, and the exception was not caught at the right level for the guardrail settings request path.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/A/u03/report.html

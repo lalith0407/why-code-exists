@@ -1,0 +1,389 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case10",
+  "complete": false,
+  "notes": [],
+  "frame": {
+   "file": "guides/risk_manager/v1.md",
+   "line": 15
+  },
+  "asked": {
+   "text": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 2870
+  },
+  "understood": {
+   "text": "I will begin by writing the project configuration files, Makefile, and Python source code.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L24 (assistant, 14 words, 36 line(s) before the edit at L60)",
+   "valid": false,
+   "full_length": 90,
+   "why_invalid": "agent wrote fewer than 15 words before the edit (silent edit)"
+  },
+  "happened": {
+   "text": "Compliance flagged a hard-cap breach that the system did not catch on its own.\n\nA proposed position of 95% of the portfolio in ticker KVXR passed the automated risk check with no violations recorded, even though the single-name cap for any position is documented as 15%. This is the first time the fund has taken a position in KVXR.\n\n  at ? (guides/risk_manager/v1.md:15)\n  15: Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.\n\nWritten by transcript edit L60 (search_replace):\n+## 2. Choose tools/sources\n+\n+Allowed tools: `portfolio.get_state`, `portfolio.size_position`, `risk.check_caps`, `risk.option_gate`, `research.write_observation`, `broker.render_ticket`.\n+\n+## 3. Write procedure\n+\n+Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.\n+\n+## 4. Check\n+\n+Final weights respect single-name, sector, penny, and high-risk sleeve caps. No buy/sell pair in the same session. Discretionary sells respect the minimum hold. Cap reductions may sell inside the hold window.\n+\n+## 5. Locate fault",
+   "citation": "error case10 frame guides/risk_manager/v1.md:15; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L60",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Compliance flagged a hard-cap breach that the system did not catch on its own.\n\nA proposed position of 95% of the portfolio in ticker KVXR passed the automated risk check with no violations recorded, even though the single-name cap for any position is documented as 15%. This is the first time the fund has taken a position in KVXR.\n",
+  "terms": [
+   "compliance flagged a hard",
+   "a proposed position of",
+   "kvxr passed the automated",
+   "this is the first",
+   "95",
+   "15",
+   "compliance",
+   "flagged",
+   "hard",
+   "breach",
+   "system",
+   "catch",
+   "proposed",
+   "position",
+   "portfolio",
+   "ticker",
+   "kvxr",
+   "passed",
+   "automated",
+   "risk",
+   "check",
+   "violations",
+   "recorded",
+   "though",
+   "single",
+   "name",
+   "documented",
+   "first",
+   "time",
+   "fund",
+   "taken"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "guides/risk_manager/v1.md",
+     "line": 15,
+     "end_line": 27,
+     "text": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.",
+     "score": 43.8835,
+     "matched_terms": [
+      "hard",
+      "proposed",
+      "position",
+      "first",
+      "breach",
+      "portfolio",
+      "risk",
+      "check",
+      "single",
+      "name"
+     ],
+     "edit_line": 60,
+     "tool": "search_replace",
+     "hunk_id": "L60#17",
+     "snippet": "1: # Risk manager guide v1\n2: \n3: Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\n4: \n5: ## 1. Read task\n6: \n7: Read the analyst's selected names, the current portfolio, incoming contribution cash, and the option-gate status.\n8: \n9: ## 2. Choose tools/sources\n10: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/mcp_servers/risk_tools.py",
+     "line": 25,
+     "end_line": 40,
+     "text": "@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")",
+     "function": "_meta_for",
+     "score": 28.481,
+     "matched_terms": [
+      "hard",
+      "proposed",
+      "portfolio",
+      "ticker",
+      "risk",
+      "check",
+      "violations",
+      "name"
+     ],
+     "edit_line": 155,
+     "tool": "search_replace",
+     "hunk_id": "L155#54",
+     "snippet": "1: \"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from typing import Any\n6: \n7: from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\n8: from ta.harness.context import ToolContext\n9: from ta.mcp_servers.portfolio_tools import snapshot_state\n10: from ta.mcp_servers.registry import tool",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 31,
+     "end_line": 201,
+     "text": "        return caps.single_high_risk_pct",
+     "function": "_name_cap",
+     "score": 23.8891,
+     "matched_terms": [
+      "hard",
+      "portfolio",
+      "ticker",
+      "risk",
+      "violations",
+      "single",
+      "name"
+     ],
+     "edit_line": 108,
+     "tool": "search_replace",
+     "hunk_id": "L108#37",
+     "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 152,
+     "end_line": 223,
+     "text": "def sector_breach(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> str | None:",
+     "function": "sector_breach",
+     "score": 23.37,
+     "matched_terms": [
+      "hard",
+      "first",
+      "breach",
+      "ticker",
+      "risk",
+      "single",
+      "name"
+     ],
+     "edit_line": 8931,
+     "tool": "search_replace",
+     "hunk_id": "L8931#1083",
+     "snippet": "139: def equal_weight_targets(\n140:     names: list[str],\n141:     meta: dict[str, NameMeta],\n142:     caps: RiskCaps,\n143: ) -> dict[str, float]:\n144:     \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n145:     priced = [name for name in names if name in meta and meta[name].price > 0]\n146:     if not priced:\n147:         return {}\n148:     share = 1.0 / len(priced)",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "dashboard/src/app/activity/page.tsx",
+     "line": 37,
+     "end_line": 93,
+     "text": "          Each check starts with a plan. This page compares that plan with what was actually recorded.",
+     "function": "ActivityPage",
+     "score": 22.7605,
+     "matched_terms": [
+      "flagged",
+      "catch",
+      "check",
+      "recorded",
+      "name"
+     ],
+     "edit_line": 1370,
+     "tool": "search_replace",
+     "hunk_id": "L1370#257",
+     "snippet": "1: \"use client\";\n2: \n3: import { useEffect, useState } from \"react\";\n4: \n5: import { Panel, Status } from \"@/components/shell\";\n6: import { Term } from \"@/components/cite\";\n7: import { loadJson } from \"@/lib/utils\";\n8: \n9: type Row = { tool: string; plain: string; expected: string; actual: number; ok: boolean };\n10: type Check = {",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 100,
+     "end_line": 158,
+     "text": "                ctx.settings.risk.single_high_risk_pct",
+     "function": "_material_candidate",
+     "score": 22.4649,
+     "matched_terms": [
+      "proposed",
+      "position",
+      "portfolio",
+      "ticker",
+      "risk",
+      "violations",
+      "single",
+      "name"
+     ],
+     "edit_line": 153,
+     "tool": "search_replace",
+     "hunk_id": "L153#53",
+     "snippet": "1: \"\"\"Portfolio state and sizing. Sizes are computed here, never by the model.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from typing import Any\n6: \n7: from ta.harness.caps import NameMeta, enforce_caps\n8: from ta.harness.context import ToolContext\n9: from ta.ids import canonical_json\n10: from ta.mcp_servers.registry import tool",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "dashboard/src/app/simulator/page.tsx",
+     "line": 66,
+     "end_line": 110,
+     "text": "                <th className=\"py-2 font-medium\"><Term tip=\"Estimated trading costs taken out of the practice account.\">Costs</Term></th>",
+     "function": "SimulatorPage",
+     "score": 19.1143,
+     "matched_terms": [
+      "compliance",
+      "catch",
+      "check",
+      "recorded",
+      "single",
+      "name",
+      "fund",
+      "taken"
+     ],
+     "edit_line": 1374,
+     "tool": "search_replace",
+     "hunk_id": "L1374#259",
+     "snippet": "1: \"use client\";\n2: \n3: import { useEffect, useState } from \"react\";\n4: \n5: import { EquityChart } from \"@/components/chart\";\n6: import { Figure, Term } from \"@/components/cite\";\n7: import { Panel, Status } from \"@/components/shell\";\n8: import { Cite, loadJson } from \"@/lib/utils\";\n9: \n10: type Book = {",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "config/risk.yaml",
+     "line": 11,
+     "end_line": 30,
+     "text": "  single_high_risk_pct: 0.05",
+     "score": 19.0849,
+     "matched_terms": [
+      "hard",
+      "position",
+      "risk",
+      "single"
+     ],
+     "edit_line": 34,
+     "tool": "search_replace",
+     "hunk_id": "L34#4",
+     "snippet": "1: # Hard risk caps. Immutable to agents and to the guide evolver.\n2: # Changes require an explicit user edit and a new version hash.\n3: version: v1\n4: caps:\n5:   high_risk_sleeve_pct: 0.30\n6:   option_premium_per_position_pct: 0.02\n7:   option_premium_total_pct: 0.10\n8:   options_gate_min_equity: 10000\n9:   options_enabled: false\n10:   single_core_pct: 0.15",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/harness/permissions.py",
+     "line": 21,
+     "end_line": 47,
+     "text": "        \"portfolio.size_position\",",
+     "score": 18.9762,
+     "matched_terms": [
+      "position",
+      "portfolio",
+      "risk",
+      "check",
+      "fund"
+     ],
+     "edit_line": 112,
+     "tool": "search_replace",
+     "hunk_id": "L112#39",
+     "snippet": "1: \"\"\"Per-agent allow lists. The gateway rejects anything else.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: ALLOWED_TOOLS: dict[str, set[str]] = {\n6:     \"orchestrator\": {\n7:         \"portfolio.get_state\",\n8:         \"guides.get_active\",\n9:     },\n10:     \"fundamentals\": {",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 176,
+     "end_line": 216,
+     "text": "    for ticker, weight in {**{name: 0.0 for name in ctx.portfolio.positions}, **outcome.weights}.items():",
+     "function": "_public_portfolio_check",
+     "score": 18.8226,
+     "matched_terms": [
+      "hard",
+      "portfolio",
+      "ticker",
+      "risk",
+      "violations",
+      "name"
+     ],
+     "edit_line": 805,
+     "tool": "search_replace",
+     "hunk_id": "L805#177",
+     "snippet": "144: def orders_toward(ctx: ToolContext, target: dict[str, float]) -> dict[str, Any]:\n145:     \"\"\"Buy and sell toward explicit weights. Caps are applied here, not by a model.\"\"\"\n146:     state = snapshot_state(ctx)\n147:     sizing_equity = float(state[\"sizing_equity\"])\n148:     band = float(ctx.settings.sizing_rules.get(\"rebalance_band\", 0.01))\n149:     min_notional = float(ctx.settings.sizing_rules.get(\"min_order_notional\", ctx.settings.risk.min_order_notional))\n150:     meta: dict[str, NameMeta] = {}\n151:     prices: dict[str, float] = {}\n152:     sleeves: dict[str, str] = {}\n153:     ids: dict[str, str] = {}",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "guides/risk_manager/v1.md",
+   "line": 15,
+   "end_line": 27,
+   "text": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.",
+   "score": 43.8835,
+   "matched_terms": [
+    "hard",
+    "proposed",
+    "position",
+    "first",
+    "breach",
+    "portfolio",
+    "risk",
+    "check",
+    "single",
+    "name"
+   ],
+   "edit_line": 60,
+   "tool": "search_replace",
+   "hunk_id": "L60#17",
+   "snippet": "1: # Risk manager guide v1\n2: \n3: Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\n4: \n5: ## 1. Read task\n6: \n7: Read the analyst's selected names, the current portfolio, incoming contribution cash, and the option-gate status.\n8: \n9: ## 2. Choose tools/sources\n10: ",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 13689,
+   "truncated": false,
+   "dropped_sections": []
+  },
+  "prompt_user": {
+   "symptom": "Compliance flagged a hard-cap breach that the system did not catch on its own.\n\nA proposed position of 95% of the portfolio in ticker KVXR passed the automated risk check with no violations recorded, even though the single-name cap for any position is documented as 15%. This is the first time the fund has taken a position in KVXR.",
+   "edit": {
+    "file": "guides/risk_manager/v1.md",
+    "line": 15,
+    "hunk": "+## 2. Choose tools/sources\n+\n+Allowed tools: `portfolio.get_state`, `portfolio.size_position`, `risk.check_caps`, `risk.option_gate`, `research.write_observation`, `broker.render_ticket`.\n+\n+## 3. Write procedure\n+\n+Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.\n+\n+## 4. Check\n+\n+Final weights respect single-name, sector, penny, and high-risk sleeve caps. No buy/sell pair in the same session. Discretionary sells respect the minimum hold. Cap reductions may sell inside the hold window.\n+\n+## 5. Locate fault"
+   },
+   "code_window": "1: # Risk manager guide v1\n2: \n3: Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\n4: \n5: ## 1. Read task\n6: \n7: Read the analyst's selected names, the current portfolio, incoming contribution cash, and the option-gate status.\n8: \n9: ## 2. Choose tools/sources\n10: \n11: Allowed tools: `portfolio.get_state`, `portfolio.size_position`, `risk.check_caps`, `risk.option_gate`, `research.write_observation`, `broker.render_ticket`.\n12: \n13: ## 3. Write procedure\n14: \n15: Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.\n16: \n17: ## 4. Check\n18: \n19: Final weights respect single-name, sector, penny, and high-risk sleeve caps. No buy/sell pair in the same session. Discretionary sells respect the minimum hold. Cap reductions may sell inside the hold window.\n20: \n21: ## 5. Locate fault\n22: \n23: The first cap breach that reached an order, or the first size the agent typed instead of citing `size_position`, is the fault.\n24: \n25: ## 6. Repair once\n26: \n27: Clarify which tool produces the size. Never add an instruction that overrides a hard cap.\n28: ",
+   "related_files": [],
+   "three_piece": {
+    "asked": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+    "understood": "I will begin by writing the project configuration files, Makefile, and Python source code.",
+    "happened": "Compliance flagged a hard-cap breach that the system did not catch on its own.\n\nA proposed position of 95% of the portfolio in ticker KVXR passed the automated risk check with no violations recorded, even though the single-name cap for any position is documented as 15%. This is the first time the fund has taken a position in KVXR.\n\n  at ? (guides/risk_manager/v1.md:15)\n  15: Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.\n\nWritten by transcript edit L60 (search_replace):\n+## 2. Choose tools/sources\n+\n+Allowed tools: `portfolio.get_state`, `portfolio.size_position`, `risk.check_caps`, `risk.option_gate`, `research.write_observation`, `broker.render_ticket`.\n+\n+## 3. Write procedure\n+\n+Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.\n+\n+## 4. Check\n+\n+Final weights respect single-name, sector, penny, and high-risk sleeve caps. No buy/sell pair in the same session. Discretionary sells respect the minimum hold. Cap reductions may sell inside the hold window.\n+\n+## 5. Locate fault"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L60)",
+     "text": "L57 [assistant] (empty message)\nL58 [tool] TOOL: search_replace\nL58| CODE_WRITTEN: \nL58| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL58| +++ b//workspace/guides/fundamentals/v1.md\nL58| @@ -1,0 +1,27 @@\nL58| +# Fundamentals guide v1\nL58| +\nL58| +Interpret ratios that `fund.compute_ratios` already computed. Do not calculate prices, yields, or scores.\nL58| +\nL58| +## 1. Read task\nL58| +\nL58| +For the point-in-time universe, read each analysed ticker's end-of-day prices and ratio block as of the run date. Benchmarks and bond proxies are not stock-selection names.\nL58| +\nL58| +## 2. Choose tools/sources\nL58| +\nL58| +Allowed tools: `market.universe_asof`, `market.prices_eod`, `fund.compute_ratios`, `research.write_observation`, `edgar.list_filings`, `edgar.fetch_filing`. Numbers come from those tools.\nL58| +\nL58| +## 3. Write procedure\nL58| +\nL58| +Rank names by the tool's `quality_score`. Keep names at or above the screen rule's minimum, and keep at most `max_names`. Write a fact claim whose FactRef points at `quality_score`, plus a separate opinion sentence with no digits.\nL58| +\nL58| +## 4. Check\nL58| +\nL58| +Every fact claim has a `fact_ref` and a `log_entry_id`. No prose number without a citation marker. `available_at` on every cited output is on or before as-of.\nL58| +\nL58| +## 5. Locate fault\nL58| +\nL58| +The first uncited fact, the first ratio the agent recomputed, or the first future-dated fetch is the fault. Map an uncited claim to this check section.\nL58| +\nL58| +## 6. Repair once\nL58| +\nL58| +Tighten the citation step or the tool list. Do not encode a ticker-specific exception in the guide.\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemove\nL59 [assistant] (empty message)\nL60 [tool] TOOL: search_replace\nL60| CODE_WRITTEN: \nL60| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL60| +++ b//workspace/guides/risk_manager/v1.md\nL60| @@ -1,0 +1,27 @@\nL60| +# Risk manager guide v1\nL60| +\nL60| +Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\nL60| +\nL60| +## 1. Read task\nL60| +\nL60| +Read the analyst's selected names, the current portfolio, incoming contribution cash, and the option-gate status.\nL60| +\nL60| +## 2. Choose tools/sources\nL60| +\nL60| +Allowed tools: `portfolio.get_state`, `portfolio.size_position`, `risk.check_caps`, `risk.option_gate`, `research.write_observation`, `broker.render_ticket`.\nL60| +\nL60| +## 3. Write procedure\nL60| +\nL60| +Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.\nL60| +\nL60| +## 4. Check\nL60| +\nL60| +Final weights respect single-name, sector, penny, and high-risk sleeve caps. No buy/sell pair in the same session. Discretionary sells respect the minimum hold. Cap reductions may sell inside the hold window.\nL60| +\nL60| +## 5. Locate fault\nL60| +\nL60| +The first cap breach that reached an order, or the first size the agent typed instead of citing `size_position`, is the fault.\nL60| +\nL60| +## 6. Repair once\nL60| +\nL60| +Clarify which tool produces the size. Never add an instruction that overrides a hard cap.\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":27}],\"editor\":\"EDITOR\nL61 [assistant] (empty message)\nL62 [tool] TOOL: search_replace\nL62| CODE_WRITTEN: \nL62| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL62| +++ b//workspace/guides/thesis/v1.md\nL62| @@ -1,0 +1,45 @@\nL62| +# Thesis investigator guide v1\nL62| +\nL62| +Derive a cited, falsifiable thesis. This guide does not trade and does not size. Pattern notes below are the sections a later GSO loop may edit, one pattern at a time, after enough predictions have resolved.\nL62| +\nL62| +## 1. Read task\nL62| +\nL62| +Read the anomaly event or the scheduled topic, the as-of date, and this guide version. If the deterministic decomposition says the move is explained, stop with no thesis.\nL62| +\nL62| +## 2. Choose tools/sources\nL62| +\nL62| +Allowed tools are the read paths in the spec: anomaly decomposition, graph reads, EDGAR sections, industry series, news with `published_at` at or before as-of, and `thesis.validate`. No portfolio, risk-write, or broker tools.\nL62| +\nL62| +## 3. Write procedure\nL62| +\nL62| +Patterns (one subsection each; edit only the pattern that the fault names):\nL62| +\nL62| +### upstream-bottleneck\nL62| +\nL62| +Trace inputs whose shortage would constrain the trigger.\nL62| +\nL62| +### input-cost passthrough\nL62| +\nL62| +Trace who pays and who receives the price change.\nL62| +\nL62| +### substitute switch\nL62| +\nL62| +Name the substitute and the evidence that buyers can move.\nL62| +\nL62| +### second-order beneficiary\nL62| +\nL62| +Name the beneficiary that is not the headline company, with a cited link.\nL62| +\nL62| +Every causal link needs evidence with `available_at` at or before as-of. Every thesis needs a dated prediction a deterministic tool can resolve, and an invalidation condition.\nL62| +\nL62| +## 4. Check\nL63 [assistant] THINKING: I am writing the SQL migration and core Python modules.\nL63| \nL63| I am organizing the build into twelve parts: SQL migration, core models and config, action logging, data store and fixtures, harness, tools, verification and audit, simulation, agents with evolution and memo, CLI, tests, and README. The SQL migration and foundational modules come first."
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that calling risk.check_caps on the weights from portfolio.size_position would enforce the single-name cap, but the tool only validates weights after they are produced and does not prevent an oversized position from being generated in the first place.",
+  "why_it_breaks": "The procedure instructs the agent to first ask portfolio.size_position for orders and their weights, then call risk.check_caps on those weights. If the weights already violate the 15% single-name cap (e.g., 95% in KVXR), risk.check_caps may return no violation if it only checks other cap types or does not enforce the single-name limit at the generation stage. The agent’s assumption that checking caps after size_position would catch breaches is wrong because size_position can produce weights that exceed the cap before any validation runs, and the check step does not guarantee downsizing before the order is rendered.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "guides/risk_manager/v1.md",
+    "line": 15,
+    "quote": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "guides/risk_manager/v1.md",
+    "line": 3,
+    "quote": "Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 60,
+    "quote": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 1
+ }
+}

@@ -1,0 +1,7 @@
+locate: layer2_agentic -> blast_radius/models.py:85
+stage: ok
+provider: anthropic
+frame: blast_radius/models.py:91
+status: verified (code quotes 4, transcript quotes 2)
+overlooked_assumption: The agent assumed that _name() would extract only the unqualified table name from a qualified identifier like 'archive.orders', but it actually returns the entire qualified name including the schema prefix.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case09/report.html

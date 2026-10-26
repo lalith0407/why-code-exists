@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "_forced_stops assumes price > 0 is sufficient to compute a meaningful stop-loss check, but does not guard against price being exactly 0.0 after the early continue, which causes a division-by-zero or degenerate comparison when average cost is also 0 or when price is 0 and the stop condition price <= average * (1 - stop_pct) evaluates incorrectly",
+ "why_it_breaks": "The function skips positions where price <= 0 (line 319), but if a ticker has price = 0.0 (e.g., delisted or halted), the loop continues past the guard and reaches line 321 where average = lot.cost / lot.qty. If lot.qty is also 0 or lot.cost is 0, average becomes 0 or raises an error. Even if average > 0, the condition on line 322 `price <= average * (1.0 - stop_pct)` with price = 0 will always be True (since the RHS is positive), forcing a stop-loss add even though the position may not have a valid market price. The agent assumed that `price <= 0` catch-all covers the zero-price case, but it does not prevent the degenerate comparison that incorrectly triggers a stop.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 319,
+   "quote": "if price <= 0 or lot.qty <= 0:",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 321,
+   "quote": "average = lot.cost / lot.qty",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 322,
+   "quote": "if average > 0 and price <= average * (1.0 - stop_pct):",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5790,
+   "quote": "A `_forced_stops` helper is being added to identify positions that have hit their stop-loss threshold. It calculates each lot\u2019s average cost and flags tickers whose current price falls at or below the configured percentage below that average.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 3,
+ "verified_transcript_quotes": 1
+}

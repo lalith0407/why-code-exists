@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that provider_config.canonical_model() would always succeed for any valid model/provider combination, but it raises ValueError when the model is not recognized as a decisions model by that provider's config, and the exception was not caught at the right level for the guardrail settings request path.",
+ "why_it_breaks": "The GET /guardrails/ui/add_guardrail_settings endpoint calls prepare_call() which invokes provider_config.canonical_model(upstream_model). When a model that is not a recognized decisions model (e.g., a default model or a model without a decisions config) is passed, canonical_model() raises a ValueError. The try/except on line 176-179 catches this and raises BadRequestError, but the guardrail settings endpoint does not handle this exception properly, resulting in an ImportError/500 being returned to the UI, which shows an empty provider list because the request fails before providers can be listed.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "litellm/decisions/call.py",
+   "line": 179,
+   "quote": "raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "litellm/decisions/call.py",
+   "line": 177,
+   "quote": "canonical_model: Final = provider_config.canonical_model(upstream_model)",
+   "verified": false,
+   "reason": "cited line does not exist"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

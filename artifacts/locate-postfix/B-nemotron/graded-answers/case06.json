@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed the webhook URL stored in the database was the correct Zapier catch hook URL, without verifying that the URL format or stored value matched what Zapier expects for the catch endpoint.",
+ "why_it_breaks": "The seed script at line 99 stores a test webhook URL (http://localhost:4300/api/webhooks/test) instead of the actual Zapier catch hook URL (https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG). When the admin later sets the webhook URL in workspace settings, the application likely uses the value from the database seed as the default or fallback, or the seed run overwrites the correct URL with the localhost test URL. This means outgoing webhooks are sent to localhost:4300 instead of Zapier's catch endpoint, resulting in 404 responses since there is no server running at that local address to receive them.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "prisma/seed.ts",
+   "line": 99,
+   "quote": "webhookUrl: \"http://localhost:4300/api/webhooks/test\"",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "prisma/seed.ts",
+   "line": 117,
+   "quote": "body: \"We need to share weekly numbers with finance and right now we're taking screenshots. A CSV export button on the reports page would fix this.\"",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 360,
+   "quote": "L360 [tool] TOOL: search_replace\nL360| CODE_WRITTEN: \nL360| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL360| +++ b//workspace/prisma/seed.ts\nL360| @@ -1,0 +1,265 @@\nL360| +import { PrismaClient, Role } from \"@prisma/client\";\nL360| +import bcrypt from \"bcryptjs\";\nL360| +import crypto from \"crypto\";\nL360| +\nL360| +import { fetchLinkPreview } from \"../lib/link-preview\";\nL360| +\nL360| +const prisma = new PrismaClient();\nL360| +const SALT_ROUNDS = 12;\nL360| +const DEMO_PASSWORD = \"password123\";\nL360| +\nL360| +async function hash(password: string) {\nL360| +  return bcrypt.hash(password, SALT_ROUNDS);\nL360| +\nL360| +// A couple of real, stable URLs so the link-preview feature has something\nL360| +// to fetch during seeding. If the sandbox running `db:seed` has no\nL360| +// outbound internet access, fetchLinkPreview fails soft and we fall back\nL360| +// to a hardcoded preview below so the demo still looks right offline.\nL360| +const FALLBACK_PREVIEWS: Record<string, { title: string; description: string; image: string; siteName: string }> = {\nL360| +  \"https://github.com/vercel/next.js\": {\nL360| +    title: \"GitHub - vercel/next.js: The React Framework\",\nL360| +    description: \"The React Framework. Contribute to vercel/next.js development by creating an account on GitHub.\",\nL360| +    image: \"https://opengraph.githubassets.com/1/vercel/next.js\",\nL360| +    siteName: \"GitHub\",\nL360| +  },\nL360| +  \"https://www.notion.so\": {\nL360| +    title: \"Notion \u2013 The all-in-one workspace for your notes, tasks, wikis, and databases.\",\nL360| +    description: \"A new tool that blends your everyday work apps into one.\",\nL360| +    image: \"https://www.notion.so/front-static/meta/default.pn\"",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

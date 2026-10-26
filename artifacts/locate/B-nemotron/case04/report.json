@@ -1,0 +1,479 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case04",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "README.md",
+   "line": 184
+  },
+  "asked": {
+   "text": "After the free-sources work, delegate more narrow checks to decisions.ask (OpenAI Decisions API, gpt-6-luna). It's never used for buy/sell or sizing. Log and cite every check.\n1. Graph-edge validation: for each candidate supplier/customer sentence, ask a predicate question (is this a genuine commercial supplier/customer relationship?) plus a choice for direction (A supplies B / B supplies A / neither). That fixes false edges like spin-offs, a former employer, credit ratings or channel disputes, and the Qualcomm/Apple direction.\n2. Thesis-change gate: for a trade on an existing holding, ask a predicate question (does the new evidence, dated after the last decision, materially change the thesis?) at threshold 0.7. A 'no' blocks the trade unless a hard trigger fires.\n3. Policy to sector mapping: a multi-choice classification over GICS sectors and industries in place of the keyword map. Keep the keyword map as a fallback.\n4. 8-K materiality: score importance and decide whether it counts as a hard trigger for daily alerts and trades.\nAdd per-check counts and cost to the replay report and data-audit, plus tests with mocked responses. Export the tarball.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L6690 (user message, latest of 19 before the edit)",
+   "valid": true,
+   "full_length": 1165
+  },
+  "understood": {
+   "text": "Only one instance of each item remains. Next: data_audit, dashboard, and README.\n\nAdding a `decision_spend` function to data_audit. It tallies decisions API calls and estimated USD costs per purpose from the `llm_calls` table.\n\nA `decision_lines` helper formats per-purpose call and cost totals. It will be wired into coverage lines, the data-audit report, and the markdown renderer. Dashboard alerts are next.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L7033 (assistant, 60 words, 18 line(s) before the edit at L7051)",
+   "valid": true,
+   "full_length": 410
+  },
+  "happened": {
+   "text": "Risk review flagged a trade that should not have gone through during a drawdown halt.\n\nObserved: portfolio drawdown was -30.0% from its peak at the time (the halt threshold is -20%). A new buy of FALN at $2.10 per share was placed and filled anyway. No rejection or warning was logged for this order.\n\n  at ? (README.md:184)\n  184: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.\n\nWritten by transcript edit L7051 (search_replace):\n \n A yield whose absolute value exceeds `quality_yield_abs_max` (0.5), or a peer z-score beyond `quality_peer_z` when five peers exist, is dropped before the quality score ranks the screen. `vol_penalty` stays 0.1. The screen keeps at most 15 names and records a note when fewer than 8 pass. It does not invent names to fill the floor. Each name is still clipped by `single_core_pct` (0.15) or the high-risk cap.\n \n-Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.\n+Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.\n \n The report line \"Claims backed by the log\" is the fraction of fact claims whose FactRef output id and log entry both match the stored tool output. It is not reset to zero because a later decision failed. Citation accuracy remains kept claims over kept plus dropped.\n ",
+   "citation": "error case04 frame README.md:184; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L7051",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Risk review flagged a trade that should not have gone through during a drawdown halt.\n\nObserved: portfolio drawdown was -30.0% from its peak at the time (the halt threshold is -20%). A new buy of FALN at $2.10 per share was placed and filled anyway. No rejection or warning was logged for this order.\n",
+  "terms": [
+   "risk review flagged a",
+   "a new buy of",
+   "faln at",
+   "no rejection or warning",
+   "30.0",
+   "20",
+   "2.10",
+   "risk",
+   "review",
+   "flagged",
+   "trade",
+   "gone",
+   "through",
+   "drawdown",
+   "halt",
+   "observed",
+   "portfolio",
+   "peak",
+   "time",
+   "threshold",
+   "faln",
+   "share",
+   "placed",
+   "filled",
+   "anyway",
+   "rejection",
+   "warning",
+   "logged",
+   "order"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "README.md",
+     "line": 172,
+     "end_line": 172,
+     "text": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "score": 31.8655,
+     "matched_terms": [
+      "risk",
+      "review",
+      "new",
+      "buy",
+      "trade",
+      "through",
+      "drawdown",
+      "order"
+     ],
+     "edit_line": 7051,
+     "tool": "search_replace",
+     "hunk_id": "L7051#933",
+     "snippet": "172: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 184,
+     "end_line": 201,
+     "text": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+     "function": "fit_book",
+     "score": 31.8091,
+     "matched_terms": [
+      "risk",
+      "buy",
+      "trade",
+      "drawdown",
+      "halt",
+      "portfolio",
+      "peak",
+      "threshold",
+      "order"
+     ],
+     "edit_line": 108,
+     "tool": "search_replace",
+     "hunk_id": "L108#37",
+     "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 162,
+     "end_line": 180,
+     "text": "    return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)",
+     "function": "_decision_phrase",
+     "score": 31.0437,
+     "matched_terms": [
+      "risk",
+      "review",
+      "trade",
+      "drawdown",
+      "portfolio",
+      "peak"
+     ],
+     "edit_line": 5803,
+     "tool": "search_replace",
+     "hunk_id": "L5803#746",
+     "snippet": "144: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n145:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n146:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n147:     forced: set[str] = set()\n148:     for ticker, lot in ctx.portfolio.positions.items():\n149:         price = prices.get(ticker, 0.0)\n150:         if price <= 0 or lot.qty <= 0:\n151:             continue\n152:         average = lot.cost / lot.qty\n153:         if average > 0 and price <= average * (1.0 - stop_pct):",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "config/risk.yaml",
+     "line": 19,
+     "end_line": 30,
+     "text": "  drawdown_halt_high_risk: -0.20",
+     "score": 30.9888,
+     "matched_terms": [
+      "risk",
+      "review",
+      "new",
+      "drawdown",
+      "halt",
+      "threshold",
+      "order"
+     ],
+     "edit_line": 34,
+     "tool": "search_replace",
+     "hunk_id": "L34#4",
+     "snippet": "1: # Hard risk caps. Immutable to agents and to the guide evolver.\n2: # Changes require an explicit user edit and a new version hash.\n3: version: v1\n4: caps:\n5:   high_risk_sleeve_pct: 0.30\n6:   option_premium_per_position_pct: 0.02\n7:   option_premium_total_pct: 0.10\n8:   options_gate_min_equity: 10000\n9:   options_enabled: false\n10:   single_core_pct: 0.15",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "README.md",
+     "line": 170,
+     "end_line": 170,
+     "text": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order below `min_trade_dollars` (50) and `min_trade_pct` (1% of equity) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "score": 28.8973,
+     "matched_terms": [
+      "risk",
+      "review",
+      "new",
+      "buy",
+      "trade",
+      "drawdown",
+      "order"
+     ],
+     "edit_line": 5880,
+     "tool": "search_replace",
+     "hunk_id": "L5880#779",
+     "snippet": "170: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order below `min_trade_dollars` (50) and `min_trade_pct` (1% of equity) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "README.md",
+     "line": 170,
+     "end_line": 170,
+     "text": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "score": 28.7327,
+     "matched_terms": [
+      "risk",
+      "review",
+      "new",
+      "buy",
+      "trade",
+      "drawdown",
+      "order"
+     ],
+     "edit_line": 5885,
+     "tool": "search_replace",
+     "hunk_id": "L5885#781",
+     "snippet": "170: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "rules/sizing/v1.yaml",
+     "line": 21,
+     "end_line": 29,
+     "text": "  a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name",
+     "score": 22.2411,
+     "matched_terms": [
+      "review",
+      "new",
+      "trade",
+      "drawdown",
+      "order"
+     ],
+     "edit_line": 5830,
+     "tool": "search_replace",
+     "hunk_id": "L5830#759",
+     "snippet": "12: rebalance_weekday: monday\n13: trade_cooldown_sessions: 10\n14: min_trade_dollars: 50\n15: min_trade_pct: 0.01\n16: high_conviction_quality: 0.05\n17: stop_loss_pct: 0.20\n20:   The book is rebalanced on rebalance_weekday. Other sessions only trade a hard trigger:\n21:   a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name\n22:   whose quality score clears high_conviction_quality.\n23:   The sizer trades the gap between current weight and target when it exceeds the 5 percentage-point band",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/memo/render.py",
+     "line": 144,
+     "end_line": 161,
+     "text": "        placed = [item for item in result.decisions if item.orders]",
+     "function": "render_episode",
+     "score": 21.581,
+     "matched_terms": [
+      "flagged",
+      "placed",
+      "order"
+     ],
+     "edit_line": 1893,
+     "tool": "search_replace",
+     "hunk_id": "L1893#297",
+     "snippet": "144:         placed = [item for item in result.decisions if item.orders]\n145:         lines.extend([\"\", \"## Orders in this window\", \"\"])\n146:         if not placed:\n147:             lines.append(\"No order was sized on a decision date.\")\n148:         else:\n149:             lines.append(\"Each line is a sized ticket. Fills, when they happen, are at the next open.\")\n150:             lines.append(\"\")\n151:             for item in result.decisions:\n152:                 if not item.orders:\n153:                     continue",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/sim/portfolio.py",
+     "line": 76,
+     "end_line": 271,
+     "text": "    \"\"\"`ratio` is new shares per old share. Total cost basis stays put.\"\"\"",
+     "function": "half_spread",
+     "score": 20.0601,
+     "matched_terms": [
+      "risk",
+      "new",
+      "buy",
+      "portfolio",
+      "peak",
+      "threshold",
+      "share",
+      "order"
+     ],
+     "edit_line": 106,
+     "tool": "search_replace",
+     "hunk_id": "L106#36",
+     "snippet": "1: \"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date\n7: \n8: from ta.config import CostConfig, RiskCaps\n9: from ta.models import OrderIntent\n10: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/mcp_servers/fund.py",
+     "line": 97,
+     "end_line": 103,
+     "text": "    \"Compute point-in-time valuation and risk ratios from stored prices and XBRL facts.\",",
+     "function": "shares_for_period",
+     "score": 19.8731,
+     "matched_terms": [
+      "risk",
+      "20",
+      "drawdown",
+      "peak",
+      "time",
+      "share"
+     ],
+     "edit_line": 146,
+     "tool": "search_replace",
+     "hunk_id": "L146#50",
+     "snippet": "1: \"\"\"Deterministic ratio math. Agents cite the result; they do not recompute it.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import math\n6: from datetime import timedelta\n7: from typing import Any\n8: \n9: from ta.data.store import Store\n10: from ta.harness.context import ToolContext",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "README.md",
+   "line": 172,
+   "end_line": 172,
+   "text": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+   "score": 31.8655,
+   "matched_terms": [
+    "risk",
+    "review",
+    "new",
+    "buy",
+    "trade",
+    "through",
+    "drawdown",
+    "order"
+   ],
+   "edit_line": 7051,
+   "tool": "search_replace",
+   "hunk_id": "L7051#933",
+   "snippet": "172: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "nemotron",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "drawdown|halt|stop_trading|circuit_breaker|FALN"
+     },
+     "result": "src/ta/config.py:53: drawdown_halt_high_risk: float = -0.20\nsrc/ta/config.py:54: drawdown_derisk_review: float = -0.30\nsrc/ta/config.py:62: max_drawdown_penalty: float = 0.5\nsrc/ta/config.py:73: \"max_drawdown_penalty\": self.max_drawdown_penalty,\nsrc/ta/models.py:137: max_drawdown: float\nsrc/ta/models.py:149: max_drawdown_penalty: float\nsrc/ta/replay.py:502: max_drawdown_penalty=0.0,\nsrc/ta/sim/metrics.py:28: def _max_drawdown(index: list[float]) -> float:\nsrc/ta/sim/metrics.py:83: drawdown = _max_drawdown(index)\nsrc/ta/sim/metrics.py:96: if cagr is not None and drawdown < 0:\nsrc/ta/sim/metrics.py:97: calmar = cagr / abs(drawdown)\nsrc/ta/sim/metrics.py:122: max_drawdown=drawdown,\nsrc/ta/sim/metrics.py:161: mdd_penalty = abs(agent.max_drawdown)\nsrc/ta/sim/metrics.py:167: - w.max_drawdown_penalty * mdd_penalty\nsrc/ta/sim/metrics.py:179: max_drawdown_penalty=mdd_penalty,\nsrc/ta/sim/records.py:41: \"max_drawdown\": report.max_drawdown,\nsrc/ta/memo/render.py:29: f\"{_pct(report.max_drawdown)} | {_num(report.sharpe)} | {_money(report.friction)} |\"\nsrc/ta/memo/render.py:185: \"| Book | Final equity | TWR | IRR | Max drawdown | Sharpe | Friction |\",\nsrc/ta/memo/render.py:210: (\"max_drawdown_penalty\", reward.max_drawdown_penalty),\nsrc/ta/mcp_servers/fund.py:24: def _max_drawdown(closes: list[float]) -> float | None:\nsrc/ta/mcp_servers/fund.py:234: \"max_drawdown_63d\": _max_drawdown(closes[-63:]),\nsrc/ta/mcp_servers/portfolio_tools.py:14: _HARD_REASONS = frozenset({\"cap_reduction\", \"holdings_cap\", \"stop\", \"drawdown\", \"material_event\"})\nsrc/ta/mcp_servers/portfolio_tools.py:327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\nsrc/ta/mcp_servers/portfolio_tools.py:331: return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\nsrc/ta/mcp_servers/portfolio_tools.py:349: return \"drawdown\""
+    },
+    {
+     "step": 2,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 320,
+      "end": 360
+     },
+     "result": "320:             continue\n321:         average = lot.cost / lot.qty\n322:         if average > 0 and price <= average * (1.0 - stop_pct):\n323:             forced.add(ticker)\n324:     return forced\n325: \n326: \n327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False\n331:     return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\n332: \n333: \n334: def _trade_reason(\n335:     side: str,\n336:     ticker: str,\n337:     reduced: set[str],\n338:     forced: set[str],\n339:     review: bool,\n340:     trims: dict[str, str] | None = None,\n341: ) -> str:\n342:     if side == \"sell\" and ticker in forced:\n343:         return \"stop\"\n344:     if side == \"sell\" and trims and ticker in trims:\n345:         return trims[ticker]\n346:     if side == \"sell\" and ticker in reduced:\n347:         return \"cap_reduction\"\n348:     if side == \"sell\" and review:\n349:         return \"drawdown\"\n350:     return \"rebalance\"\n351: \n352: \n353: def _sticky_citation(ctx: ToolContext, ticker: str) -> str:\n354:     security = ctx.store.security_by_ticker(ticker)\n355:     if security is None:\n356:         return \"\"\n357:     from ta.mcp_servers.fund import compute_ratio_block\n358: \n359:     block = compute_ratio_block(ctx.store, security, ctx.as_of, ctx.settings.screen_rules)\n360:     return str(block.get(\"sticky_citation\") or \"\")"
+    },
+    {
+     "step": 3,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 327,
+      "end": 332
+     },
+     "result": "327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False\n331:     return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\n332: "
+    },
+    {
+     "step": 4,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 327,
+      "end": 332
+     },
+     "result": "327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False\n331:     return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\n332: "
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 327,
+      "end": 332
+     },
+     "result": "327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False\n331:     return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\n332: "
+    },
+    {
+     "step": 6,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 327,
+      "end": 332
+     },
+     "result": "327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False\n331:     return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\n332: "
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 24076,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:src/ta/sim/portfolio.py (over budget)",
+    "related_file:src/ta/dashboard/__main__.py (over budget)",
+    "transcript_window:reasoning mentioning \"Monday\" (L2062) (over budget)",
+    "transcript_window:reasoning mentioning \"Monday\" (L5427) (over budget)",
+    "transcript_window:reasoning mentioning \"Monday\" (L5445) (over budget)",
+    "transcript_window:reasoning mentioning \"Monday\" (L5463) (over budget)",
+    "transcript_window:reasoning mentioning \"Monday\" (L5492) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Risk review flagged a trade that should not have gone through during a drawdown halt.\n\nObserved: portfolio drawdown was -30.0% from its peak at the time (the halt threshold is -20%). A new buy of FALN at $2.10 per share was placed and filled anyway. No rejection or warning was logged for this order.",
+   "edit": {
+    "file": "README.md",
+    "line": 184,
+    "hunk": " \n A yield whose absolute value exceeds `quality_yield_abs_max` (0.5), or a peer z-score beyond `quality_peer_z` when five peers exist, is dropped before the quality score ranks the screen. `vol_penalty` stays 0.1. The screen keeps at most 15 names and records a note when fewer than 8 pass. It does not invent names to fill the floor. Each name is still clipped by `single_core_pct` (0.15) or the high-risk cap.\n \n-Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.\n+Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.\n \n The report line \"Claims backed by the log\" is the fraction of fact claims whose FactRef output id and log entry both match the stored tool output. It is not reset to zero because a later decision failed. Citation accuracy remains kept claims over kept plus dropped.\n "
+   },
+   "code_window": "164: Each Claude judgement allows six turns and has no built-in tools, so the reply is the JSON object. If a call still errors, it is retried once. A second failure is logged as `llm.incident`, that judgement is skipped, and the session places no order from it. The process keeps going. A budget stop still writes the partial report and exits 0. Any other fatal error exits 1.\n165: \n166: `ta replay --resume` keeps `var/replay/ta.duckdb` and `var/replay/action_log`. It continues at the first session that has no `audit.diff` entry, rebuilds the book from the stored fills, and adds the dollars already in `llm_calls` to the budget so the cap stays the total. A missing database is an error and nothing is deleted.\n167: \n168: The rules-only book is the baseline. Claude, when it is on, may only add, drop, resize, or veto names in that book, and each override is logged with the cited tool output. Both books are in the performance table. An override policy is accepted only when it beats the rules book on the time-held-out validation window (`repairs - 2 * regressions > 0`, and validation success does not fall). A held-out sector such as Energy cannot justify acceptance. A window with no validation slice is not accepted.\n169: \n170: `ta grade-decisions` reads a replay database and writes `var/grade/report.md` and `var/grade/report.json`. It uses prices after each decision date, so it is not part of the decision path. It calls no model and costs $0. The report gives the hit rate, the cost of passed-over names, the rank correlation of scores with later returns, and the best calls, worst calls, and missed winners in plain language. The dashboard Decision grade tab reads that file.\n171: \n172: `ta live-session` runs one session for both books and appends to `var/live` (it does not delete the database or the log). Agent tickets go to the Alpaca paper API only (`https://paper-api.alpaca.markets`). Live trading is refused. Missing Alpaca keys skip the submit and do not open a socket. The same budget cap applies. The default is mock, so a daily run does not call Claude unless you pass `--llm anthropic`.\n173: \n174: When `OPENAI_API_KEY` is set, an anthropic replay also calls the OpenAI Decisions API (`gpt-6-luna`, `POST /v1/decisions`) through `decisions.ask`. It checks whether a quote supports a claim, classifies a headline and scores its materiality, asks whether a move is explained by a known event, and scores thesis evidence. It also checks four narrower questions: whether a supplier or customer sentence is a real commercial relationship and which way it points, whether evidence dated after the last decision changes the thesis on a holding (threshold 0.7), which GICS sectors and industries a policy notice affects, and whether an 8-K is important enough to be a hard trigger. It never sizes or places an order. A predicate below the matching threshold in `config/decisions.yaml` drops the claim, the edge, or the trade. The policy check asks one predicate per GICS sector and industry in a single request, because a choice question returns only one label. The keyword map is the fallback. Without the key, or in mock and rules mode, those checks stay on the deterministic matchers and the run does not open a socket. Decisions tokens are input-only at $0.10 per million and count toward `--budget-usd`. The replay report and `ta data-audit` list each check's call count and estimated cost.\n175: \n176: Each analysed ticker gets one retrieval-only stock-research query (`research.query`). The analyst can ask in natural language, including a date range. The answer is stored facts. Every fact has a `fact_ref` json path into that tool output, which the gateway stamps with an output id and a log entry. The tool does not score, recommend, or trade. A question that mentions a date after the simulated day is clipped, and rows accepted later stay hidden. `config/research.yaml` caps queries per ticker (default 4). Those queries reserve the same budget and record a zero-dollar retrieval; they stop when the cap is already spent.\n177: \n178: FRED and Census refreshes read `FRED_API_KEY` and `CENSUS_API_KEY`. If a key is missing the refresh is skipped and no socket is opened. EIA is not called. A successful refresh writes dated rows on `industry_observations`: FRED `available_at` is the vintage (`realtime_start`), and Census import values are treated as public 70 days after the month starts. The default series cover industrial production, semiconductor output and prices, electric power, construction, rates, inflation, payrolls, and HS imports of chips, computers, and transformers. HS imports are requested by year and month, because a Census `time=` range is the call that times out. Manufacturers' shipments of computer and electronic products (M3 category 34S) and power construction spending (VIP category 11XX) are included; the VIP category file has no separate data-center code. Census values other than HS imports are treated as public on the first day two months after the observation month. `ALPACA_API_KEY` and `ALPACA_SECRET_KEY` are read-only option snapshots from `https://data.alpaca.markets` (IV, put/call skew, unusual volume). They are not an order path, and the history is a recent snapshot rather than a full backfill. Short interest comes from the public FINRA consolidated short-interest dataset (`symbolCode` plus a `settlementDate` range). A row is treated as public ten days after settlement. FMP transcripts and estimates stay off unless `TA_FMP=1` and `FMP_API_KEY` are both set, and even then the fetch is not wired. Earnings text comes from the 8-K exhibit instead. Analyst consensus estimates are not covered. GDELT needs no key. `TA_SIA=1` is the only switch for the free semiconductor billings workbook.\n179: \n180: Set `SEC_EDGAR_USER_AGENT` to a string that contains an email address before a live EDGAR fetch. The replay sets a default contact string when the variable is empty.\n181: \n182: A yield whose absolute value exceeds `quality_yield_abs_max` (0.5), or a peer z-score beyond `quality_peer_z` when five peers exist, is dropped before the quality score ranks the screen. Annual earnings more than 18 months before the decision date are dropped as stale. `vol_penalty` defaults to 0.01 (vol is mainly a sizing and risk input). After 60 sessions without a newer annual figure, rank decay applies and a discretionary sell may cite `sticky_exit`. The screen keeps at most 15 names and records a note when fewer than 8 pass. It does not invent names to fill the floor. Before orders are built, the sizer drops the weakest scores until the book is within 15 names and no sector is above 35 percent. Those names stay at equal weight clipped by `single_core_pct` (0.15) or the high-risk cap. They are not scaled up to fill the sector cap. A holding that does not fit is a hard sell, including inside the minimum hold. A holding that still fits is left to the ordinary gates.\n183: \n184: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.\n185: \n186: The report line \"Claims backed by the log\" is the fraction of fact claims whose FactRef output id and log entry both match the stored tool output. It is not reset to zero because a later decision failed. Citation accuracy remains kept claims over kept plus dropped.\n187: \n188: The window ends on the latest SPY session on or before today. Energy is held out of guide edits and remains tradable. The name list is a current subset, not a survivorship-free historical index. A short window is not evidence of edge.\n189: \n190: ## Smart money, policy, and numerical tools\n191: \n192: `tracker.scan` reads what was already public: 13F holding changes (the filing date, not the quarter-end), 13D/13G stakes, clusters of Form 4 open-market buys, stored congressional disclosures, and stored quotes. Policy rows keep verbatim text, the publication time, and a keyword map of sectors. The scan hands that record to the thesis investigator and does not place an order. A source can affect ranking only when its finished signals pass `repairs - 2 * regressions > 0` on a time and sector holdout and a person has approved it. Nothing is approved by default.\n193: \n194: The e-commerce trust fund row is unverified. On 12 October 2026 the Federal Register API returned no document for that exact phrase, and no White House text was found. The body is empty.\n195: \n196: `ml.vol_forecast`, `ml.xs_rank`, `ml.anomaly`, and `ml.regime` are cited CPU calculations. Log-HAR and a fixed-grid GJR-GARCH forecast variance, VaR, and ES, with Kupiec and Christoffersen checks. The ranker refits monthly on point-in-time features and applies a turnover penalty. The anomaly band is a historical quantile. Chronos-2 weights are not loaded; any foundation-model score before 20 October 2025 is marked contaminated and is not used. TimesFM 3.0, Moirai, and TimeGPT are not loaded. TTM's Granite checkpoint `ibm-granite/granite-timeseries-ttm-r2` is Apache-2.0; `ibm-research/ttm-research-r2` is CC-BY-NC-SA-4.0 and is excluded. The blend stays off unless `TA_ML_TSFM=1`, and even then no weights are downloaded.\n197: \n198: `ta ml-eval` compares the tools with a random walk, EWMA, equal weight, and momentum on a synthetic series, after a cost haircut, using Diebold-Mariano and a small model-confidence set. It is not a market result. The agent ignores the numbers while `use_models` in `config/ml.yaml` is false, which is the default, so position sizes do not change.\n199: \n200: ```bash\n201: uv run ta ml-eval\n202: ```\n203: \n204: ## What is still stubbed",
+   "related_files": [],
+   "three_piece": {
+    "asked": "After the free-sources work, delegate more narrow checks to decisions.ask (OpenAI Decisions API, gpt-6-luna). It's never used for buy/sell or sizing. Log and cite every check.\n1. Graph-edge validation: for each candidate supplier/customer sentence, ask a predicate question (is this a genuine commercial supplier/customer relationship?) plus a choice for direction (A supplies B / B supplies A / neither). That fixes false edges like spin-offs, a former employer, credit ratings or channel disputes, and the Qualcomm/Apple direction.\n2. Thesis-change gate: for a trade on an existing holding, ask a predicate question (does the new evidence, dated after the last decision, materially change the thesis?) at threshold 0.7. A 'no' blocks the trade unless a hard trigger fires.\n3. Policy to sector mapping: a multi-choice classification over GICS sectors and industries in place of the keyword map. Keep the keyword map as a fallback.\n4. 8-K materiality: score importance and decide whether it counts as a hard trigger for daily alerts and trades.\nAdd per-check counts and cost to the replay report and data-audit, plus tests with mocked responses. Export the tarball.",
+    "understood": "Only one instance of each item remains. Next: data_audit, dashboard, and README.\n\nAdding a `decision_spend` function to data_audit. It tallies decisions API calls and estimated USD costs per purpose from the `llm_calls` table.\n\nA `decision_lines` helper formats per-purpose call and cost totals. It will be wired into coverage lines, the data-audit report, and the markdown renderer. Dashboard alerts are next.",
+    "happened": "Risk review flagged a trade that should not have gone through during a drawdown halt.\n\nObserved: portfolio drawdown was -30.0% from its peak at the time (the halt threshold is -20%). A new buy of FALN at $2.10 per share was placed and filled anyway. No rejection or warning was logged for this order.\n\n  at ? (README.md:184)\n  184: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.\n\nWritten by transcript edit L7051 (search_replace):\n \n A yield whose absolute value exceeds `quality_yield_abs_max` (0.5), or a peer z-score beyond `quality_peer_z` when five peers exist, is dropped before the quality score ranks the screen. `vol_penalty` stays 0.1. The screen keeps at most 15 names and records a note when fewer than 8 pass. It does not invent names to fill the floor. Each name is still clipped by `single_core_pct` (0.15) or the high-risk cap.\n \n-Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trad"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L7051)",
+     "text": "L7048 [assistant] (empty message)\nL7049 [tool] TOOL: search_replace\nL7049| CODE_WRITTEN: \nL7049| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/README.md\nL7049| +++ b//workspace/README.md\nL7049| @@ -159,7 +159,7 @@\nL7049|  \nL7049|  `--model` defaults to the SDK alias `sonnet` (the latest Sonnet the SDK accepts; on the Anthropic API that is Sonnet 5.5, not Haiku). `--strong-model` defaults to `opus` and is used only by a step marked high-stakes. The daily analyst, bull, and bear calls are not high-stakes. `--budget-usd` defaults to 10. When the list-price estimate reaches the cap, the run stops and still writes `var/replay/report.md` for the decisions already completed. Token counts are stored on the action log as `llm.usage` and in the `llm_calls` table. Prices live in `config/models.yaml`.\nL7049|  \nL7049| -When `OPENAI_API_KEY` is set, an anthropic replay also calls the OpenAI Decisions API (`gpt-6-luna`, `POST /v1/decisions`) through the gateway tool `decisions.ask`. It checks whether a quote supports a claim, classifies a headline and scores its materiality, asks whether a move is explained by a known event, and scores thesis evidence. It never sizes or places an order. A predicate below `citation_support_threshold` in `config/decisions.yaml` drops that claim from the memo. Without the key, or in mock and rules mode, those checks stay on the deterministic matchers and the run does not open a socket. Decisions tokens are input-only at $0.10 per million and count toward `--budget-usd`.\nL7049| +When `OPENAI_API_KEY` is set, an anthropic replay also calls the OpenAI Decisions \nL7050 [assistant] (empty message)\nL7051 [tool] TOOL: search_replace\nL7051| CODE_WRITTEN: \nL7051| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/README.md\nL7051| +++ b//workspace/README.md\nL7051| @@ -169,7 +169,7 @@\nL7051|  \nL7051|  A yield whose absolute value exceeds `quality_yield_abs_max` (0.5), or a peer z-score beyond `quality_peer_z` when five peers exist, is dropped before the quality score ranks the screen. `vol_penalty` stays 0.1. The screen keeps at most 15 names and records a note when fewer than 8 pass. It does not invent names to fill the floor. Each name is still clipped by `single_core_pct` (0.15) or the high-risk cap.\nL7051|  \nL7051| -Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier o\nL7052 [assistant] THINKING: Checking dashboard read.py for a duplicated `if sized:` block that may have broken the violations loop.\nL7052| \nL7052| Confirmed the forward reference to `decision_spend` is safe at runtime. The new `decision_spend` and `decision_lines` functions were inserted before `coverage_lines`, so `coverage_counts` can call them without error.\nL7052| \nL7052| Verified the function ordering in dashboard read.py is correct. Confirmed policy.py imports DECISION_SECTOR_RULE only inside the success branch, avoiding top-level gics dependencies. The tracker filters out None decision checks properly. Now reviewing dashboard syntax.\nL7053 [assistant] (empty message)\nL7054 [tool] TOOL: read_file {\"target_file\":\"/workspace/src/ta/dashboard/read.py\"}"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that a drawdown halt (-20% threshold) would block all new trades, but the code only blocks trades that would *drop a holding* below the minimum hold; new buys of names not currently held are permitted if they pass quality screening, regardless of drawdown level.",
+  "why_it_breaks": "The symptom describes a drawdown of -30% (past the -20% halt threshold) yet a new buy of FALN was placed and filled. The agent's quoted text (both transcript L7051 and README line 184) states the system trades only on a hard trigger including 'a drawdown review', but the specific gate logic only requires that a trade dropping a holding cite a new fact. There is no explicit condition preventing *new* buys when drawdown exceeds the halt threshold, so the system allowed the order through quality-screening alone. The agent overlooked that the drawdown halt gate applies to existing holdings, not to new entries that pass the quality screen.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 7051,
+    "quote": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "README.md",
+    "line": 184,
+    "quote": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 1
+ }
+}

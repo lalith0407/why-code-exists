@@ -1,0 +1,39 @@
+{
+ "overlooked_assumption": "The drawdown halt check only applies to buy orders with sleeve=\"high_risk\", but the observed trade was a buy of FALN that passed through despite drawdown being -30.0% (below the -20% halt threshold). The agent assumed halt_high_risk would block all high-risk buys during drawdown, but the condition is evaluated after earlier guards (reentry wait, day-trade) that may have already been bypassed or the order may not have been classified as high-risk sleeve correctly.",
+ "why_it_breaks": "The drawdown halt guard at line 276 only blocks a buy order if BOTH halt_high_risk is True AND the order has sleeve=\"high_risk\". The observed trade was a buy of FALN at $2.10 that filled without rejection. If FALN's sleeve was not set to \"high_risk\" (e.g., it was \"core\" or another sleeve), the condition would evaluate to False and the order would pass through unblocked, even though drawdown was -30.0% which is below the -20% halt threshold. The agent overlooked the case where a buy order occurs during drawdown but the ticker's sleeve is not \"high_risk\", so the drawdown halt does not activate.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 276,
+   "quote": "if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 261,
+   "quote": "halt_high_risk = drawdown <= caps.drawdown_halt_high_risk",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 276,
+   "quote": "if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "config/risk.yaml",
+   "line": 20,
+   "quote": "drawdown_halt_high_risk: -0.20",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 3,
+ "verified_transcript_quotes": 0
+}

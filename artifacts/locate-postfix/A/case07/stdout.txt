@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> blast_radius/reasoner/base.py:26
+stage: ok
+provider: nemotron
+frame: blast_radius/reasoner/base.py:26
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that the `action.target` value from the original agent input would be safe to use directly in SQL without sanitizing quote characters, believing the deprecation step's SQL would be gated by signed conditions.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case07/report.html

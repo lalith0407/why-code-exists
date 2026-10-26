@@ -1,0 +1,24 @@
+{
+ "overlooked_assumption": "_xirr assumes cashflows are ordered chronologically from earliest to latest, but the function does not sort them, so when cashflows arrive in non-chronological order the time calculations produce incorrect (possibly negative) values, causing the Newton-Raphson solver to fail and return None (displayed as \"n/a\").",
+ "why_it_breaks": "The reported cashflows are 2024-01-02: -100000 and 2024-01-12: 106000. If the agent stored or passed them in the order given (earliest first), the time delta is 10 days and the IRR calculation proceeds normally. However, the agent's code at L219 computes `times` as `(day - start).days / 365.0` without sorting cashflows first. If the cashflows list were reversed (106000 at day 0, -100000 at day 10) the delta would become negative, `max(..., 0)` would clamp it to 0 for the second entry, making both times 0. The NPV function then sees two amounts with zero discounting, the Newton-Raphson solver cannot converge, and `_xirr` returns None, which the caller displays as \"n/a\". The overlooked assumption is that cashflows are already sorted chronologically; the function never sorts them.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 43,
+   "quote": "amounts = [amount for _day, amount in cashflows]",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "L219",
+   "line": 219,
+   "quote": "times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

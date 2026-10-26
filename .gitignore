@@ -20,7 +20,7 @@ artifacts/**/app-rival/
 # publish safety
 secrets/
 data/
-artifacts/
+artifacts/**/node_modules/
 scratch/
 .env*
 !.env.example

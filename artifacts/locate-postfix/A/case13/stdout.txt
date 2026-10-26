@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/agents/loop.py:476
+stage: ok
+provider: nemotron
+frame: src/ta/agents/loop.py:476
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that raw_claims contains claims referencing all selected tickers including AAPL, but _keep_after_reopen filters claims based on the proposal which only contains tickers with actual position-sizing output entries, so AAPL claims are excluded before verification even begins.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case13/report.html

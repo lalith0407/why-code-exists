@@ -1,0 +1,106 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case14",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "src/ta/replay.py",
+   "line": 322,
+   "function": "_refresh_macro"
+  },
+  "asked": {
+   "text": "1. Stock Research sub-agent (retrieval-only). Whenever an analyst agent picks up a ticker, it spawns a per-stock Stock Research sub-agent. The analyst can query it in natural language for specific info or specific timelines/date ranges (e.g. 'gross margin trend 2022-2025', 'what happened around the Aug 14 drop'). It never generates opinions or trades; it only retrieves through gateway tools and returns answers where every fact carries FactRef citation IDs. It's strictly point-in-time (only data available as of simulated date; leakage logged), and there's a configurable per-stock query cap plus cost tracking under the existing budget stop. Sources: prices, all filings, news, industry/macro, options, short interest, ownership, past trade/observation/journal history for that stock.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L3010 (user message, latest of 13 before the edit)",
+   "valid": true,
+   "full_length": 2394
+  },
+  "understood": {
+   "text": "Adding `_refresh_macro` and `_refresh_positioning` functions to `replay.py`.\n\nUpdating notes on industry and filings. Checking replay import line lengths for ruff. Ingesting filings for all 98 names may be slow due to repeated ticker-map lookups, but this is acceptable per the user's request.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L3565 (assistant, 42 words, 2 line(s) before the edit at L3567)",
+   "valid": true,
+   "full_length": 293
+  },
+  "happened": {
+   "text": "ValueError: day is out of range for month\n    at run (/usr/lib/python3.13/asyncio/runners.py:195)\n    at run (/usr/lib/python3.13/asyncio/runners.py:118)\n    at run_until_complete (/usr/lib/python3.13/asyncio/base_events.py:725)\n    at _refresh_macro (src/ta/replay.py:322)\n\n  at _refresh_macro (src/ta/replay.py:322)\n  322: start = end.replace(year=end.year - 5)\n\nWritten by transcript edit L3567 (search_replace):\n+    (\"IMPCH\", \"census\", fetch_census, \"Imports of goods\"),\n+)\n+\n+\n+def _refresh_macro(store: Store, end: date, created: str) -> list[str]:\n+    notes: list[str] = []\n+    start = end.replace(year=end.year - 5)\n+    for series_id, source, fetcher, title in _MACRO:\n+        try:\n+            live = fetcher(series_id, start, end)\n+        except Exception:\n+            notes.append(f\"{source} {series_id} refresh failed.\")\n+            continue",
+   "citation": "error case14 frame src/ta/replay.py:322; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L3567",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 13432,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:src/ta/replay.py (over budget)",
+    "transcript_window:reasoning mentioning \"fetcher\" (L10) (over budget)",
+    "transcript_window:reasoning mentioning \"fetcher\" (L784) (over budget)",
+    "transcript_window:reasoning mentioning \"_refresh_macro\" (L5492) (over budget)",
+    "transcript_window:reasoning mentioning \"fetcher\" (L2090) (over budget)",
+    "transcript_window:reasoning mentioning \"fetcher\" (L3315) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "ValueError: day is out of range for month\n    at run (/usr/lib/python3.13/asyncio/runners.py:195)\n    at run (/usr/lib/python3.13/asyncio/runners.py:118)\n    at run_until_complete (/usr/lib/python3.13/asyncio/base_events.py:725)\n    at _refresh_macro (src/ta/replay.py:322)\n\nHappened mid-run during an overnight replay job; the replay date at the time was February 29 of a leap year.",
+   "edit": {
+    "file": "ta/replay.py",
+    "line": 322,
+    "hunk": "+    (\"IMPCH\", \"census\", fetch_census, \"Imports of goods\"),\n+)\n+\n+\n+def _refresh_macro(store: Store, end: date, created: str) -> list[str]:\n+    notes: list[str] = []\n+    start = end.replace(year=end.year - 5)\n+    for series_id, source, fetcher, title in _MACRO:\n+        try:\n+            live = fetcher(series_id, start, end)\n+        except Exception:\n+            notes.append(f\"{source} {series_id} refresh failed.\")\n+            continue"
+   },
+   "code_window": "302:     (\"TTLCONS\", \"fred\", fetch_fred, \"Total construction spending\"),\n303:     (\"PERMIT\", \"fred\", fetch_fred, \"Building permits\"),\n304:     (\"DGS10\", \"fred\", fetch_fred, \"10-year Treasury yield\"),\n305:     (\"DFF\", \"fred\", fetch_fred, \"Federal funds rate\"),\n306:     (\"CPIAUCSL\", \"fred\", fetch_fred, \"CPI\"),\n307:     (\"CPILFESL\", \"fred\", fetch_fred, \"Core CPI\"),\n308:     (\"PAYEMS\", \"fred\", fetch_fred, \"Nonfarm payrolls\"),\n309:     (\"AWHMAN\", \"fred\", fetch_fred, \"Manufacturing weekly hours\"),\n310:     (\"DGORDER\", \"fred\", fetch_fred, \"Durable goods orders\"),\n311:     (\"HS8542\", \"census\", fetch_census, \"US imports of electronic integrated circuits\"),\n312:     (\"HS8541\", \"census\", fetch_census, \"US imports of semiconductor devices\"),\n313:     (\"HS8471\", \"census\", fetch_census, \"US imports of computers\"),\n314:     (\"HS8504\", \"census\", fetch_census, \"US imports of electrical transformers\"),\n315:     (\"M3_34S\", \"census\", fetch_census, \"Manufacturers' shipments of computer and electronic products, millions of USD\"),\n316:     (\"VIP_POWER\", \"census\", fetch_census, \"US power construction spending, millions of USD\"),\n317: )\n318: \n319: \n320: def _refresh_macro(store: Store, end: date, created: str) -> list[str]:\n321:     notes: list[str] = []\n322:     start = end.replace(year=end.year - 5)\n323:     for series_id, source, fetcher, title in _MACRO:\n324:         try:\n325:             live = fetcher(series_id, start, end)\n326:         except Exception:\n327:             notes.append(f\"{source} {series_id} refresh failed.\")\n328:             continue\n329:         if live.get(\"status\") == \"skipped\":\n330:             notes.append(f\"{source} {series_id} skipped: {live.get('reason')}.\")\n331:             continue\n332:         written = persist_industry_observations(\n333:             store,\n334:             series_id=series_id,\n335:             source=source,\n336:             title=title,\n337:             observations=list(live.get(\"observations\") or []),\n338:             created=created,\n339:         )\n340:         if written:\n341:             notes.append(f\"{source} {series_id}: stored {written} observations.\")\n342:         else:",
+   "related_files": [],
+   "three_piece": {
+    "asked": "1. Stock Research sub-agent (retrieval-only). Whenever an analyst agent picks up a ticker, it spawns a per-stock Stock Research sub-agent. The analyst can query it in natural language for specific info or specific timelines/date ranges (e.g. 'gross margin trend 2022-2025', 'what happened around the Aug 14 drop'). It never generates opinions or trades; it only retrieves through gateway tools and returns answers where every fact carries FactRef citation IDs. It's strictly point-in-time (only data available as of simulated date; leakage logged), and there's a configurable per-stock query cap plus cost tracking under the existing budget stop. Sources: prices, all filings, news, industry/macro, options, short interest, ownership, past trade/observation/journal history for that stock.",
+    "understood": "Adding `_refresh_macro` and `_refresh_positioning` functions to `replay.py`.\n\nUpdating notes on industry and filings. Checking replay import line lengths for ruff. Ingesting filings for all 98 names may be slow due to repeated ticker-map lookups, but this is acceptable per the user's request.",
+    "happened": "ValueError: day is out of range for month\n    at run (/usr/lib/python3.13/asyncio/runners.py:195)\n    at run (/usr/lib/python3.13/asyncio/runners.py:118)\n    at run_until_complete (/usr/lib/python3.13/asyncio/base_events.py:725)\n    at _refresh_macro (src/ta/replay.py:322)\n\n  at _refresh_macro (src/ta/replay.py:322)\n  322: start = end.replace(year=end.year - 5)\n\nWritten by transcript edit L3567 (search_replace):\n+    (\"IMPCH\", \"census\", fetch_census, \"Imports of goods\"),\n+)\n+\n+\n+def _refresh_macro(store: Store, end: date, created: str) -> list[str]:\n+    notes: list[str] = []\n+    start = end.replace(year=end.year - 5)\n+    for series_id, source, fetcher, title in _MACRO:\n+        try:\n+            live = fetcher(series_id, start, end)\n+        except Exception:\n+            notes.append(f\"{source} {series_id} refresh failed.\")\n+            continue"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L3567)",
+     "text": "L3564 [tool] TOOL: search_replace\nL3564| CODE_WRITTEN: \nL3564| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/src/ta/replay.py\nL3564| +++ b//workspace/src/ta/replay.py\nL3564| @@ -286,6 +286,8 @@\nL3564|      if \"AAPL\" in id_by_ticker and sessions:\nL3564|          notes.append(_store_item_1(store, client, id_by_ticker[\"AAPL\"], sessions[0], retrieved))\nL3564|      client.close()\nL3564| +    notes.extend(_refresh_macro(store, end, retrieved))\nL3564| +    notes.extend(_refresh_positioning(store, [spec.ticker for spec in LIQUID_UNIVERSE], end, retrieved))\nL3564|      store.sync_rules_and_guides()\nL3564|      notes.append(\nL3564|          f\"Prices from {lookback.isoformat()} through the latest bar on or before {end.isoformat()}. \"\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":2}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL3565 [assistant] THINKING: Adding `_refresh_macro` and `_refresh_positioning` functions to `replay.py`.\nL3565| \nL3565| Updating notes on industry and filings. Checking replay import line lengths for ruff. Ingesting filings for all 98 names may be slow due to repeated ticker-map lookups, but this is acceptable per the user's request.\nL3566 [assistant] (empty message)\nL3567 [tool] TOOL: search_replace\nL3567| CODE_WRITTEN: \nL3567| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/src/ta/replay.py\nL3567| +++ b//workspace/src/ta/replay.py\nL3567| @@ -227,6 +227,71 @@\nL3567|      return f\"Stored AAPL 10-K Item 1 accepted {meta.accepted_at} ({len(text)} characters).\"\nL3567|  \nL3567|  \nL3567| +_MACRO = (\nL3567| +    (\"DCOILWTICO\", \"fred\", fetch_fred, \"WTI crude\"),\nL3567| +    (\"ELEC.GEN.ALL-US-99.M\", \"eia\", fetch_eia, \"US electricity generation\"),\nL3567| +    (\"IMPCH\", \"census\", fetch_census, \"Imports of goods\"),\nL3567| +)\nL3567| +\nL3567| +\nL3567| +def _refresh_macro(store: Store, end: date, created: str) -> list[str]:\nL3567| +    notes: list[str] = []\nL3567| +    start = end.replace(year=end.year - 5)\nL3567| +    for series_id, source, fetcher, title in _MACRO:\nL3567| +        try:\nL3567| +            live = fetcher(series_id, start, end)\nL3567| +        except Exception:\nL3567| +            notes.append(f\"{source} {series_id} refresh failed.\")\nL3567| +            continue\nL3567| +        if live.get(\"status\") == \"skipped\":\nL3567| +            notes.append(f\"{source} {series_id} skipped: {live.get('reason')}.\")\nL3567| +            continue\nL3567| +        written = persist_industry_observations(\nL3567| +            store,\nL3567| +            series_id=series_id,\nL3567| +            source=source,\nL3567| +            title=title,\nL3567| +            observations=list(live.get(\"observations\") or []),\nL3567| +            created=created,\nL3567| +        )\nL3567| +        if written:\nL3567| +            notes.append(f\"{source} {series_id}: stored {written} observations.\")\nL3567| +        else:\nL3567| +            notes.append(f\"{source} {series_id}: no observations stored ({live.get('status')}).\")\nL3567| +    return notes\nL3567| +\nL3567| \nL3568 [assistant] (empty message)\nL3569 [tool] TOOL: search_replace\nL3569| CODE_WRITTEN: \nL3569| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/src/ta/replay.py\nL3569| +++ b//workspace/src/ta/replay.py\nL3569| @@ -356,8 +356,8 @@\nL3569|      store.sync_rules_and_guides()\nL3569|      notes.append(\nL3569|          f\"Prices from {lookback.isoformat()} through the latest bar on or before {end.isoformat()}. \"\nL3569| -        f\"Annual facts stored for {fact_names} names. \"\nL3569| -        \"Industry series were not refreshed, so those tool calls return missing. \"\nL3569| +        f\"Annual and quarterly facts stored for {fact_names} names. \"\nL3569| +        \"Covered EDGAR forms are stored with acceptance timestamps when the download succeeds. \"\nL3569|          \"This name list is a current liquid subset, not a survivorship-free historical index.\"\nL3569|      )\nL3569|      notes.append(\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":2,\"linesAdded\":2}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL3570 [assistant] THINKING: Checking replay import line length.\nL3570| \nL3570| Reviewed replay.py imports and filing ingestion logic. Confirmed unique filing_id and event_id constraints prevent duplicate inserts. Verified form filtering handles uppercase correctly.\nL3570| \nL3570| Replay will fetch 98 CIKs and download filings. The cloud cannot run it. I am wrapping the filing storage loop in try/except to prevent duplicate insert errors from aborting the entire replay.\nL3570| \nL3570| Confirmed insert_filing lacks ON CONFLICT handling, though duplicate accessions are unlikely. Verified that DuckDB date objects format correctly for the research query history timestamp.\nL3570| \nL3570| Verified graph entity matching against fixtures. Customer references deduplicate correctly. Supplier extraction avoids false matches on unrelated terms like \"custom\". Future filings correctly fall outside the as-of window. Peer outlier detection with five peers avoids false flags.\nL3570| \nL3570| Verified the screening logic stays within limits. The 15-name cap and 80-claim ceiling are comfortably satisfied by typical selections. Research query counts align with the universe list, and delisted stocks are excluded.\nL3570| \nL3570| Mock LLM max_names is now 15, so the screening cap selects all passing candidates. Phase 2 tests will need updating because PENY is no longer excluded from orders. Phase 1 candidate limits must also be raised to match the new settings. Simulation audit should pass with more names and claims, and reopen counts remain within the 80-claim ceiling. Float formatting changes in research queries are harmless since JSON paths stay valid. A potential edge case remains: a research question might contain a date after the as-of cutoff.\nL3570| \nL3570| Confirmed the as-of date is not treated as a future date in research queries. Each ticker gets exactly one call. The mock budget reserves nothing because spend is None, and note retrieval increments call counters without affecting the ledger. LLM usage records are excluded from the chain walk, so they do not inflate the budget."
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The code assumes `end` is a valid calendar date that can have 5 years subtracted without hitting an invalid day (e.g., February 29 in a non-leap year).",
+  "why_it_breaks": "When `end` is February 29 of a leap year, subtracting 5 years via `end.replace(year=end.year - 5)` produces February 29 of a non-leap year (e.g., 2024 → 2019), which Python's `date.replace()` rejects as 'day is out of range for month'. The bare `except Exception` in `_refresh_macro` catches this error but only records a generic failure message, losing the specific date context and allowing the crash to surface later during async execution.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 3567,
+    "quote": "start = end.replace(year=end.year - 5)",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "src/ta/replay.py",
+    "line": 322,
+    "quote": "start = end.replace(year=end.year - 5)",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 1
+ }
+}

@@ -1,0 +1,8 @@
+{
+ "id": "case15",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "Browser dev-build console, while loading the homepage's \"Selected work\" section, logs 6 React warnings:\n\nEncountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.\n\nQA noticed this while reviewing the homepage in a local dev build; the page still renders, but the warning repeats 6 times in a row.\n",
+ "frames": []
+}

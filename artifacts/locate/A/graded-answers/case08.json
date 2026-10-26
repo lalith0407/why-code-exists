@@ -1,0 +1,52 @@
+{
+ "overlooked_assumption": "The agent assumed that switching the test target from 'orders' to 'customers' would avoid the readers_migrated gating condition, not realizing that readers_subset still blocks execution because it checks live query_log evidence from the original propose() call, and that the approve\u2192execute flow rechecks readers_migrated without time-filtering the scheduler/bi sources.",
+ "why_it_breaks": "The agent switched the test target from 'orders' to 'customers' to avoid the readers_migrated condition, assuming 'customers' has no scheduler/BI dependents. However, the execution recheck still runs readers_subset against the live query_log from the propose() call, which contains evidence of the truncate attempt itself (or other recent activity). More critically, the approve\u2192execute flow re-evaluates readers_migrated, but since SchedulerSource and BIDashboardSource ignore the `since` parameter, they always check current file state. The agent overlooked that the original propose() call for 'customers' may still have generated evidence that triggers the readers_subset recheck, and that the readers_migrated condition will still fail on recheck because it has no time filtering applied to scheduler/bi sources. The test expects truncate_customers to be rejected at direct execution, but the actual block likely comes from the recheck during approve/execute, not the initial direct call.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 221,
+   "quote": "The real issue is timing: readers_subset checks evidence since signed_at, but readers_migrated checks scheduler/bi sources without any time filtering, so I need to recheck how the condition logic actually handles this.",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 221,
+   "quote": "Looking at the readers_migrated branch, it passes `since=signed_at` to who_depends_on, but SchedulerSource and BIDashboardSource both ignore the since parameter in their readers() method, meaning they always check current file state regardless of timing.",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 221,
+   "quote": "So since signed_at is set right after seeding, all that noise data is strictly older than signed_at, meaning the recheck's \"since=signed_at\" filter yields an empty current-activity set and the drift check passes trivially unless something genuinely new happens post-signing",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 221,
+   "quote": "I should rewrite these two tests to construct their own clean scenario instead of relying on the shared \"orders\" fixture \u2014 maybe using \"customers\" or a brand-new table with no baked-in dependents, adding just one dependent myself and fully removing it to simulate true migration.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_guarded_kinds.py",
+   "line": 115,
+   "quote": "direct = guard.execute(truncate_customers)",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_guarded_kinds.py",
+   "line": 116,
+   "quote": "assert direct[\"status\"] == \"rejected\"",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 4
+}

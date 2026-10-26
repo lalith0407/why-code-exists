@@ -1,0 +1,31 @@
+{
+ "overlooked_assumption": "The agent assumed that when a table parameter contains a schema qualifier (like 'archive.orders'), it should be replaced with a hardcoded 'main.' prefix in the schema_qualified bypass variant, rather than preserving the original schema.",
+ "why_it_breaks": "When the agent receives 'archive.orders' as the table parameter, the schema_qualified variant hardcodes 'main.' and then appends the full table string, producing 'ALTER TABLE main.archive.orders' which the database parser interprets as schema=main, table=archive, with '.orders' causing a syntax error or being stripped, ultimately targeting the wrong table (main.orders instead of archive.orders).",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "evals/run.py",
+   "line": 127,
+   "quote": "\"schema_qualified\": f\"ALTER TABLE main.{table} DROP COLUMN {col}\",",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 178,
+   "quote": "THINKING: Time to put it all together into the full rewrite.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "evals/run.py",
+   "line": 123,
+   "quote": "def _bypass_sql(v: str, table: str, col: str) -> str:",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 1
+}

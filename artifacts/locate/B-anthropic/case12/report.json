@@ -1,0 +1,500 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case12",
+  "complete": false,
+  "notes": [],
+  "frame": {
+   "file": "tests/test_churn.py",
+   "line": 276
+  },
+  "asked": {
+   "text": "Next: anti-churn fixes (user-approved). In the last Sonnet replay JNJ was bought and sold 8 times and OKE, MO, PEP, WMT, COP and LOW also flipped; the full-exit-only cooldown didn't catch partial trims and top-ups.\n1. Make portfolio rebalancing weekly (a configurable day) by default. Daily runs still do monitoring and alerts, and may only trade on hard triggers: a risk-limit breach, stop or drawdown rules, a material cited event (8-K, earnings, guidance) that changes the thesis, or a new high-conviction entry above a threshold.\n2. Cooldown of N sessions (default 10) after ANY trade on a name, in either direction, unless a hard trigger fires.\n3. Thesis-change gate: a trade on an existing holding must cite what changed since the last decision on that name (new fact_refs dated after it). Otherwise it's blocked and logged.\n4. A minimum trade size (dollars and % of book) so tiny $1 trims don't happen; the no-trade band applies to drift.\n5. Add a turnover and round-trip metric to the replay report, plus a test that recreates the JNJ flip pattern and asserts it's blocked.\nAlso, EIA is skipped permanently (the user can't register); make it a silent optional skip rather than a warn. FRED_API_KEY and CENSUS_API_KEY are now set on the box. Make sure the FRED and Census refreshes write dated point-in-time rows and that data-audit reports them. Pick a sensible default series set relevant to the AI supply chain (power and electricity, industrial production, semis, construction, rates, inflation, labor). Tests and ruff must pass; export the tarball. No paid replay.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L5402 (user message, latest of 17 before the edit)",
+   "valid": true,
+   "full_length": 1576
+  },
+  "understood": {
+   "text": "New tests are being appended to the end of test_churn.py.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L5938 (assistant, 10 words, 2 line(s) before the edit at L5940)",
+   "valid": false,
+   "full_length": 57,
+   "why_invalid": "agent wrote fewer than 15 words before the edit (silent edit)"
+  },
+  "happened": {
+   "text": "Compliance rule breach: the fund's swing-trade count for the quarter is now 4, above the documented cap of 2. Before today, 1 swing exit had already been used this quarter.\n\nThree positions (held under the minimum period that would normally classify an exit as a swing trade) were all sold and filled today. None of the three sells were rejected or flagged by the guard; no violation notes were recorded for any of them.\n\n  at ? (tests/test_churn.py:276)\n  276: def test_a_stop_sells_through_the_cooldown_and_the_minimum(store, settings):\n\nWritten by transcript edit L5940 (search_replace):\n+    book.positions[\"AAPL\"] = Lot(qty=0.01, cost=1.0, entry_session=0)\n+    planned = plan_orders(_ctx(store, _on_rebalance_day(settings, days[0]), book, 10, days[0]), [])\n+    assert all(order[\"ticker\"] != \"AAPL\" for order in planned[\"orders\"])\n+    assert any(\"minimum size kept AAPL sell\" in note for note in planned[\"churn_notes\"])\n+\n+\n+def test_a_stop_sells_through_the_cooldown_and_the_minimum(store, settings):\n+    days = _dates(store)\n+    security = store.security_by_ticker(\"AAPL\")\n+    assert security is not None\n+    bar = store.latest_bar(security.security_id, days[0])\n+    assert bar is not None\n+    qty = 0.01",
+   "citation": "error case12 frame tests/test_churn.py:276; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L5940",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Compliance rule breach: the fund's swing-trade count for the quarter is now 4, above the documented cap of 2. Before today, 1 swing exit had already been used this quarter.\n\nThree positions (held under the minimum period that would normally classify an exit as a swing trade) were all sold and filled today. None of the three sells were rejected or flagged by the guard; no violation notes were recorded for any of them.\n",
+  "terms": [
+   "compliance rule breach",
+   "before today",
+   "three positions",
+   "none of the three",
+   "4",
+   "2",
+   "1",
+   "compliance",
+   "rule",
+   "breach",
+   "fund",
+   "swing",
+   "trade",
+   "count",
+   "quarter",
+   "documented",
+   "today",
+   "exit",
+   "already",
+   "used",
+   "three",
+   "positions",
+   "held",
+   "minimum",
+   "period",
+   "normally",
+   "classify",
+   "sold",
+   "filled",
+   "none",
+   "sells",
+   "rejected",
+   "flagged",
+   "guard",
+   "violation",
+   "notes",
+   "recorded"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "tests/test_churn.py",
+     "line": 269,
+     "end_line": 317,
+     "text": "def test_a_stop_sells_through_the_cooldown_and_the_minimum(store, settings):",
+     "score": 31.5573,
+     "matched_terms": [
+      "positions",
+      "none",
+      "trade",
+      "exit",
+      "already",
+      "held",
+      "minimum",
+      "period",
+      "sells",
+      "notes",
+      "recorded"
+     ],
+     "edit_line": 5940,
+     "tool": "search_replace",
+     "hunk_id": "L5940#792",
+     "snippet": "155: \n156: \n157: def _jnj_order(side: str, notional: float = 400.0) -> dict:\n158:     return {\"ticker\": \"JNJ\", \"side\": side, \"notional\": notional, \"reason\": \"rebalance\"}\n159: \n160: \n161: def test_jnj_partial_flips_are_blocked_until_a_new_fact(store, settings):\n162:     \"\"\"The recorded pattern was eight buy/sell trips. A partial trim must start the cooldown.\"\"\"\n163:     monday = date(2024, 3, 4)\n164:     assert monday.weekday() == 0",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_churn.py",
+     "line": 38,
+     "end_line": 94,
+     "text": "def test_a_filled_buy_is_held_and_not_sold_the_next_session(store, settings):",
+     "score": 23.2696,
+     "matched_terms": [
+      "positions",
+      "held",
+      "minimum",
+      "sold",
+      "filled",
+      "sells",
+      "notes"
+     ],
+     "edit_line": 2555,
+     "tool": "search_replace",
+     "hunk_id": "L2555#393",
+     "snippet": "1: \"\"\"Sells inside the minimum hold are not re-issued, and an unfilled order is not repeated.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from datetime import date\n6: \n7: from ta.harness.context import ToolContext\n8: from ta.mcp_servers.portfolio_tools import apply_churn_rules, plan_orders\n9: from ta.models import OrderIntent\n10: from ta.sim.engine import advance, fresh_book",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "rules/exit/v1.yaml",
+     "line": 10,
+     "end_line": 11,
+     "text": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+     "score": 21.689,
+     "matched_terms": [
+      "exit",
+      "minimum",
+      "sells",
+      "notes"
+     ],
+     "edit_line": 48,
+     "tool": "search_replace",
+     "hunk_id": "L48#11",
+     "snippet": "1: version: v1\n2: discretionary_exits:\n3:   - screen_exit\n4:   - valuation_target\n5:   - time_stop\n6: blocked:\n7:   - trend_chase\n8: min_hold_reference: config/risk.yaml\n9: notes: >\n10:   Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 198,
+     "end_line": 201,
+     "text": "                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")",
+     "function": "forced_trims",
+     "score": 21.2595,
+     "matched_terms": [
+      "positions",
+      "none",
+      "swing",
+      "trade",
+      "quarter",
+      "exit",
+      "minimum",
+      "sells",
+      "guard",
+      "notes"
+     ],
+     "edit_line": 108,
+     "tool": "search_replace",
+     "hunk_id": "L108#37",
+     "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "rules/sizing/v1.yaml",
+     "line": 27,
+     "end_line": 29,
+     "text": "  A name inside the minimum hold is not sold unless a hard trigger requires it.",
+     "score": 19.8183,
+     "matched_terms": [
+      "trade",
+      "exit",
+      "minimum",
+      "sold"
+     ],
+     "edit_line": 5830,
+     "tool": "search_replace",
+     "hunk_id": "L5830#759",
+     "snippet": "12: rebalance_weekday: monday\n13: trade_cooldown_sessions: 10\n14: min_trade_dollars: 50\n15: min_trade_pct: 0.01\n16: high_conviction_quality: 0.05\n17: stop_loss_pct: 0.20\n20:   The book is rebalanced on rebalance_weekday. Other sessions only trade a hard trigger:\n21:   a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name\n22:   whose quality score clears high_conviction_quality.\n23:   The sizer trades the gap between current weight and target when it exceeds the 5 percentage-point band",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "README.md",
+     "line": 156,
+     "end_line": 157,
+     "text": "The window ends on the latest SPY session on or before today. Energy is held out of guide edits and remains tradable. The name list is a current subset, not a survivorship-free historical index. A short window is not evidence of edge.",
+     "score": 19.3976,
+     "matched_terms": [
+      "today",
+      "documented",
+      "used",
+      "held",
+      "before today"
+     ],
+     "edit_line": 1952,
+     "tool": "search_replace",
+     "hunk_id": "L1952#317",
+     "snippet": "141: ## Real-data replay\n142: \n143: `ta replay` loads a documented set of about 100 liquid US names (including SPY, AGG, and Energy), daily prices from yfinance with Stooq as a fallback, and annual SEC company facts. Decisions are daily. Costs and slippage stay on. Point-in-time filters stay on. The books are the agent (or the rules-only book), SPY buy-and-hold, equal-weight buy-and-hold, and 60/40 SPY/AGG. A mock or rules run also records the rules-only screen. Results land in `var/replay/`, which `ta demo` does not touch.\n144: \n145: ```bash\n146: export SEC_EDGAR_USER_AGENT=\"trading-agent research contact@example.com\"   # used if unset\n147: uv sync --extra market\n148: uv run ta replay --start 2026-07-13 --llm rules\n149: uv run ta replay --start 2026-07-13 --llm mock\n150: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/memo/render.py",
+     "line": 59,
+     "end_line": 139,
+     "text": "        f\"Rule compliance: {_pct(result.reward.rule_compliance)}.\",",
+     "function": "_cost_lines",
+     "score": 19.1012,
+     "matched_terms": [
+      "compliance",
+      "rule",
+      "none",
+      "used",
+      "held",
+      "guard",
+      "notes"
+     ],
+     "edit_line": 264,
+     "tool": "search_replace",
+     "hunk_id": "L264#92",
+     "snippet": "1: \"\"\"Render an episode. Resolved numbers are labelled as simulator output, not as alpha.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from ta.config import Settings\n6: from ta.models import PerformanceReport\n7: \n8: \n9: def _pct(value: float | None) -> str:\n10:     if value is None:",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 180,
+     "end_line": 211,
+     "text": "        held = ticker in ctx.portfolio.positions",
+     "function": "_public_portfolio_check",
+     "score": 19.0353,
+     "matched_terms": [
+      "positions",
+      "none",
+      "fund",
+      "trade",
+      "held",
+      "sells",
+      "notes"
+     ],
+     "edit_line": 5643,
+     "tool": "search_replace",
+     "hunk_id": "L5643#744",
+     "snippet": "68: def _rebalance_weekday(ctx: ToolContext) -> str:\n69:     name = str(ctx.settings.sizing_rules.get(\"rebalance_weekday\") or \"monday\").strip().lower()\n70:     if name in _WEEKDAYS:\n71:         return name\n72:     short = {day[:3]: day for day in _WEEKDAYS}\n73:     return short.get(name[:3], \"monday\")\n74: \n75: \n76: def _is_rebalance_day(ctx: ToolContext) -> bool:\n77:     return ctx.as_of.weekday() == _WEEKDAYS.index(_rebalance_weekday(ctx))",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/memo/render.py",
+     "line": 35,
+     "end_line": 64,
+     "text": "            \"This is a recorded replay. Claude judged tool output that the tools had already fetched. \"",
+     "function": "_mode_copy",
+     "score": 19.0108,
+     "matched_terms": [
+      "none",
+      "already",
+      "used",
+      "held",
+      "recorded"
+     ],
+     "edit_line": 1887,
+     "tool": "search_replace",
+     "hunk_id": "L1887#294",
+     "snippet": "32: def _mode_copy(mode: str) -> tuple[str, str, str]:\n33:     if mode == \"anthropic\":\n34:         return (\n35:             \"This is a recorded replay. Claude judged tool output that the tools had already fetched. \"\n36:             \"It is not evidence of edge.\",\n37:             \"Mode: `anthropic`. Claude is called for the analyst, bull, and bear judgements. \"\n38:             \"Retrieval and arithmetic stay in the tools.\",\n39:             \"Agent (Claude)\",\n40:         )\n41:     if mode == \"rules\":",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 152,
+     "end_line": 223,
+     "text": "def sector_breach(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> str | None:",
+     "function": "sector_breach",
+     "score": 18.8197,
+     "matched_terms": [
+      "breach",
+      "none",
+      "count",
+      "already",
+      "held",
+      "filled"
+     ],
+     "edit_line": 8931,
+     "tool": "search_replace",
+     "hunk_id": "L8931#1083",
+     "snippet": "139: def equal_weight_targets(\n140:     names: list[str],\n141:     meta: dict[str, NameMeta],\n142:     caps: RiskCaps,\n143: ) -> dict[str, float]:\n144:     \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n145:     priced = [name for name in names if name in meta and meta[name].price > 0]\n146:     if not priced:\n147:         return {}\n148:     share = 1.0 / len(priced)",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "tests/test_churn.py",
+   "line": 269,
+   "end_line": 317,
+   "text": "def test_a_stop_sells_through_the_cooldown_and_the_minimum(store, settings):",
+   "score": 31.5573,
+   "matched_terms": [
+    "positions",
+    "none",
+    "trade",
+    "exit",
+    "already",
+    "held",
+    "minimum",
+    "period",
+    "sells",
+    "notes",
+    "recorded"
+   ],
+   "edit_line": 5940,
+   "tool": "search_replace",
+   "hunk_id": "L5940#792",
+   "snippet": "155: \n156: \n157: def _jnj_order(side: str, notional: float = 400.0) -> dict:\n158:     return {\"ticker\": \"JNJ\", \"side\": side, \"notional\": notional, \"reason\": \"rebalance\"}\n159: \n160: \n161: def test_jnj_partial_flips_are_blocked_until_a_new_fact(store, settings):\n162:     \"\"\"The recorded pattern was eight buy/sell trips. A partial trim must start the cooldown.\"\"\"\n163:     monday = date(2024, 3, 4)\n164:     assert monday.weekday() == 0",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "list_edits",
+     "args": {},
+     "result": "pyproject.toml:1-62 (edit at L26, search_replace)\n  1: [project]\n  2: name = \"trading-agents\"\n  3: version = \"0.1.0\"\n  4: description = \"Long-horizon multi-agent US equity research system. Phase 0 is the simulator, point-in-time data layer, and tamper-evident action log.\"\n\nMakefile:1-16 (edit at L28, search_replace)\n  1: UV ?= $(HOME)/.local/bin/uv\n  2: export PATH := $(HOME)/.local/bin:$(PATH)\n  3: \n  4: .PHONY: demo test lint sync\n\n.gitignore:1-13 (edit at L30, search_replace)\n  1: .venv/\n  2: __pycache__/\n  3: *.pyc\n  4: .mypy_cache/\n\n.github/workflows/ci.yml:1-22 (edit at L32, search_replace)\n  1: name: ci\n  2: \n  3: on:\n  4:   push:\n\nconfig/risk.yaml:1-30 (edit at L34, search_replace)\n  1: # Hard risk caps. Immutable to agents and to the guide evolver.\n  2: # Changes require an explicit user edit and a new version hash.\n  3: version: v1\n  4: caps:\n\nconfig/reward.yaml:1-12 (edit at L36, search_replace)\n  1: # Multi-objective reward weights. The scalar is for selection only.\n  2: # Components are always reported separately. A HIGH audit failure zeroes the scalar.\n  3: version: v1\n  4: weights:\n\nconfig/sim.yaml:1-28 (edit at L38, search_replace)\n  1: # Simulator defaults. Phase 0 replays the bundled fixture; it does not hit the network.\n  2: version: v1\n  3: initial_capital: 1000\n  4: contribution_amount: 100\n\nconfig/sources.yaml:1-21 (edit at L40, search_replace)\n  1: # Credentials come from the environment. Nothing in this file is a secret.\n  2: edgar:\n  3:   user_agent_env: SEC_EDGAR_USER_AGENT\n  4:   rate_limit_per_sec: 8\n\nconfig/thesis_topics.yaml:1-15 (edit at L42, search_replace)\n  1: # Scheduled-scan themes for the Thesis Investigator. The investigator itself is Phase 2.\n  2: version: v1\n  3: cadence: weekly\n  4: topics:\n\nrules/screen/v1.yaml:1-10 (edit at L44, search_replace)\n  1: version: v1\n  2: formula_version: ratios-0.1.0\n  3: min_quality_score: 0.0\n  4: max_names: 3\n\nrules/sizing/v1.yaml:1-8 (edit at L46, search_replace)\n  1: version: v1\n  2: fractional_shares: true\n  3: min_order_notional: 1.0\n  4: rebalance_band: 0.01\n\nrules/exit/v1.yaml:1-11 (edit at L48, search_replace)\n  1: version: v1\n  2: discretionary_exits:\n  3:   - screen_exit\n  4:   - valuation_target\n\nrules/risk/v1.yaml:1-5 (edit at L50, search_replace)\n  1: version: v1\n  2: source: config/risk.yaml\n  3: notes: >\n  4:   This file records the rule-set version that decisions cite.\n\nrules/anomaly/v1.yaml:1-10 (edit at L52, search_replace)\n  1: version: v1\n  2: status: spec-default-not-executed\n  3: # The detector is a Phase 1 tool. These defaults are stored so the schema and\n  4: # rule version exist; anomaly.detect_moves does not run them yet.\n\nguides/METASKILL.md:1-29 (edit at L54, search_replace)\n  1: # Metaskill (GSO)\n  2: \n  3: This metaskill is the persistent object. A per-ticker research plan is derived from an agent guide at run time, stored in the action log for audit, and discarded. It is never promoted to a guide.\n  4: \n\nguides/orchestrator/v1.md:1-27 (edit at L56, search_replace)\n  1: # Orchestrator guide v1\n  2: \n  3: The orchestrator produces a RunPlan and routes tasks. It does not analyse securities and it does not size orders.\n  4: \n\nguides/fundamentals/v1.md:1-27 (edit at L58, search_replace)\n  1: # Fundamentals guide v1\n  2: \n  3: Interpret ratios that `fund.compute_ratios` already computed. Do not calculate prices, yields, or scores.\n  4: \n\nguides/risk_manager/v1.md:1-27 (edit at L60, search_replace)\n  1: # Risk manager guide v1\n  2: \n  3: Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\n  4: \n\nguides/thesis/v1.md:1-45 (edit at L62, search_replace)\n  1: # Thesis investigator guide v1\n  2: \n  3: Derive a cited, falsifiable thesis. This guide does not trade and does not size. Pattern notes below are the sections a later GSO loop may edit, one pattern at a time, after enough predictions have resolved.\n  4: \n\nsrc/ta/data/migrations/001_initial.sql:1-398 (edit at L65, search_replace)\n  1: -- Phase 0 schema. DuckDB first; types map to Postgres\n  2: -- (VARCHAR, DATE, DOUBLE PRECISION, BIGINT). Nested payloads are JSON text\n  3: -- so the later move to JSONB is mechanical.\n  4: -- Point-in-time columns: event_time, available_at, retrieved_at.\n\nsrc/ta/__init__.py:1-3 (edit at L67, search_replace)\n  1: \"\"\"Long-horizon multi-agent investment research system (Phase 0).\"\"\"\n  2: \n  3: __version__ = \"0.1.0\"\n\nsrc/ta/errors.py:1-34 (edit at L71, search_replace)\n  1: \"\"\"Project exceptions. Leakage and phase gates are control flow the gateway logs.\"\"\"\n  2: \n  3: \n  4: class TaError(Exception):\n\nsrc/ta/ids.py:1-81 (edit at L73, search_replace)\n  1: \"\"\"Identifiers, canonical JSON, and content hashes.\n  2: \n  3: Log entry hashes use canonical JSON so verify can recompute them from the\n  4: parsed object. Floats are rounded before they enter a hashed payload.\n\nsrc/ta/models.py:1-282 (edit at L76, search_replace)\n  1: \"\"\"Pydantic models shared by the harness, tools, simulator, and memo.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/config.py:1-229 (edit at L78, search_replace)\n  1: \"\"\"Load versioned YAML config. Secrets are read from the environment by callers.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/actionlog/__init__.py:1-8 (edit at L80, search_replace)\n  1: \"\"\"Append-only hash-chained action log.\n  2: \n  3: The gateway is the only writer. Agents use :class:`LogView`.\n  4: \"\"\"\n\nsrc/ta/actionlog/chain.py:1-13 (edit at L82, search_replace)\n  1: \"\"\"Canonical hashing helpers for the action log.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/actionlog/verify.py:1-173 (edit at L85, search_replace)\n  1: \"\"\"Recompute the hash chain and check signed daily roots.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/actionlog/writer.py:1-162 (edit at L87, search_replace)\n  1: \"\"\"Harness-owned append-only log writer and the read-only view agents use.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/data/__init__.py:1-1 (edit at L90, search_replace)\n  1: \"\"\"DuckDB store, migrations, and fixture seeding.\"\"\"\n\nsrc/ta/data/migrate.py:1-62 (edit at L92, search_replace)\n  1: \"\"\"Apply numbered SQL migrations. Each file may contain many statements.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/data/fixtures.py:1-218 (edit at L94, search_replace)\n  1: \"\"\"Seeded, survivorship-aware price history for offline replay.\n  2: \n  3: The generator is a fixed-seed daily model. It is a data fixture, not a forecast.\n  4: The full history is stored in DuckDB; agent queries still have to pass the\n\nsrc/ta/data/store.py:1-569 (edit at L96, search_replace)\n  1: \"\"\"Thin repository over DuckDB. Agent-facing reads filter on available_at.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/data/edgar.py:1-156 (edit at L99, search_replace)\n  1: \"\"\"SEC EDGAR client.\n  2: \n  3: Fair-access policy: a declared User-Agent with a contact email is required, and\n  4: the client stays under 10 requests/second. The User-Agent comes from\n\nsrc/ta/data/prices.py:1-218 (edit at L101, search_replace)\n  1: \"\"\"Pluggable end-of-day price adapters.\n  2: \n  3: ``fixture`` is the offline default. ``yfinance`` and ``stooq`` are free sources.\n  4: ``alpaca`` reads ``ALPACA_API_KEY`` and ``ALPACA_SECRET_KEY`` and is market data\n\nsrc/ta/sim/__init__.py:1-1 (edit at L104, search_replace)\n  1: \"\"\"Point-in-time replay simulator.\"\"\"\n\nsrc/ta/sim/portfolio.py:1-271 (edit at L106, search_replace)\n  1: \"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/harness/caps.py:1-201 (edit at L108, search_replace)\n  1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/harness/context.py:1-23 (edit at L110, search_replace)\n  1: \"\"\"Per-decision context handed to deterministic tools. It cannot append the log.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: \n\nsrc/ta/harness/permissions.py:1-47 (edit at L112, search_replace)\n  1: \"\"\"Per-agent allow lists. The gateway rejects anything else.\"\"\"\n  2: \n  3: from __future__ import annotations\n  4: "
+    },
+    {
+     "step": 2,
+     "action": "grep",
+     "args": {
+      "pattern": "swing"
+     },
+     "result": "src/ta/config.py:49: swing_trades_per_quarter: int = 2\nsrc/ta/config.py:51: swing_hold_sessions: int = 20\nsrc/ta/models.py:143: swing_trades: int\nsrc/ta/sim/metrics.py:128: swing_trades=len(portfolio.swing_exits),\nsrc/ta/sim/portfolio.py:39: swing_exits: list[date] = field(default_factory=list)\nsrc/ta/sim/portfolio.py:118: swing_hold_sessions=10**9,\nsrc/ta/sim/portfolio.py:173: swing_hold_sessions=caps.swing_hold_sessions,\nsrc/ta/sim/portfolio.py:245: swing_hold_sessions: int = 20,\nsrc/ta/sim/portfolio.py:266: if reason not in {\"cap_reduction\", \"delisting\"} and held_for < swing_hold_sessions:\nsrc/ta/sim/portfolio.py:267: portfolio.swing_exits.append(bar_date)\nsrc/ta/harness/caps.py:263: swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\nsrc/ta/harness/caps.py:287: and fill_session - lot.entry_session < caps.swing_hold_sessions\nsrc/ta/harness/caps.py:288: and swings_this_quarter >= caps.swing_trades_per_quarter\nsrc/ta/harness/caps.py:290: notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")"
+    },
+    {
+     "step": 3,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 260,
+      "end": 295
+     },
+     "result": "260:     drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n261:     halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n262:     quarter = _quarter(fill_date)\n263:     swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n264:     kept: list[OrderIntent] = []\n265:     for order in orders:\n266:         if order.side == \"hold\" or order.notional <= 0:\n267:             continue\n268:         if order.side == \"sell\" and order.ticker in buys:\n269:             notes.append(f\"day trade blocked for {order.ticker}\")\n270:             continue\n271:         if order.side == \"buy\":\n272:             exited = portfolio.exit_sessions.get(order.ticker)\n273:             if exited is not None and fill_session - exited < caps.reentry_sessions:\n274:                 notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n275:                 continue\n276:         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n277:             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n278:             continue\n279:         if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n280:             lot = portfolio.positions.get(order.ticker)\n281:             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n282:                 notes.append(f\"min hold blocked sell of {order.ticker}\")\n283:                 continue\n284:             if (\n285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue\n292:         kept.append(order)\n293:     return kept, notes\n294: "
+    },
+    {
+     "step": 4,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 284,
+      "end": 291
+     },
+     "result": "284:             if (\n285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue"
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 279,
+      "end": 291
+     },
+     "result": "279:         if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n280:             lot = portfolio.positions.get(order.ticker)\n281:             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n282:                 notes.append(f\"min hold blocked sell of {order.ticker}\")\n283:                 continue\n284:             if (\n285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue"
+    },
+    {
+     "step": 6,
+     "action": "answer",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "line": 288,
+      "reason": "The swing-trade guard only blocks when swings_this_quarter >= cap (line 288), but it should block when swings_this_quarter + 1 > cap. With cap=2 and 1 prior swing exit, the condition (1 >= 2) is false, so three new swing exits all pass through unblocked, bringing the total to 4 instead of stopping at 2."
+     },
+     "result": "rejected: no agent edit wrote that exact file:line"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 10574,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:src/ta/mcp_servers/portfolio_tools.py (over budget)",
+    "transcript_window:reasoning mentioning \"plan_orders\" (L200) (over budget)",
+    "transcript_window:reasoning mentioning \"plan_orders\" (L207) (over budget)",
+    "transcript_window:reasoning mentioning \"plan_orders\" (L210) (over budget)",
+    "transcript_window:reasoning mentioning \"plan_orders\" (L233) (over budget)",
+    "transcript_window:reasoning mentioning \"plan_orders\" (L746) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Compliance rule breach: the fund's swing-trade count for the quarter is now 4, above the documented cap of 2. Before today, 1 swing exit had already been used this quarter.\n\nThree positions (held under the minimum period that would normally classify an exit as a swing trade) were all sold and filled today. None of the three sells were rejected or flagged by the guard; no violation notes were recorded for any of them.",
+   "edit": {
+    "file": "tests/test_churn.py",
+    "line": 276,
+    "hunk": "+    book.positions[\"AAPL\"] = Lot(qty=0.01, cost=1.0, entry_session=0)\n+    planned = plan_orders(_ctx(store, _on_rebalance_day(settings, days[0]), book, 10, days[0]), [])\n+    assert all(order[\"ticker\"] != \"AAPL\" for order in planned[\"orders\"])\n+    assert any(\"minimum size kept AAPL sell\" in note for note in planned[\"churn_notes\"])\n+\n+\n+def test_a_stop_sells_through_the_cooldown_and_the_minimum(store, settings):\n+    days = _dates(store)\n+    security = store.security_by_ticker(\"AAPL\")\n+    assert security is not None\n+    bar = store.latest_bar(security.security_id, days[0])\n+    assert bar is not None\n+    qty = 0.01"
+   },
+   "code_window": "256:     )\n257:     assert released and released[0][\"reason\"] == \"material_event\"\n258:     assert \"Item 2.02\" in (released[0].get(\"citation\") or \"\")\n259:     assert not any(\"thesis unchanged\" in note for note in released_notes)\n260:     assert not any(\"cooldown kept JNJ\" in note for note in released_notes)\n261: \n262: \n263: def test_a_one_dollar_trim_is_below_the_minimum(store, settings):\n264:     days = _dates(store)\n265:     security = store.security_by_ticker(\"AAPL\")\n266:     assert security is not None\n267:     bar = store.latest_bar(security.security_id, days[0])\n268:     assert bar is not None and bar.adj_close > 0\n269:     book = fresh_book(1000, days[0])\n270:     book.positions[\"AAPL\"] = Lot(qty=1.0 / bar.adj_close, cost=1.0, entry_session=0)\n271:     planned = plan_orders(_ctx(store, _on_rebalance_day(settings, days[0]), book, 10, days[0]), [])\n272:     assert all(order[\"ticker\"] != \"AAPL\" for order in planned[\"orders\"])\n273:     assert any(\"minimum size kept AAPL sell\" in note for note in planned[\"churn_notes\"])\n274: \n275: \n276: def test_a_stop_sells_through_the_cooldown_and_the_minimum(store, settings):\n277:     days = _dates(store)\n278:     security = store.security_by_ticker(\"AAPL\")\n279:     assert security is not None\n280:     bar = store.latest_bar(security.security_id, days[0])\n281:     assert bar is not None\n282:     qty = 0.01\n283:     book = fresh_book(1000, days[0])\n284:     book.positions[\"AAPL\"] = Lot(qty=qty, cost=qty * bar.adj_close / 0.8, entry_session=0)\n285:     book.last_trade_session[\"AAPL\"] = 10\n286:     book.last_decision_on[\"AAPL\"] = \"2024-01-01\"\n287:     planned = plan_orders(_ctx(store, settings, book, 10, days[0]), [\"AAPL\"])\n288:     sells = [order for order in planned[\"orders\"] if order[\"ticker\"] == \"AAPL\" and order[\"side\"] == \"sell\"]\n289:     assert sells and sells[0][\"reason\"] == \"stop\"\n290:     assert sells[0][\"notional\"] < 50\n291: \n292: \n293: def test_drawdown_marks_an_already_wanted_sell(store, settings):\n294:     days = _dates(store)\n295:     security = store.security_by_ticker(\"AAPL\")\n296:     assert security is not None",
+   "related_files": [],
+   "three_piece": {
+    "asked": "Next: anti-churn fixes (user-approved). In the last Sonnet replay JNJ was bought and sold 8 times and OKE, MO, PEP, WMT, COP and LOW also flipped; the full-exit-only cooldown didn't catch partial trims and top-ups.\n1. Make portfolio rebalancing weekly (a configurable day) by default. Daily runs still do monitoring and alerts, and may only trade on hard triggers: a risk-limit breach, stop or drawdown rules, a material cited event (8-K, earnings, guidance) that changes the thesis, or a new high-conviction entry above a threshold.\n2. Cooldown of N sessions (default 10) after ANY trade on a name, in either direction, unless a hard trigger fires.\n3. Thesis-change gate: a trade on an existing holding must cite what changed since the last decision on that name (new fact_refs dated after it). Otherwise it's blocked and logged.\n4. A minimum trade size (dollars and % of book) so tiny $1 trims don't happen; the no-trade band applies to drift.\n5. Add a turnover and round-trip metric to the replay report, plus a test that recreates the JNJ flip pattern and asserts it's blocked.\nAlso, EIA is skipped permanently (the user can't register); make it a silent optional skip rather than a warn. FRED_API_KEY and CENSUS_API_KEY are now set on the box. Make sure the FRED and Census refreshes write dated point-in-time rows and that data-audit reports them. Pick a sensible default series set relevant to the AI supply chain (power and electricity, industrial production, semis, construction, rates, inflation, labor). Tests and ruff must pass; export the tarball. No paid replay.",
+    "understood": "New tests are being appended to the end of test_churn.py.",
+    "happened": "Compliance rule breach: the fund's swing-trade count for the quarter is now 4, above the documented cap of 2. Before today, 1 swing exit had already been used this quarter.\n\nThree positions (held under the minimum period that would normally classify an exit as a swing trade) were all sold and filled today. None of the three sells were rejected or flagged by the guard; no violation notes were recorded for any of them.\n\n  at ? (tests/test_churn.py:276)\n  276: def test_a_stop_sells_through_the_cooldown_and_the_minimum(store, settings):\n\nWritten by transcript edit L5940 (search_replace):\n+    book.positions[\"AAPL\"] = Lot(qty=0.01, cost=1.0, entry_session=0)\n+    planned = plan_orders(_ctx(store, _on_rebalance_day(settings, days[0]), book, 10, days[0]), [])\n+    assert all(order[\"ticker\"] != \"AAPL\" for order in planned[\"orders\"])\n+    assert any(\"minimum size kept AAPL sell\" in note for note in planned[\"churn_notes\"])\n+\n+\n+def test_a_stop_sells_through_the_cooldown_and_the_minimum(store, settings):\n+    days = _dates(store)\n+    security = store.security_by_ticker(\"AAPL\")\n+    assert security is not None\n+    bar = store.latest_bar(security.security_id, days[0])\n+    assert bar is not None\n+    qty = 0.01"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L5940)",
+     "text": "L5937 [tool] TOOL: read_file {\"target_file\":\"/workspace/tests/test_churn.py\"}\nL5938 [assistant] THINKING: New tests are being appended to the end of test_churn.py.\nL5939 [assistant] (empty message)\nL5940 [tool] TOOL: search_replace\nL5940| CODE_WRITTEN: \nL5940| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/tests/test_churn.py\nL5940| +++ b//workspace/tests/test_churn.py\nL5940| @@ -152,3 +152,166 @@\nL5940|      assert any(\"reentry wait kept AAPL\" in note for note in blocked[\"churn_notes\"])\nL5940|      later = plan_orders(_ctx(store, _on_rebalance_day(settings, days[0]), book, 20, days[0]), [\"AAPL\"])\nL5940|      assert any(order[\"ticker\"] == \"AAPL\" and order[\"side\"] == \"buy\" for order in later[\"orders\"])\nL5940| +\nL5940| +\nL5940| +def _jnj_order(side: str, notional: float = 400.0) -> dict:\nL5940| +    return {\"ticker\": \"JNJ\", \"side\": side, \"notional\": notional, \"reason\": \"rebalance\"}\nL5940| +\nL5940| +\nL5940| +def test_jnj_partial_flips_are_blocked_until_a_new_fact(store, settings):\nL5940| +    \"\"\"The recorded pattern was eight buy/sell trips. A partial trim must start the cooldown.\"\"\"\nL5940| +    monday = date(2024, 3, 4)\nL5940| +    assert monday.weekday() == 0\nL5940| +    book = fresh_book(10_000, monday)\nL5940| +    book.positions[\"JNJ\"] = Lot(qty=10.0, cost=1500.0, entry_session=1)\nL5940| +    book.last_trade_session[\"JNJ\"] = 5\nL5940| +    book.last_decision_on[\"JNJ\"] = \"2024-03-01\"\nL5940| +    kept, notes = apply_churn_rules(\nL5940| +        _ctx(store, settings, book, 6, monday),\nL5940| +        [_jnj_order(\"sell\"), _jnj_order(\"buy\")],\nL5940| +        equity=10_000,\nL5940| +        selected={\"JNJ\"},\nL5940| +    )\nL5940| +    assert kept == []\nL5940| +    assert any(\"cooldown kept JNJ sell\" in note for note in notes)\nL5940| +    assert any(\"cooldown kept JNJ buy\" in note for note in notes)\nL5940| +\nL5940| +    opened = fresh_book(10_000, monday)\nL5940| +    opened.positions[\"JNJ\"] = Lot(qty=4.0, cost\nL5941 [assistant] THINKING: A drawdown test uses session_index 0, entry_session 0, and fill_session 1.\nL5941| \nL5941| Hard drawdown rules bypass minimum-hold checks. A ~$1.8 one-dollar trim falls below the $50 threshold. Stop tests assert the reason is stop.\nL5941| \nL5941| The one-dollar trim is not a stop because the average cost is $100 and the price sits above the $80 stop level. A zero drawdown peak correctly avoids triggering drawdown rules. Coverage tests are now being reviewed.\nL5942 [assistant] (empty message)\nL5943 [tool] TOOL: read_file {\"target_file\":\"/workspace/tests/test_coverage.py\"}"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that stop-loss orders would automatically bypass swing-trade counting, but did not verify that the compliance guard actually exempts stop-triggered exits from the quarterly swing-trade cap.",
+  "why_it_breaks": "The test verifies that stop-loss orders bypass cooldown and minimum-size checks, but the compliance guard that enforces the quarterly swing-trade cap was not updated to exempt stop-triggered exits. When three positions were sold via stop-loss (all held under the minimum period), they were correctly marked with reason='stop' and bypassed churn rules, but were still counted as swing trades, causing the breach of the documented cap of 2.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5941,
+    "quote": "Hard drawdown rules bypass minimum-hold checks.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "tests/test_churn.py",
+    "line": 289,
+    "quote": "assert sells and sells[0][\"reason\"] == \"stop\"",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "tests/test_churn.py",
+    "line": 287,
+    "quote": "planned = plan_orders(_ctx(store, settings, book, 10, days[0]), [\"AAPL\"])",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5941,
+    "quote": "Stop tests assert the reason is stop.",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 2
+ }
+}

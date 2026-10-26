@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that checking if price <= average * (1.0 - stop_pct) would trigger a stop-loss when the position is down 30%, but it used the wrong comparison operator.",
+ "why_it_breaks": "With stop_loss_pct configured as 0.20 (20%), the condition price <= average * (1.0 - 0.20) triggers only when price <= average * 0.80, meaning the position must be down 20% or more. However, AAA was down 30% (price = average * 0.70), which satisfies 0.70 <= 0.80, so the stop should have triggered. The bug must be elsewhere in the execution path - likely the stop-loss order was generated but then rejected by a different gate (thesis-change, cooldown, or minimum trade size) that the agent added as part of the anti-churn fixes, blocking even hard-trigger stops.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5790,
+   "quote": "A `_forced_stops` helper is being added to identify positions that have hit their stop-loss threshold. It calculates each lot's average cost and flags tickers whose current price falls at or below the configured percentage below that average.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 322,
+   "quote": "        if average > 0 and price <= average * (1.0 - stop_pct):",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 315,
+   "quote": "    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

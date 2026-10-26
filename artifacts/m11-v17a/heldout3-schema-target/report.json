@@ -1,0 +1,692 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "br-schema-qualified-target",
+    "timestamp": "2026-10-25T03:52:11.515Z",
+    "severity": "error",
+    "service": "blast-radius",
+    "message": "The guard investigated and planned 'ALTER TABLE archive.orders DROP COLUMN legacy_discount' as a drop_column on table orders (target orders.legacy_discount): it gathered the readers of the production orders table and its safe plan's backfill step runs ALTER/UPDATE on orders, not archive.orders.",
+    "frames": [
+      {
+        "file": "blast_radius/models.py",
+        "line": 160,
+        "function": "parse_action"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout3-schema-target/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "repo"
+    }
+  },
+  "frame": {
+    "file": "blast_radius/models.py",
+    "line": 160,
+    "function": "parse_action"
+  },
+  "language": "python",
+  "provenance": {
+    "file": "blast_radius/models.py",
+    "function": "parse_action",
+    "frame_line": 160,
+    "later_edits": [],
+    "method": "diff_scan(no_introducing_edit_found) -> fallback:callee_introduced_by_edit",
+    "attribution": "callee_introduced_by_edit",
+    "target": {
+      "file": "blast_radius/models.py",
+      "function": "_classify_alter"
+    },
+    "call_path": [
+      {
+        "file": "blast_radius/models.py",
+        "function": "parse_action"
+      },
+      {
+        "file": "blast_radius/models.py",
+        "function": "_classify_alter"
+      }
+    ],
+    "written_at": {
+      "edit_line": 78,
+      "tool": "search_replace",
+      "hunk_excerpt": "+\n+\n+def _classify_alter(stmt: exp.Alter, raw_sql: str) -> Action:\n+    if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\"}):\n+        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n+    actions = stmt.args.get(\"actions\") or []\n+    if len(actions) != 1:\n+        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n+    act = actions[0]\n+    table = _name(stmt.args.get(\"this\"))\n+\n+    if isinstance(act, exp.Drop) and str(act.args.get(\"kind\") or \"\").upper() == \"COLUMN\":\n+        cols = act.args.get(\"tables\") or act.args.get(\"expressions\") or []\n+        if _only_args(act, {\"exists\", \"tables\", \"expressions\"}) and len(cols) == 1:\n+            return Action(_canon(stmt), \"drop_column\", table, _name(cols[0]), raw_sql=raw_sql)\n+        return Action(raw_sql, \"other\", raw_sql=raw_sql)",
+      "fn_range": [
+        131,
+        157
+      ],
+      "fn_text": "def _classify_alter(stmt: exp.Alter, raw_sql: str) -> Action:\n    if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}):\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n    actions = stmt.args.get(\"actions\") or []\n    if len(actions) != 1:\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n    act = actions[0]\n    table = _name(stmt.args.get(\"this\"))\n\n    if isinstance(act, exp.Drop) and str(act.args.get(\"kind\") or \"\").upper() == \"COLUMN\":\n        cols = act.args.get(\"tables\") or act.args.get(\"expressions\") or []\n        if _only_args(act, {\"exists\", \"tables\", \"expressions\", \"kind\"}) and len(cols) == 1:\n            return Action(_canon(stmt), \"drop_column\", table, _name(cols[0]), raw_sql=raw_sql)\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n\n    if isinstance(act, exp.RenameColumn):\n        if _only_args(act, {\"this\", \"to\", \"exists\"}):\n            return Action(_canon(stmt), \"rename_column\", table, _name(act.args.get(\"this\")),\n                          new_name=_name(act.args.get(\"to\")), raw_sql=raw_sql)\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n\n    if isinstance(act, exp.AlterColumn):\n        if _only_args(act, {\"this\", \"dtype\"}) and act.args.get(\"dtype\") is not None:\n            return Action(_canon(stmt), \"alter_type\", table, _name(act.args.get(\"this\")), raw_sql=raw_sql)\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n\n    return Action(raw_sql, \"other\", raw_sql=raw_sql)"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The function `_name` strips schema prefixes from the table identifier, returning only the unqualified name. This causes the subsequent table classification logic to treat the target as unqualified, leading to an incorrect action. [fix: Change `table = _name(stmt.args.get(\"this\"))` to `table = stmt.args.get(\"this\")` (or use a qualified-name extraction utility) so the full identifier with schema is retained.]"
+        ]
+      }
+    ],
+    "target_choice": {
+      "default": "blast_radius/models.py:_only_args",
+      "chosen": "blast_radius/models.py:_classify_alter",
+      "by": "claim_step",
+      "candidates": [
+        "fn:blast_radius/models.py:_classify_alter",
+        "fn:blast_radius/models.py:_is_safe_read",
+        "fn:blast_radius/models.py:_name",
+        "fn:blast_radius/models.py:_only_args",
+        "fn:blast_radius/models.py:_parse_single"
+      ],
+      "evidence": "table = _name(stmt.args.get(\"this\"))",
+      "evidence_verified": true,
+      "review": [
+        {
+          "id": "fn:blast_radius/models.py:_classify_alter",
+          "turns_input_into_observed": true,
+          "why": "_classify_alter extracts table name with _name(stmt.args.get(\"this\")) which returns unqualified 'orders' instead of 'archive.orders', causing the action to target 'orders' not 'archive.orders'."
+        },
+        {
+          "id": "fn:blast_radius/models.py:_is_safe_read",
+          "turns_input_into_observed": false,
+          "why": "_is_safe_read only checks if stmt is a safe read type; it does not transform or classify ALTER statements."
+        },
+        {
+          "id": "fn:blast_radius/models.py:_name",
+          "turns_input_into_observed": true,
+          "why": "_name strips schema/db prefixes and returns only the unqualified identifier, so _name(stmt.args.get(\"this\")) returns 'orders' from 'archive.orders'."
+        },
+        {
+          "id": "fn:blast_radius/models.py:_only_args",
+          "turns_input_into_observed": false,
+          "why": "_only_args only checks if disallowed args are falsy; it does not transform or extract table names."
+        },
+        {
+          "id": "fn:blast_radius/models.py:_parse_single",
+          "turns_input_into_observed": false,
+          "why": "_parse_single parses SQL into AST but does not alter table names or classification."
+        }
+      ],
+      "wrong_value": {
+        "input_value": "ALTER TABLE archive.orders DROP COLUMN legacy_discount",
+        "observed_value": "drop_column on table orders (target orders.legacy_discount)"
+      }
+    }
+  },
+  "tree": {
+    "origin": "repo",
+    "root": "/workspace/open-agent/heldout3-src/blast-radius-hardened"
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T18:56:48.004Z",
+  "workspace": {
+    "root": "/workspace/open-agent/heldout3-src/blast-radius-hardened",
+    "origin": "repo",
+    "notes": [
+      "python: repo virtualenv /workspace/open-agent/heldout3-src/blast-radius-hardened/.venv/bin/python"
+    ],
+    "framework_shims": [],
+    "database": null,
+    "python": "/workspace/open-agent/heldout3-src/blast-radius-hardened/.venv/bin/python"
+  },
+  "code_under_test": {
+    "source": "repo:blast_radius/models.py:L131-157",
+    "text": "def _classify_alter(stmt: exp.Alter, raw_sql: str) -> Action:\n    if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}):\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n    actions = stmt.args.get(\"actions\") or []\n    if len(actions) != 1:\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n    act = actions[0]\n    table = _name(stmt.args.get(\"this\"))\n\n    if isinstance(act, exp.Drop) and str(act.args.get(\"kind\") or \"\").upper() == \"COLUMN\":\n        cols = act.args.get(\"tables\") or act.args.get(\"expressions\") or []\n        if _only_args(act, {\"exists\", \"tables\", \"expressions\", \"kind\"}) and len(cols) == 1:\n            return Action(_canon(stmt), \"drop_column\", table, _name(cols[0]), raw_sql=raw_sql)\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n\n    if isinstance(act, exp.RenameColumn):\n        if _only_args(act, {\"this\", \"to\", \"exists\"}):\n            return Action(_canon(stmt), \"rename_column\", table, _name(act.args.get(\"this\")),\n                          new_name=_name(act.args.get(\"to\")), raw_sql=raw_sql)\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n\n    if isinstance(act, exp.AlterColumn):\n        if _only_args(act, {\"this\", \"dtype\"}) and act.args.get(\"dtype\") is not None:\n            return Action(_canon(stmt), \"alter_type\", table, _name(act.args.get(\"this\")), raw_sql=raw_sql)\n        return Action(raw_sql, \"other\", raw_sql=raw_sql)\n\n    return Action(raw_sql, \"other\", raw_sql=raw_sql)"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed _name returns fully qualified table names including schema, so the code uses _name(stmt.args.get(\"this\")) which strips schema prefixes, causing misclassification of the target table.",
+        "evidence_line": "table = _name(stmt.args.get(\"this\"))",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed the SQL parser would include schema in the 'tables' or 'expressions' args of the Drop action, but it only includes unqualified names, so the code misclassifies the target column's table.",
+        "evidence_line": "cols = act.args.get(\"tables\") or act.args.get(\"expressions\") or []",
+        "explains_error": false
+      }
+    ],
+    "chosen_cause": "The agent assumed _name returns fully qualified table names including schema, so the code uses _name(stmt.args.get(\"this\")) which strips schema prefixes, causing misclassification of the target table.",
+    "claim": "The agent assumed _name returns fully qualified table names including schema, so the code uses _name(stmt.args.get(\"this\")) which strips schema prefixes, causing the code to misclassify the target table as unqualified and thus produce an incorrect action targeting the wrong table.",
+    "mechanism": "The line `table = _name(stmt.args.get(\"this\"))` calls _name which strips schema prefixes from the table identifier, returning only the unqualified table name, so the Action is created with an incorrect table name missing the schema prefix.",
+    "belief_quote": "def _name(node: exp.Expression | None) -> str | None:\n    \"\"\"Unqualified identifier name (schema/db prefixes stripped), from a Table/Column/Identifier.\"\"\"",
+    "belief_quote_source": "fn:blast_radius/models.py:_name",
+    "concept": "incorrect-identifier-qualification",
+    "language_framework": "Python with sqlglot",
+    "correct_rule": "When classifying SQL actions, preserve full table identifiers including schema/database prefixes to correctly identify the target table.",
+    "cited_lines": [
+      "table = _name(stmt.args.get(\"this\"))"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed the SQL parser would include schema in the 'tables' or 'expressions' args of the Drop action, but it only includes unqualified names, so the code misclassifies the target column's table.",
+        "why_rejected": "The error message and code show the misclassification is about the table name extracted from stmt.args.get(\"this\"), not the column names from 'tables' or 'expressions'."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "blast_radius/models.py",
+        "line": 138,
+        "text": "table = _name(stmt.args.get(\"this\"))"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "incorrect-identifier-qualification",
+    "hits": []
+  },
+  "tests": {
+    "setup": "m = app(\"blast_radius/models.py\")",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: parse_action strips schema from table name causing incorrect target",
+        "role": "reproduction",
+        "asserts": "harm_observed(out.target == \"orders.legacy_discount\", \"target includes schema prefix, but code strips it causing incorrect target\")",
+        "body": "arranged()\nout = m.parse_action(\"ALTER TABLE archive.orders DROP COLUMN legacy_discount\")\nrecord(\"kind\", out.kind)\nrecord(\"target\", out.target)\nharm_observed(out.target == \"orders.legacy_discount\", \"target includes schema prefix, but code strips it causing incorrect target\")"
+      },
+      {
+        "name": "decoy: parse_action correctly classifies drop_table with schema stripped but target is unambiguous",
+        "role": "decoy",
+        "asserts": "check(out.kind == \"drop_table\", \"kind is drop_table\")\ncheck(out.target == \"orders\", \"target is unqualified table name as expected\")",
+        "body": "arranged()\nout = m.parse_action(\"DROP TABLE orders\")\nrecord(\"kind\", out.kind)\nrecord(\"target\", out.target)\ncheck(out.kind == \"drop_table\", \"kind is drop_table\")\ncheck(out.target == \"orders\", \"target is unqualified table name as expected\")"
+      },
+      {
+        "name": "decoy: parse_action correctly classifies read statement ignoring schema prefixes",
+        "role": "decoy",
+        "asserts": "check(out.kind == \"read\", \"kind is read\")\ncheck(out.target == \"?\", \"target is unknown for read\")",
+        "body": "arranged()\nout = m.parse_action(\"SELECT * FROM archive.orders\")\nrecord(\"kind\", out.kind)\nrecord(\"target\", out.target)\ncheck(out.kind == \"read\", \"kind is read\")\ncheck(out.target == \"?\", \"target is unknown for read\")"
+      }
+    ],
+    "trace": {
+      "file": "blast_radius/models.py",
+      "function": "_classify_alter"
+    },
+    "tests_sha256": "ee8daad1b68bdaea7f6e217be9d4f5c84087cec748479ac4214c97ab5f4c5bd2",
+    "frozen_at": "2026-10-25T18:57:09.427Z",
+    "harness_sha256": "931b2058edf27dd228a15f1d11dd506148d1494b9017354fae70191ee281cd6b",
+    "harness_repairs": [],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [
+        "decoy: parse_action correctly classifies drop_table with schema stripped but target is unambiguous",
+        "decoy: parse_action correctly classifies read statement ignoring schema prefixes"
+      ],
+      "redrafted": [
+        {
+          "name": "decoy: parse_action correctly classifies drop_table with schema stripped but target is unambiguous",
+          "replaced": false
+        },
+        {
+          "name": "decoy: parse_action correctly classifies read statement ignoring schema prefixes",
+          "replaced": false
+        }
+      ]
+    },
+    "reproduction_sha256": "11f1c902e71f61ad5ff7b37ff368d38e746028ed9e1c97bf5f015e2f30a4b404",
+    "setup_probe": [
+      {
+        "ok": false,
+        "error": "rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      },
+      {
+        "ok": false,
+        "target_ran": false,
+        "recorded": "[{\"name\":\"kind\",\"value\":\"read\"},{\"name\":\"target\",\"value\":\"?\"}]"
+      },
+      {
+        "ok": false,
+        "error": "rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      },
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"kind\",\"value\":\"drop_column\"},{\"name\":\"target\",\"value\":\"orders.legacy_discount\"}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [
+      {
+        "name": "decoy: parse_action correctly classifies drop_table with schema stripped but target is unambiguous",
+        "failed_with": "passed on no-op mutant (vacuous)",
+        "replaced": false
+      },
+      {
+        "name": "decoy: parse_action correctly classifies read statement ignoring schema prefixes",
+        "failed_with": "passed on no-op mutant (vacuous)",
+        "replaced": false
+      }
+    ],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "def _name(node: exp.Expression | None) -> str | None:\n    \"\"\"Full identifier name including schema/db prefixes, from a Table/Column/Identifier.\"\"\"\n    if node is None:\n        return None\n    if isinstance(node, exp.Identifier):\n        return node.this\n    # Compose full name including schema prefixes\n    parts = []\n    current = node\n    while current:\n        if isinstance(current, exp.Identifier):\n            parts.append(current.this)\n        current = current.args.get(\"this\") if hasattr(current, \"args\") else None\n    return \".\".join(reversed(parts)) if parts else None",
+    "file": "blast_radius/models.py",
+    "changed_lines": 12,
+    "diff": " def _name(node: exp.Expression | None) -> str | None:\n+    \"\"\"Full identifier name including schema/db prefixes, from a Table/Column/Identifier.\"\"\"\n-    \"\"\"Unqualified identifier name (schema/db prefixes stripped), from a Table/Column/Identifier.\"\"\"\n     if node is None:\n         return None\n     if isinstance(node, exp.Identifier):\n         return node.this\n+    # Compose full name including schema prefixes\n+    parts = []\n+    current = node\n+    while current:\n+        if isinstance(current, exp.Identifier):\n+            parts.append(current.this)\n+        current = current.args.get(\"this\") if hasattr(current, \"args\") else None\n+    return \".\".join(reversed(parts)) if parts else None\n-    ident = node.find(exp.Identifier)\n-    return ident.this if ident else None",
+    "rationale": "The original _name function strips schema/database prefixes by returning only the last Identifier's this attribute, which causes the classification to lose schema qualification and misidentify the target table. The fix is to preserve the full identifier including schema prefixes by traversing the nested 'this' attributes and joining all identifier parts with dots. This ensures the Action uses the fully qualified table name, matching the actual target table in the database.",
+    "attempts": [
+      {
+        "file": "blast_radius/models.py",
+        "changed_lines": 12
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: parse_action strips schema from table name causing incorrect target",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kind",
+              "value": "drop_column"
+            },
+            {
+              "name": "target",
+              "value": "orders.legacy_discount"
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: parse_action correctly classifies drop_table with schema stripped but target is unambiguous",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kind",
+              "value": "drop_table"
+            },
+            {
+              "name": "target",
+              "value": "orders"
+            }
+          ],
+          "target_ran": false
+        },
+        {
+          "name": "decoy: parse_action correctly classifies read statement ignoring schema prefixes",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kind",
+              "value": "read"
+            },
+            {
+              "name": "target",
+              "value": "?"
+            }
+          ],
+          "target_ran": false
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 465,
+      "tree": "/workspace/open-agent/heldout3-src/blast-radius-hardened"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: parse_action strips schema from table name causing incorrect target",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kind",
+              "value": "drop_column"
+            },
+            {
+              "name": "target",
+              "value": "orders.legacy_discount"
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: parse_action correctly classifies drop_table with schema stripped but target is unambiguous",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kind",
+              "value": "drop_table"
+            },
+            {
+              "name": "target",
+              "value": "orders"
+            }
+          ],
+          "target_ran": false
+        },
+        {
+          "name": "decoy: parse_action correctly classifies read statement ignoring schema prefixes",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kind",
+              "value": "read"
+            },
+            {
+              "name": "target",
+              "value": "?"
+            }
+          ],
+          "target_ran": false
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 482,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout3-schema-target/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "_name(stmt.args.get(\"this\")) strips schema prefixes from the table identifier",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "table = _name(stmt.args.get(\"this\"))",
+        "quote_verified": true
+      },
+      {
+        "element": "The code uses the stripped table name in the Action constructor",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "Action(_canon(stmt), \"drop_column\", table, _name(cols[0]), raw_sql=raw_sql)",
+        "quote_verified": true
+      },
+      {
+        "element": "_only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}) validates allowed arguments",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}):",
+        "quote_verified": true
+      }
+    ],
+    "reason": "3 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "blast_radius/models.py",
+        "line": 138,
+        "text": "table = _name(stmt.args.get(\"this\"))"
+      }
+    ],
+    "patch_file": "blast_radius/models.py",
+    "patch_touched_lines": [
+      78,
+      79,
+      83,
+      84,
+      85
+    ],
+    "overlap": [],
+    "cause_gate": {
+      "harm_condition": "out.target == \"orders.legacy_discount\"",
+      "alternative_defect": "The code correctly preserves the schema prefix in `table`, but the `_name` function is incorrectly applied to the column name `cols[0]` when constructing the Action, causing the target to be set to the column name alone (e.g., \"legacy_discount\") instead of the full qualified target \"orders.legacy_discount\".",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The cited line `table = _name(stmt.args.get(\"this\"))` strips the schema prefix from the table identifier. The reproduction test checks that `out.target == \"orders.legacy_discount\"`. Since the target is built from this `table` variable, the check only passes if the schema prefix is preserved. The claim specifically predicts this symptom, and the production error confirms the target should include the schema prefix \"orders.\". Without the cited lines behaving as the claim describes (stripping the prefix), the test's condition cannot be satisfied."
+    },
+    "rival": {
+      "status": "ran",
+      "proposal": {
+        "rival_cause": "The code assumes the table identifier `this` is always a simple column reference and does not handle the case where `this` is a schema-qualified identifier (e.g., `schema.table`), causing _name to return the full qualified name and the Action to be created with an incorrect fully qualified table name.",
+        "rival_rule": "The code should extract only the unqualified table name from `this`, stripping any schema prefix before passing it to the Action constructor.",
+        "rival_location": "table = _name(stmt.args.get(\"this\"))"
+      },
+      "patch": {
+        "file": "blast_radius/models.py",
+        "diff": "     if isinstance(node, exp.Identifier):\n         return node.this\n+    # If node is a Table or similar, get the last identifier (unqualified table name)\n+    if hasattr(node, 'this') and isinstance(node.this, exp.Identifier):\n+        return node.this.this\n     ident = node.find(exp.Identifier)\n     return ident.this if ident else None",
+        "touched": [
+          83,
+          84
+        ],
+        "rationale": "The original _name function returns the first Identifier found, which can be a schema or database prefix, resulting in a fully qualified name. The fix ensures that if the node has a 'this' attribute that is an Identifier (typical for Table nodes), it returns the unqualified table name by returning node.this.this (the last identifier). This strips schema prefixes and returns only the table name, fixing the issue where the Action was created with a fully qualified table name instead of just the unqualified table name."
+      },
+      "reproduction_passes": true,
+      "decoys_pass": true,
+      "attempts": []
+    },
+    "claim_causes": [
+      "The function `_name` strips schema prefixes from the table identifier, returning only the unqualified name. This causes the subsequent table classification logic to treat the target as unqualified, leading to an incorrect action. [fix: Change `table = _name(stmt.args.get(\"this\"))` to `table = stmt.args.get(\"this\")` (or use a qualified-name extraction utility) so the full identifier with schema is retained.]"
+    ]
+  },
+  "verdict": "patch_ineffective",
+  "reasons": [
+    "reproduction test passes on the original code (bug reproduced on the real code)",
+    "reproduction test still passes on the patch: the corrected belief does not remove the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function blast_radius/models.py:_classify_alter",
+    "patch changes blast_radius/models.py lines 78,79,83,84,85 but the claim cites blast_radius/models.py:138: the fix is not at the claimed cause",
+    "decoy(s) decoy: parse_action correctly classifies drop_table with schema stripped but target is unambiguous, decoy: parse_action correctly classifies read statement ignoring schema prefixes also pass with the attributed function made a no-op: they do not observe it",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: the rival fix leaves the harm in place (the reproduction discriminates the claimed cause)",
+    "mechanism gate (nemotron): consistent (3 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T18:57:32.269Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T18:57:32.269Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "br-schema-qualified-target",
+            "ts": "2026-10-25T03:52:11.515Z",
+            "severity": "error",
+            "service": "blast-radius",
+            "message": "The guard investigated and planned 'ALTER TABLE archive.orders DROP COLUMN legacy_discount' as a drop_column on table orders (target orders.legacy_discount): it gathered the readers of the production orders table and its safe plan's backfill step runs ALTER/UPDATE on orders, not archive.orders.",
+            "frame_index": 0,
+            "frame_file": "blast_radius/models.py",
+            "frame_line": 160,
+            "frame_function": "parse_action",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout3-schema-target/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 43,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "/home/ubuntu/.cursor/projects/workspace/agent-tools/b72710a0-caf5-4f80-a92f-210a4805f66f.txt",
+            "edit_line": 23,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "/home/ubuntu/.cursor/projects/workspace/agent-tools/b72710a0-caf5-4f80-a92f-210a4805f66f.txt",
+            "edit_line": 24,
+            "tool": "read_file",
+            "at": "2026-10-22T19:28:30.495Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript + git log"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

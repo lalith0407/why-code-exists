@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed outcome.detail would be unique across all outcomes in all case studies, but the placeholder data contains duplicate detail values.",
+ "why_it_breaks": "When the agent chose outcome.detail as the React key, it did not verify that detail strings would be unique across all outcomes in the caseStudies array. Since the placeholder data contains the same detail text '[Outcome \u2014 what changed.]' in multiple outcomes across the 3 case studies, React encounters 6 children (2 outcomes per study \u00d7 3 studies) with identical keys, triggering the duplicate key warning 6 times.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 110,
+   "quote": "+                key={outcome.detail}",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/components/selected-work.tsx",
+   "line": 69,
+   "quote": "                key={outcome.detail}",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 117,
+   "quote": "Extracting highlightTokens to avoid duplication. Fixing an unused `xs:inline` class in hero.tsx. Writing the remaining app files.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

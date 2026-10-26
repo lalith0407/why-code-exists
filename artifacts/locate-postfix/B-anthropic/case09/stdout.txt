@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> evals/run.py:127
+stage: ok
+provider: anthropic
+frame: evals/run.py:127
+status: verified (code quotes 2, transcript quotes 1)
+overlooked_assumption: The agent assumed that when a table parameter contains a schema qualifier (like 'archive.orders'), it should be replaced with a hardcoded 'main.' prefix in the schema_qualified bypass variant, rather than preserving the original schema.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-anthropic/case09/report.html

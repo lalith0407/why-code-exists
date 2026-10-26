@@ -1,0 +1,56 @@
+{
+ "overlooked_assumption": "The agent assumed that raw_claims contains claims for all selected tickers including AAPL, but _keep_after_reopen filters claims based on the cleaned weights dictionary which may exclude tickers that have zero or missing position sizes, causing the citation verifier to receive claims for tickers whose supporting ratio outputs do not exist in the sized output.",
+ "why_it_breaks": "The claim cites a position-sizing result for AAPL, but the actual output only contains MSFT. The chain is: _claims_for merges sized.output (which may only have MSFT ratio data) into proposed, then _keep_after_reopen filters raw_claims based on the cleaned weights dictionary. If AAPL was excluded from the cleaned weights (e.g., zero weight or missing from the sized output), the resulting claim still references AAPL but the underlying ratio output ID points only to MSFT. The citation verifier then sees a claim citing an output that has no AAPL entry, yet it approves the claim because it only checks that the fact_refs exist in the output JSON, not that the specific ticker referenced matches the output's contents.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 251,
+   "quote": "The loop now renders the broker ticket from the sized orders. It constructs a claims list containing selected tickers, the risk opinion, the option gate fact, and per-ticker weight facts.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 251,
+   "quote": "Weight claims use dot-notation paths like `weights.AAPL`.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 251,
+   "quote": "Fact claims require `log_entry_id` and `fact_refs`; the validator checks that ratio output IDs are known at verification time.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 476,
+   "quote": "kept = verified.output[\"kept\"]",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 470,
+   "quote": "raw_claims = _keep_after_reopen(gateway, proposed)",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 459,
+   "quote": "proposed = _claims_for(\n        judgement,\n        {\n            **sized.output,\n            \"output_id\": sized.output_id,\n            \"log_entry_id\": sized.log_entry_id,\n        },\n        gate,\n        as_of,\n    )",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,8 @@
+{
+ "id": "case11",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "Trading desk escalation, severity critical: a stop-loss did not execute.\n\nAAA was down 30% from the desk's average cost basis. The order management system shows a full stop-loss sell order was generated for the position, but the order never reached the market — the order blotter shows it was rejected internally before submission, with status \"rejected\" and no fill. The position in AAA is still open.\n",
+ "frames": []
+}

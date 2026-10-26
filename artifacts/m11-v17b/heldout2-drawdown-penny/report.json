@@ -1,0 +1,681 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "ta-drawdown-halt-penny",
+    "timestamp": "2026-10-25T03:37:39.406Z",
+    "severity": "error",
+    "service": "trading-agent-system",
+    "message": "Risk breach: drawdown is -30.0% from peak (halt threshold -20%), yet a new buy of FALN at $2.10 (a sub-$5 penny name, which the spec puts in the high-risk sleeve) passed the guard and filled. Guard notes: []",
+    "frames": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 242,
+        "function": "guard_orders"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout2-drawdown-penny/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "repo"
+    }
+  },
+  "frame": {
+    "file": "src/ta/harness/caps.py",
+    "line": 242,
+    "function": "guard_orders"
+  },
+  "language": "python",
+  "provenance": {
+    "file": "src/ta/harness/caps.py",
+    "function": "guard_orders",
+    "frame_line": 242,
+    "later_edits": [
+      {
+        "edit_line": 3514,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": "             notes.append(f\"day trade blocked for {order.ticker}\")\n             continue\n+        if order.side == \"buy\":\n+            exited = portfolio.exit_sessions.get(order.ticker)\n+            if exited is not None and fill_session - exited < caps.reentry_sessions:\n+                notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n+                continue\n         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n             continue"
+      },
+      {
+        "edit_line": 8931,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": " \n \n+def equal_weight_targets(\n+    names: list[str],\n+    meta: dict[str, NameMeta],\n+    caps: RiskCaps,\n+) -> dict[str, float]:\n+    \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n+    priced = [name for name in names if name in meta and meta[name].price > 0]\n+    if not priced:\n+        return {}\n+    share = 1.0 / len(priced)\n+    return {name: min(share, _name_cap(meta[name], caps)) for name in priced}\n+"
+      }
+    ],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 108,
+      "tool": "search_replace",
+      "fn_range": [
+        155,
+        201
+      ],
+      "frame_line_in_range": false,
+      "hunk_excerpt": "+\n+\n+def guard_orders(\n+    orders: list[OrderIntent],\n+    portfolio: Portfolio,\n+    meta: dict[str, NameMeta],\n+    caps: RiskCaps,\n+    *,\n+    fill_session: int,\n+    fill_date: date,\n+    prices: dict[str, float],\n+    equity: float,\n+) -> tuple[list[OrderIntent], list[str]]:\n+    \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n+\n+    Cap-driven sells are allowed inside the minimum hold. The weight cap itself is",
+      "fn_text": "def guard_orders(\n    orders: list[OrderIntent],\n    portfolio: Portfolio,\n    meta: dict[str, NameMeta],\n    caps: RiskCaps,\n    *,\n    fill_session: int,\n    fill_date: date,\n    prices: dict[str, float],\n    equity: float,\n) -> tuple[list[OrderIntent], list[str]]:\n    \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n\n    Cap-driven sells are allowed inside the minimum hold. The weight cap itself is\n    applied by :func:`enforce_caps` before orders are built.\n    \"\"\"\n    notes: list[str] = []\n    buys = {order.ticker for order in orders if order.side == \"buy\"}\n    drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n    halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n    quarter = _quarter(fill_date)\n    swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n    kept: list[OrderIntent] = []\n    for order in orders:\n        if order.side == \"hold\" or order.notional <= 0:\n            continue\n        if order.side == \"sell\" and order.ticker in buys:\n            notes.append(f\"day trade blocked for {order.ticker}\")\n            continue\n        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n            continue\n        if order.side == \"sell\" and order.reason != \"cap_reduction\":\n            lot = portfolio.positions.get(order.ticker)\n            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\n                continue\n            if (\n                lot is not None\n                and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n                and fill_session - lot.entry_session < caps.swing_hold_sessions\n                and swings_this_quarter >= caps.swing_trades_per_quarter\n            ):\n                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n                continue\n        kept.append(order)\n    return kept, notes"
+    },
+    "reasoning_before": {
+      "line": 102,
+      "words": 5251,
+      "silent": false,
+      "excerpt": "The next components to build are caps, portfolio, gateway, and tools.\n\nToolContext is being designed as the central context object for tool execution. The build order is portfolio and costs first, then caps, then tools, then gateway. Portfo"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The condition `drawdown <= caps.drawdown_halt_high_risk` evaluates to True when the drawdown is more negative than the halt threshold (e.g., -30% <= -20% is True). This causes the code to allow high-risk buys when the drawdown has exceeded the halt threshold, which is the opposite of the intended behavior. The fix requires changing the operator to `>=` so that the halt is only triggered when the drawdown is less severe than or equal to the threshold. [fix: Change `halt_high_risk = drawdown <= caps.drawdown_halt_high_risk` to `halt_high_risk = drawdown >= caps.drawdown_halt_high_risk`.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "repo",
+    "root": "/workspace/trading-agent-system"
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T19:33:03.537Z",
+  "workspace": {
+    "root": "/workspace/trading-agent-system",
+    "origin": "repo",
+    "notes": [
+      "python: repo virtualenv /workspace/trading-agent-system/.venv/bin/python"
+    ],
+    "framework_shims": [],
+    "database": null,
+    "python": "/workspace/trading-agent-system/.venv/bin/python"
+  },
+  "code_under_test": {
+    "source": "repo:src/ta/harness/caps.py:L242-293",
+    "text": "def guard_orders(\n    orders: list[OrderIntent],\n    portfolio: Portfolio,\n    meta: dict[str, NameMeta],\n    caps: RiskCaps,\n    *,\n    fill_session: int,\n    fill_date: date,\n    prices: dict[str, float],\n    equity: float,\n) -> tuple[list[OrderIntent], list[str]]:\n    \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n\n    Cap-driven sells are allowed inside the minimum hold. The weight cap itself is\n    applied by :func:`enforce_caps` before orders are built.\n    \"\"\"\n    notes: list[str] = []\n    buys = {order.ticker for order in orders if order.side == \"buy\"}\n    drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n    halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n    quarter = _quarter(fill_date)\n    swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n    kept: list[OrderIntent] = []\n    for order in orders:\n        if order.side == \"hold\" or order.notional <= 0:\n            continue\n        if order.side == \"sell\" and order.ticker in buys:\n            notes.append(f\"day trade blocked for {order.ticker}\")\n            continue\n        if order.side == \"buy\":\n            exited = portfolio.exit_sessions.get(order.ticker)\n            if exited is not None and fill_session - exited < caps.reentry_sessions:\n                notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n                continue\n        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n            continue\n        if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n            lot = portfolio.positions.get(order.ticker)\n            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\n                continue\n            if (\n                lot is not None\n                and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n                and fill_session - lot.entry_session < caps.swing_hold_sessions\n                and swings_this_quarter >= caps.swing_trades_per_quarter\n            ):\n                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n                continue\n        kept.append(order)\n    return kept, notes"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that the drawdown halt threshold for high-risk buys should be applied when the drawdown is less than or equal to the threshold, so the code allows high-risk buys even when the drawdown is worse than the halt threshold (e.g., -30% drawdown with a -20% halt threshold).",
+        "evidence_line": "halt_high_risk = drawdown <= caps.drawdown_halt_high_risk",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that the drawdown calculation as equity / peak_equity - 1 is correct, so the code computes drawdown as a positive number when equity is below peak, but the error message shows negative drawdown, indicating a mismatch.",
+        "evidence_line": "drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1",
+        "explains_error": false
+      },
+      {
+        "cause": "The agent assumed that the guard_orders function should not block buys of high-risk penny stocks below $5, so the code does not check the price threshold for high-risk buys during drawdown halts.",
+        "evidence_line": "if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+        "explains_error": false
+      }
+    ],
+    "chosen_cause": "The agent assumed that the drawdown halt threshold for high-risk buys should be applied when the drawdown is less than or equal to the threshold, so the code allows high-risk buys even when the drawdown is worse than the halt threshold (e.g., -30% drawdown with a -20% halt threshold).",
+    "claim": "The agent assumed that the drawdown halt threshold for high-risk buys should be applied when the drawdown is less than or equal to the threshold, so the code allows high-risk buys even when the drawdown is worse than the halt threshold (e.g., -30% drawdown with a -20% halt threshold).",
+    "mechanism": "The code uses the condition `halt_high_risk = drawdown <= caps.drawdown_halt_high_risk` and then allows high-risk buys if `halt_high_risk` is True, which means it allows buys when drawdown is more negative than the halt threshold, failing to block them.",
+    "belief_quote": "halt_high_risk = drawdown <= caps.drawdown_halt_high_risk",
+    "belief_quote_source": "code",
+    "concept": "incorrect-inequality-condition",
+    "language_framework": "python",
+    "correct_rule": "The guard should block high-risk buys when the drawdown is worse (more negative) than the halt threshold, i.e., when drawdown is less than the halt threshold, not less than or equal to.",
+    "cited_lines": [
+      "drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1",
+      "halt_high_risk = drawdown <= caps.drawdown_halt_high_risk",
+      "if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+      "    notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed that the drawdown calculation as equity / peak_equity - 1 is correct, so the code computes drawdown as a positive number when equity is below peak, but the error message shows negative drawdown, indicating a mismatch.",
+        "why_rejected": "The drawdown calculation is correct and consistent with the error message showing -30% drawdown; the problem is the inequality condition used to block buys, not the drawdown sign."
+      },
+      {
+        "cause": "The agent assumed that the guard_orders function should not block buys of high-risk penny stocks below $5, so the code does not check the price threshold for high-risk buys during drawdown halts.",
+        "why_rejected": "The error message specifically mentions the drawdown halt threshold and high-risk sleeve; the code does check sleeve and drawdown but fails to block due to the incorrect condition, not missing price checks."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 260,
+        "text": "drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 261,
+        "text": "halt_high_risk = drawdown <= caps.drawdown_halt_high_risk"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 276,
+        "text": "if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 277,
+        "text": "notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "incorrect-inequality-condition",
+    "hits": []
+  },
+  "tests": {
+    "setup": "from datetime import date\nfrom ta.harness.caps import guard_orders, RiskCaps, NameMeta\nfrom ta.models import OrderIntent\nfrom ta.sim.portfolio import Portfolio, Lot\n\n# Create a portfolio with peak_equity > 0 and current equity to simulate drawdown\nportfolio = Portfolio(cash=1000.0, peak_equity=3000.0)\n\n# Add a position with entry_session to test min_hold_sessions and swing_hold_sessions\nportfolio.positions[\"FALN\"] = Lot(qty=100, cost=210.0, entry_session=10)\n\n# Set exit_sessions to simulate reentry wait\nportfolio.exit_sessions[\"FALN\"] = 5\n\n# Set swing_exits dates in the current quarter\nportfolio.swing_exits = [date(2024, 3, 1), date(2024, 3, 2)]\n\n# Define RiskCaps with drawdown_halt_high_risk = -0.20\ncaps = RiskCaps(\n    drawdown_halt_high_risk=-0.20,\n    min_hold_sessions=5,\n    swing_hold_sessions=20,\n    swing_trades_per_quarter=2,\n    reentry_sessions=5\n)\n\n# Define meta for FALN as a high-risk sleeve and price below penny threshold\nmeta = {\n    \"FALN\": NameMeta(ticker=\"FALN\", sleeve=\"high_risk\", sector=\"Energy\", price=2.10)\n}\n\n# Create an order for FALN buy at $2.10\norders = [OrderIntent(ticker=\"FALN\", side=\"buy\", notional=210.0, sleeve=\"high_risk\")]\n\n# Set fill_session and fill_date\nfill_session = 15\nfill_date = date(2024, 3, 4)\n\n# Prices dict\nprices = {\"FALN\": 2.10}\n\n# Current equity is 2100 (drawdown = 2100/3000 - 1 = -0.3)\nequity = 2100.0\n",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: high-risk buy blocked on drawdown worse than halt threshold",
+        "role": "reproduction",
+        "asserts": "harm_observed(len(kept) == 0 and any('high-risk buy halted' in note for note in notes), 'high-risk buy was not blocked despite drawdown worse than halt threshold')",
+        "body": "arranged()\nout, notes = guard_orders(\n    orders,\n    portfolio,\n    meta,\n    caps,\n    fill_session=fill_session,\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity\n)\nrecord(\"kept_orders\", [o.dict() for o in out])\nrecord(\"notes\", notes)\nharm_observed(len(out) == 0 and any(\"high-risk buy halted\" in note for note in notes), \"high-risk buy was not blocked despite drawdown worse than halt threshold\")"
+      },
+      {
+        "name": "decoy: min_hold_sessions blocks immature discretionary sell but allows cap_reduction sell",
+        "role": "decoy",
+        "asserts": "check(len(kept_sell_cap_reduction) == 1, 'cap_reduction sell should be allowed')\ncheck(len(kept_sell_rebalance) == 0, 'discretionary sell before min_hold_sessions should be blocked')",
+        "body": "sell_rebalance = OrderIntent(ticker=\"FALN\", side=\"sell\", notional=210.0, reason=\"rebalance\", sleeve=\"core\")\nsell_cap_reduction = OrderIntent(ticker=\"FALN\", side=\"sell\", notional=210.0, reason=\"cap_reduction\", sleeve=\"core\")\n\norders_sell = [sell_rebalance, sell_cap_reduction]\n\nkept_sell, notes_sell = guard_orders(\n    orders_sell,\n    portfolio,\n    meta,\n    caps,\n    fill_session=fill_session,\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity\n)\n\nkept_sell_rebalance = [o for o in kept_sell if o.reason == \"rebalance\"]\nkept_sell_cap_reduction = [o for o in kept_sell if o.reason == \"cap_reduction\"]\n\nrecord(\"kept_sell_rebalance\", [o.dict() for o in kept_sell_rebalance])\nrecord(\"kept_sell_cap_reduction\", [o.dict() for o in kept_sell_cap_reduction])\nrecord(\"notes_sell\", notes_sell)\n\ncheck(len(kept_sell_cap_reduction) == 1, \"cap_reduction sell should be allowed\")\ncheck(len(kept_sell_rebalance) == 0, \"discretionary sell before min_hold_sessions should be blocked\")"
+      },
+      {
+        "name": "decoy: day trade blocked when buy and sell same ticker in same orders",
+        "role": "decoy",
+        "asserts": "check(len(kept) == 1 and kept[0].side == 'buy', 'day trade sell should be blocked, buy allowed')\ncheck(any('day trade blocked' in note for note in notes), 'day trade block note should be present')",
+        "body": "orders_day_trade = [\n    OrderIntent(ticker=\"FALN\", side=\"buy\", notional=210.0, sleeve=\"core\"),\n    OrderIntent(ticker=\"FALN\", side=\"sell\", notional=210.0, sleeve=\"core\"),\n]\n\nkept, notes = guard_orders(\n    orders_day_trade,\n    portfolio,\n    meta,\n    caps,\n    fill_session=fill_session,\n    fill_date=fill_date,\n    prices=prices,\n    equity=equity\n)\n\nrecord(\"kept_day_trade\", [o.dict() for o in kept])\nrecord(\"notes_day_trade\", notes)\n\ncheck(len(kept) == 1 and kept[0].side == \"buy\", \"day trade sell should be blocked, buy allowed\")\ncheck(any(\"day trade blocked\" in note for note in notes), \"day trade block note should be present\")"
+      }
+    ],
+    "trace": {
+      "file": "src/ta/harness/caps.py",
+      "function": "guard_orders"
+    },
+    "tests_sha256": "076b2c7c7c62473c6c6bb2300cb244edb13bf25fcc22b0289b78723041393109",
+    "frozen_at": "2026-10-25T19:33:28.441Z",
+    "harness_sha256": "973ef91a421c092204ca3de415ea0d3457ca5623657cad54c820fcf539158e4b",
+    "harness_repairs": [],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": []
+    },
+    "reproduction_sha256": "5e5e85a93e54c6f799b0ab0a7f709a9262e7869163970cf5e6981ab631667c81",
+    "setup_probe": [
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"kept_orders\",\"value\":[]},{\"name\":\"notes\",\"value\":[\"high-risk buy halted for FALN; drawdown -0.300\"]}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "    halt_high_risk = drawdown < caps.drawdown_halt_high_risk\n    quarter = _quarter(fill_date)\n    swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n    kept: list[OrderIntent] = []\n    for order in orders:\n        if order.side == \"hold\" or order.notional <= 0:\n            continue\n        if order.side == \"sell\" and order.ticker in buys:\n            notes.append(f\"day trade blocked for {order.ticker}\")\n            continue\n        if order.side == \"buy\":\n            exited = portfolio.exit_sessions.get(order.ticker)\n            if exited is not None and fill_session - exited < caps.reentry_sessions:\n                notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n                continue\n        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n            continue\n        if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n            lot = portfolio.positions.get(order.ticker)\n            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n                notes.append(f\"min hold blocked sell of {order.ticker}\")\n                continue\n            if (\n                lot is not None\n                and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n                and fill_session - lot.entry_session < caps.swing_hold_sessions\n                and swings_this_quarter >= caps.swing_trades_per_quarter\n            ):\n                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n                continue\n        kept.append(order)",
+    "file": "src/ta/harness/caps.py",
+    "changed_lines": 2,
+    "diff": "+    halt_high_risk = drawdown < caps.drawdown_halt_high_risk\n-    halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n     quarter = _quarter(fill_date)\n     swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)",
+    "rationale": "The original code uses `halt_high_risk = drawdown <= caps.drawdown_halt_high_risk`, which means it considers the halt condition true even when drawdown equals the threshold. The specification requires blocking high-risk buys only when the drawdown is worse (more negative) than the threshold, i.e., strictly less than the threshold. Changing the condition to `drawdown < caps.drawdown_halt_high_risk` correctly blocks buys when drawdown is below the halt threshold, fixing the logic to match the intended behavior.",
+    "attempts": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "changed_lines": 2
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: high-risk buy blocked on drawdown worse than halt threshold",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept_orders",
+              "value": []
+            },
+            {
+              "name": "notes",
+              "value": [
+                "high-risk buy halted for FALN; drawdown -0.300"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: min_hold_sessions blocks immature discretionary sell but allows cap_reduction sell",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept_sell_rebalance",
+              "value": []
+            },
+            {
+              "name": "kept_sell_cap_reduction",
+              "value": [
+                {
+                  "ticker": "FALN",
+                  "side": "sell",
+                  "notional": 210,
+                  "limit_price": null,
+                  "sleeve": "core",
+                  "reason": "cap_reduction",
+                  "security_id": null,
+                  "citation": null
+                }
+              ]
+            },
+            {
+              "name": "notes_sell",
+              "value": [
+                "swing-trade cap blocked exit of FALN"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: day trade blocked when buy and sell same ticker in same orders",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept_day_trade",
+              "value": [
+                {
+                  "ticker": "FALN",
+                  "side": "buy",
+                  "notional": 210,
+                  "limit_price": null,
+                  "sleeve": "core",
+                  "reason": "rebalance",
+                  "security_id": null,
+                  "citation": null
+                }
+              ]
+            },
+            {
+              "name": "notes_day_trade",
+              "value": [
+                "day trade blocked for FALN"
+              ]
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "[decoy: min_hold_sessions blocks immature discretionary sell but allows cap_reduction sell] /workspace/trading-agent-system/.wce/1649808-mvo871zp-jpyw80/t1.py:93: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.14/migration/\n  record(\"kept_sell_cap_reduction\", [o.dict() for o in kept_sell_cap_reduction])\n\n[decoy: day trade blocked when buy and sell same ticker in same orders] /workspace/trading-agent-system/.wce/1649808-mvo871zp-jpyw80/t2.py:89: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.14/migration/\n  record(\"kept_day_trade\", [o.dict() for o in kept])\n\n",
+      "isolated": true,
+      "ms": 594,
+      "tree": "/workspace/trading-agent-system"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: high-risk buy blocked on drawdown worse than halt threshold",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept_orders",
+              "value": []
+            },
+            {
+              "name": "notes",
+              "value": [
+                "high-risk buy halted for FALN; drawdown -0.300"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: min_hold_sessions blocks immature discretionary sell but allows cap_reduction sell",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept_sell_rebalance",
+              "value": []
+            },
+            {
+              "name": "kept_sell_cap_reduction",
+              "value": [
+                {
+                  "ticker": "FALN",
+                  "side": "sell",
+                  "notional": 210,
+                  "limit_price": null,
+                  "sleeve": "core",
+                  "reason": "cap_reduction",
+                  "security_id": null,
+                  "citation": null
+                }
+              ]
+            },
+            {
+              "name": "notes_sell",
+              "value": [
+                "swing-trade cap blocked exit of FALN"
+              ]
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: day trade blocked when buy and sell same ticker in same orders",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "kept_day_trade",
+              "value": [
+                {
+                  "ticker": "FALN",
+                  "side": "buy",
+                  "notional": 210,
+                  "limit_price": null,
+                  "sleeve": "core",
+                  "reason": "rebalance",
+                  "security_id": null,
+                  "citation": null
+                }
+              ]
+            },
+            {
+              "name": "notes_day_trade",
+              "value": [
+                "day trade blocked for FALN"
+              ]
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "[decoy: min_hold_sessions blocks immature discretionary sell but allows cap_reduction sell] /workspace/open-agent/why-code-exists/artifacts/m11-v17b/heldout2-drawdown-penny/app-patched/.wce/1649808-mvo872gc-ursxjv/t1.py:93: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.14/migration/\n  record(\"kept_sell_cap_reduction\", [o.dict() for o in kept_sell_cap_reduction])\n\n[decoy: day trade blocked when buy and sell same ticker in same orders] /workspace/open-agent/why-code-exists/artifacts/m11-v17b/heldout2-drawdown-penny/app-patched/.wce/1649808-mvo872gc-ursxjv/t2.py:89: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.14/migration/\n  record(\"kept_day_trade\", [o.dict() for o in kept])\n\n",
+      "isolated": true,
+      "ms": 607,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17b/heldout2-drawdown-penny/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "halt_high_risk condition logic",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "halt_high_risk = drawdown <= caps.drawdown_halt_high_risk",
+        "quote_verified": true
+      },
+      {
+        "element": "high-risk buy allowance when halt_high_risk is True",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+        "quote_verified": true
+      }
+    ],
+    "reason": "2 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 260,
+        "text": "drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 261,
+        "text": "halt_high_risk = drawdown <= caps.drawdown_halt_high_risk"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 276,
+        "text": "if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 277,
+        "text": "notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")"
+      }
+    ],
+    "patch_file": "src/ta/harness/caps.py",
+    "patch_touched_lines": [
+      261
+    ],
+    "overlap": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 260,
+        "text": "drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1"
+      },
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 261,
+        "text": "halt_high_risk = drawdown <= caps.drawdown_halt_high_risk"
+      }
+    ],
+    "cause_gate": {
+      "harm_condition": "The test checks that `len(kept) == 0` and that at least one note contains 'high-risk buy halted'. This means the test expects NO orders to remain in the kept list, and a specific halt note to be recorded.",
+      "alternative_defect": "The condition `halt_high_risk = drawdown <= caps.drawdown_halt_high_risk` is inverted: it should be `drawdown >= caps.drawdown_halt_high_risk` to block buys when drawdown is worse than the threshold. With the current code, a drawdown of -30% and a halt threshold of -20% makes the condition True, allowing the buy instead of blocking it.",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The cited lines compute `drawdown` and then use `drawdown <= caps.drawdown_halt_high_risk`. With a -30% drawdown and -20% threshold, -30 <= -20 is True, so the code halts nothing and the buy passes. The test's check for 'high-risk buy halted' will fail because the note is only appended when `halt_high_risk` is True, which the buggy condition makes True only when drawdown is less severe than the threshold. The harm (buy not blocked) matches the production error of a buy filling despite drawdown worse than the halt threshold."
+    },
+    "rival": {
+      "status": "unavailable",
+      "proposal": {
+        "rival_cause": "The code uses `drawdown <= caps.drawdown_halt_high_risk` to decide whether to halt high-risk buys, but drawdown is computed as `equity / portfolio.peak_equity - 1`, which produces a negative number when equity is below the peak. The condition `drawdown <= -0.20` is True when drawdown is -30% (e.g., -0.30 <= -0.20), so the halt logic fails to block the buy. The correct guard should halt when drawdown is *more severe* than the threshold, requiring `drawdown < caps.drawdown_halt_high_risk` to block buys at -30% with a -20% threshold.",
+        "rival_rule": "Halt high-risk buys when drawdown falls below (is more negative than) the configured halt threshold, i.e., `drawdown < caps.drawdown_halt_high_risk`, so that a -30% drawdown with a -20% threshold correctly triggers the halt.",
+        "rival_location": "drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1"
+      },
+      "attempts": [
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged"
+      ]
+    },
+    "claim_causes": [
+      "The condition `drawdown <= caps.drawdown_halt_high_risk` evaluates to True when the drawdown is more negative than the halt threshold (e.g., -30% <= -20% is True). This causes the code to allow high-risk buys when the drawdown has exceeded the halt threshold, which is the opposite of the intended behavior. The fix requires changing the operator to `>=` so that the halt is only triggered when the drawdown is less severe than or equal to the threshold. [fix: Change `halt_high_risk = drawdown <= caps.drawdown_halt_high_risk` to `halt_high_risk = drawdown >= caps.drawdown_halt_high_risk`.]"
+    ]
+  },
+  "verdict": "patch_ineffective",
+  "reasons": [
+    "reproduction test passes on the original code (bug reproduced on the real code)",
+    "reproduction test still passes on the patch: the corrected belief does not remove the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function src/ta/harness/caps.py:guard_orders",
+    "patch changes the cited line(s) src/ta/harness/caps.py:260, src/ta/harness/caps.py:261",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: not checked (unavailable)",
+    "mechanism gate (nemotron): consistent (2 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T19:33:52.792Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T19:33:52.792Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "ta-drawdown-halt-penny",
+            "ts": "2026-10-25T03:37:39.406Z",
+            "severity": "error",
+            "service": "trading-agent-system",
+            "message": "Risk breach: drawdown is -30.0% from peak (halt threshold -20%), yet a new buy of FALN at $2.10 (a sub-$5 penny name, which the spec puts in the high-risk sleeve) passed the guard and filled. Guard notes: []",
+            "frame_index": 0,
+            "frame_file": "src/ta/harness/caps.py",
+            "frame_line": 242,
+            "frame_function": "guard_orders",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout2-drawdown-penny/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 3773,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 4,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 5,
+            "tool": "read_file",
+            "at": "2026-10-12T00:23:38.996Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript + git log"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

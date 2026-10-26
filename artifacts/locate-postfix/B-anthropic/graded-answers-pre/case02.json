@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that checking for an existing vote once at the start of the function would prevent race conditions, but did not account for concurrent requests creating votes between the check and the insert.",
+ "why_it_breaks": "When a user double-clicks the upvote button, two concurrent requests both execute the findUnique check before either creates a vote, so both see no existing vote and both attempt to create one, causing the second create to violate the unique constraint on (feedbackId, userId).",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 121,
+   "quote": "Then I need toggleVoteAction, which checks for an existing vote by user+feedback and either deletes (un-vote) or creates it",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 99,
+   "quote": "const existing = await prisma.vote.findUnique({",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 103,
+   "quote": "if (existing) {",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 106,
+   "quote": "await prisma.vote.create({ data: { feedbackId, userId: user.id } });",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 3,
+ "verified_transcript_quotes": 1
+}

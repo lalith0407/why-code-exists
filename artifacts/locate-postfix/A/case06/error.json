@@ -1,0 +1,8 @@
+{
+ "id": "case06",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "Admin reports that our outgoing webhook to Zapier has stopped working. Zapier's own delivery log shows every attempt getting back HTTP 404 \"hook not found\" for the last several hours.\n\nThe admin re-opened workspace settings and confirmed the webhook URL field still shows the value they originally pasted in from Zapier: https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/. On Zapier's side, that same catch hook still shows as existing and enabled in their dashboard. No one has changed or regenerated the hook since it was set up.\n",
+ "frames": []
+}

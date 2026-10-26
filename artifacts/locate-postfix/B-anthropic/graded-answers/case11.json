@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that checking if a ticker is in the forced stops set is sufficient to trigger a stop-loss, but did not verify that the stop-loss check is actually called before order rejection logic.",
+ "why_it_breaks": "The agent created the _forced_stops function to identify positions that should be stopped out, but the function is never called in the order generation or validation flow. The stop-loss order was generated but rejected because the hard trigger check that should exempt stop-losses from cooldown or thesis-change gates was not properly wired to call _forced_stops, causing the order to be blocked by the newly added anti-churn rules.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5803,
+   "quote": "+def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5803,
+   "quote": "+    if side == \"sell\" and ticker in forced:",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 314,
+   "quote": "\"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 322,
+   "quote": "if average > 0 and price <= average * (1.0 - stop_pct):",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 2
+}

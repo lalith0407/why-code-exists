@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/sim/metrics.py:43
+stage: ok
+provider: nemotron
+frame: src/ta/sim/metrics.py:43
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: _xirr assumes the first cashflow is an investment (negative amount) and the last is a return (positive amount), but the caller passes a negative start amount and a positive ending amount without recognizing that the function requires at least one intermediate positive cashflow to compute a meaningful IRR, or that the sign convention must include both an outflow and inflow beyond the endpoints.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case03/report.html

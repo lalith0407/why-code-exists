@@ -1,0 +1,7 @@
+locate: layer2_agentic -> blast_radius/models.py:83
+stage: ok
+provider: anthropic
+frame: blast_radius/models.py:83
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that `node.this` on an Identifier always returns the unquoted logical name, but sqlglot preserves quote characters in the `this` attribute when the identifier was quoted in the original SQL.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-anthropic/case07/report.html

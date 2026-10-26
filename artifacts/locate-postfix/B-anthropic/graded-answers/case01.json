@@ -1,0 +1,39 @@
+{
+ "overlooked_assumption": "The agent assumed messages would always be single-line like the example '/pulse feedback Dark mode please', but did not handle multi-line messages where the feedback text contains newlines.",
+ "why_it_breaks": "The parsing logic likely expects '/pulse feedback' followed by text on the same line, but the actual message was '/pulse feedback Export is slow\\nIt takes 2 minutes for 10k rows' with a newline. The parser probably only extracted the first line or failed to match the pattern entirely, causing no feedback item to be created despite the event being acknowledged.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 335,
+   "quote": "Messages like <code>/pulse feedback Dark mode please</code> are posted to this",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "app/api/slack/events/[slug]/route.ts",
+   "line": 27,
+   "quote": "For now we recognize messages of the form `/pulse feedback <text>` and",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "app/w/[slug]/settings/page.tsx",
+   "line": 90,
+   "quote": "above to verify requests. Messages like <code>/pulse feedback Dark mode please</code> are posted to this",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "components/settings/slack-event-log.tsx",
+   "line": 17,
+   "quote": "<code className=\"mx-1 rounded bg-muted px-1 py-0.5\">/pulse feedback ...</code>",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 3,
+ "verified_transcript_quotes": 0
+}

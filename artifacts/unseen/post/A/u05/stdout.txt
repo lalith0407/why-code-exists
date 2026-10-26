@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs:1264
+stage: ok
+provider: nemotron
+frame: src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs:1264
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The code assumes that for Modified commands, comparing original and current index values will correctly identify unchanged values, but it does not account for cases where the index value is store-generated and the original value is a shadow property placeholder that never reflects the actual database value, causing the equality check to incorrectly skip the edge creation and allow a duplicate key to be written.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/A/u05/report.html

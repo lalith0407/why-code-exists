@@ -1,0 +1,650 @@
+{
+  "version": "gen-v18-patch-revision",
+  "error": {
+    "id": "pulseboard-link-preview",
+    "timestamp": "2026-10-25T02:59:38.835Z",
+    "severity": "high",
+    "service": "pulseboard",
+    "message": "Egress alert: link preview service made a request to http://127.0.0.1:8080/admin while creating a feedback card; the preview title returned was Internal admin console",
+    "frames": [
+      {
+        "file": "lib/link-preview.ts",
+        "line": 48,
+        "function": "fetchLinkPreview"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/pulseboard-ssrf/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "transcript_replay"
+    }
+  },
+  "frame": {
+    "file": "lib/link-preview.ts",
+    "line": 48,
+    "function": "fetchLinkPreview"
+  },
+  "language": "ts",
+  "provenance": {
+    "file": "lib/link-preview.ts",
+    "function": "fetchLinkPreview",
+    "frame_line": 48,
+    "later_edits": [
+      {
+        "edit_line": 355,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": "     const finalUrl = response.url || url;\n \n-    const title = meta($, \"og:title\", \"twitter:title\") ?? $(\"title\").first().text().trim() || null;\n+    const title = meta($, \"og:title\", \"twitter:title\") ?? ($(\"title\").first().text().trim() || null);\n     const description =\n       meta($, \"og:description\", \"twitter:description\") ??\n       $('meta[name=\"description\"]').attr(\"content\")?.trim() ??"
+      }
+    ],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 100,
+      "tool": "search_replace",
+      "fn_range": [
+        48,
+        101
+      ],
+      "frame_line_in_range": true,
+      "hunk_excerpt": "+ * missing preview should never block posting feedback.\n+ */\n+export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {\n+  const controller = new AbortController();\n+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);\n+\n+  try {\n+    const response = await fetch(url, {\n+      signal: controller.signal,\n+      redirect: \"follow\",\n+      headers: {\n+        \"User-Agent\": \"Mozilla/5.0 (compatible; PulseboardLinkPreview/1.0; +https://pulseboard.app)\",\n+        Accept: \"text/html,application/xhtml+xml\",\n+      },\n+    });\n+",
+      "fn_text": "export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {\n  const controller = new AbortController();\n  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);\n\n  try {\n    const response = await fetch(url, {\n      signal: controller.signal,\n      redirect: \"follow\",\n      headers: {\n        \"User-Agent\": \"Mozilla/5.0 (compatible; PulseboardLinkPreview/1.0; +https://pulseboard.app)\",\n        Accept: \"text/html,application/xhtml+xml\",\n      },\n    });\n\n    if (!response.ok || !response.body) return null;\n\n    const contentType = response.headers.get(\"content-type\") ?? \"\";\n    if (!contentType.includes(\"text/html\")) return null;\n\n    const reader = response.body.getReader();\n    const decoder = new TextDecoder();\n    let html = \"\";\n    let bytesRead = 0;\n\n    while (bytesRead < MAX_BYTES) {\n      const { done, value } = await reader.read();\n      if (done) break;\n      bytesRead += value.byteLength;\n      html += decoder.decode(value, { stream: true });\n      // Stop early once we've passed the closing </head>; OG tags live there.\n      if (html.includes(\"</head>\")) break;\n    }\n    reader.cancel().catch(() => {});\n\n    const $ = cheerio.load(html);\n    const finalUrl = response.url || url;\n\n    const title = meta($, \"og:title\", \"twitter:title\") ?? $(\"title\").first().text().trim() || null;\n    const description =\n      meta($, \"og:description\", \"twitter:description\") ??\n      $('meta[name=\"description\"]').attr(\"content\")?.trim() ??\n      null;\n    const image = resolveUrl(meta($, \"og:image\", \"twitter:image\"), finalUrl);\n    const siteName = meta($, \"og:site_name\") ?? new URL(finalUrl).hostname.replace(/^www\\\\./, \"\");\n\n    if (!title && !description && !image) return null;\n\n    return { url: finalUrl, title, description, image, siteName };\n  } catch {\n    return null;\n  } finally {\n    clearTimeout(timeout);\n  }\n}"
+    },
+    "reasoning_before": {
+      "line": 98,
+      "words": 25,
+      "silent": false,
+      "excerpt": "I'm building a link preview module that uses cheerio to extract Open Graph tags, plus a regex for pulling URLs out of text, in lib/link-preview.ts."
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The code lacks validation to prevent fetching localhost or internal IP addresses [fix: Add a check to reject or sanitize URLs matching localhost/internal IP patterns before the fetch call on line 'const response = await fetch(url, {']"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "transcript_replay",
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app",
+    "files": 76,
+    "applied_edits": 81,
+    "failed_edits": [
+      {
+        "file": "package.json",
+        "line": 61,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "next.config.ts",
+        "line": 375,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": ".gitignore",
+        "line": 458,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "README.md",
+        "line": 483,
+        "reason": "edit to a file not created in the transcript"
+      }
+    ]
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T20:24:00.784Z",
+  "workspace": {
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app",
+    "origin": "transcript_replay",
+    "notes": [
+      "npm deps from the app's package.json (cache /home/box/.cache/wce/deps/cc39abd72f073c52/node_modules)",
+      "no tsconfig \"paths\" in tree: \"@/x\" resolved to <app root>/x (inferred alias: the base under which the tree's own \"@/\" imports resolve)",
+      "real PostgreSQL database from /workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app/prisma/schema.prisma (template wce_tpl_0e4f143c)"
+    ],
+    "framework_shims": [],
+    "database": {
+      "kind": "postgresql",
+      "schema": "/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app/prisma/schema.prisma"
+    }
+  },
+  "code_under_test": {
+    "source": "transcript_replay:lib/link-preview.ts:L48-101",
+    "text": "export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {\n  const controller = new AbortController();\n  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);\n\n  try {\n    const response = await fetch(url, {\n      signal: controller.signal,\n      redirect: \"follow\",\n      headers: {\n        \"User-Agent\": \"Mozilla/5.0 (compatible; PulseboardLinkPreview/1.0; +https://pulseboard.app)\",\n        Accept: \"text/html,application/xhtml+xml\",\n      },\n    });\n\n    if (!response.ok || !response.body) return null;\n\n    const contentType = response.headers.get(\"content-type\") ?? \"\";\n    if (!contentType.includes(\"text/html\")) return null;\n\n    const reader = response.body.getReader();\n    const decoder = new TextDecoder();\n    let html = \"\";\n    let bytesRead = 0;\n\n    while (bytesRead < MAX_BYTES) {\n      const { done, value } = await reader.read();\n      if (done) break;\n      bytesRead += value.byteLength;\n      html += decoder.decode(value, { stream: true });\n      // Stop early once we've passed the closing </head>; OG tags live there.\n      if (html.includes(\"</head>\")) break;\n    }\n    reader.cancel().catch(() => {});\n\n    const $ = cheerio.load(html);\n    const finalUrl = response.url || url;\n\n    const title = meta($, \"og:title\", \"twitter:title\") ?? ($(\"title\").first().text().trim() || null);\n    const description =\n      meta($, \"og:description\", \"twitter:description\") ??\n      $('meta[name=\"description\"]').attr(\"content\")?.trim() ??\n      null;\n    const image = resolveUrl(meta($, \"og:image\", \"twitter:image\"), finalUrl);\n    const siteName = meta($, \"og:site_name\") ?? new URL(finalUrl).hostname.replace(/^www\\./, \"\");\n\n    if (!title && !description && !image) return null;\n\n    return { url: finalUrl, title, description, image, siteName };\n  } catch {\n    return null;\n  } finally {\n    clearTimeout(timeout);\n  }\n}"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that the fetch call in fetchLinkPreview would never resolve to a localhost URL like http://127.0.0.1:8080/admin, so it did not implement any check to block or sanitize such URLs before fetching.",
+        "evidence_line": "const response = await fetch(url, {",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that the fetched URL's content would always be safe and relevant for link preview, so it did not implement any filtering or validation of the final URL or its content to prevent internal admin console previews.",
+        "evidence_line": "const finalUrl = response.url || url;",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that the fetchLinkPreview function would not be called with untrusted or internal URLs, so it did not implement any network egress restrictions or validations to prevent requests to localhost addresses.",
+        "evidence_line": "const response = await fetch(url, {",
+        "explains_error": true
+      }
+    ],
+    "chosen_cause": "The agent assumed that the fetch call in fetchLinkPreview would never resolve to a localhost URL like http://127.0.0.1:8080/admin, so it did not implement any check to block or sanitize such URLs before fetching.",
+    "claim": "The agent assumed the fetch call in fetchLinkPreview would never fetch localhost URLs, so the code does not block or sanitize URLs pointing to internal addresses, allowing requests to 127.0.0.1.",
+    "mechanism": "The fetch call on line 'const response = await fetch(url, {' directly fetches the given URL without any validation or filtering to prevent localhost or internal IP addresses.",
+    "belief_quote": "const response = await fetch(url, {",
+    "belief_quote_source": "code",
+    "concept": "server-side request forgery (ssrf) prevention",
+    "language_framework": "TypeScript with Node.js fetch API",
+    "correct_rule": "Server-side code that fetches URLs from untrusted input must validate and block requests to internal or localhost addresses to prevent SSRF.",
+    "cited_lines": [
+      "    const response = await fetch(url, {",
+      "      signal: controller.signal,",
+      "      redirect: \"follow\",",
+      "      headers: {"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed the fetched content would always be safe and relevant, but the error is about the request URL, not content parsing.",
+        "why_rejected": "The error message and stack trace indicate the problem is the request to 127.0.0.1, not the content returned or how it is parsed."
+      },
+      {
+        "cause": "The agent assumed fetchLinkPreview would not be called with untrusted URLs, but the code does not show any such assumption explicitly, and the error is about the fetch itself.",
+        "why_rejected": "The root cause is the lack of URL validation before fetch, not the assumption about the caller's behavior."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "lib/link-preview.ts",
+        "line": 53,
+        "text": "const response = await fetch(url, {"
+      },
+      {
+        "file": "lib/link-preview.ts",
+        "line": 54,
+        "text": "signal: controller.signal,"
+      },
+      {
+        "file": "lib/link-preview.ts",
+        "line": 55,
+        "text": "redirect: \"follow\","
+      },
+      {
+        "file": "lib/link-preview.ts",
+        "line": 56,
+        "text": "headers: {"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "server-side request forgery (ssrf) prevention",
+    "hits": []
+  },
+  "tests": {
+    "setup": "const { fetchLinkPreview } = await app(\"lib/link-preview.ts\");",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: fetchLinkPreview fetches localhost URL and returns internal admin console title",
+        "role": "reproduction",
+        "asserts": "harm_observed(result !== null && result.title === \"Internal admin console\", \"fetchLinkPreview fetched localhost URL and returned internal admin console title\")",
+        "body": "const http = await import(\"node:http\");\n\n// Setup a local HTTP server on 127.0.0.1:8080 that returns a page with title 'Internal admin console'\nconst server = http.createServer((req, res) => {\n  if (req.url === \"/admin\") {\n    res.writeHead(200, { \"Content-Type\": \"text/html\" });\n    res.end(`<!DOCTYPE html><html><head><title>Internal admin console</title></head><body>Admin</body></html>`);\n  } else {\n    res.writeHead(404);\n    res.end();\n  }\n});\n\nawait new Promise<void>((resolve) => server.listen(8080, \"127.0.0.1\", resolve));\n\ntry {\n  arranged();\n  const result = await fetchLinkPreview(\"http://127.0.0.1:8080/admin\");\n  record(\"result\", result);\n  harm_observed(result !== null && result.title === \"Internal admin console\", \"fetchLinkPreview fetched localhost URL and returned internal admin console title\");\n} finally {\n  await new Promise<void>((resolve) => server.close(() => resolve()));\n} "
+      },
+      {
+        "name": "decoy: fetchLinkPreview returns null for non-HTML content type",
+        "role": "decoy",
+        "asserts": "check(result === null, \"fetchLinkPreview returns null for non-HTML content\")",
+        "body": "const http = await import(\"node:http\");\n\n// Setup a local HTTP server that returns JSON content type\nconst server = http.createServer((req, res) => {\n  res.writeHead(200, { \"Content-Type\": \"application/json\" });\n  res.end(JSON.stringify({ message: \"Not HTML\" }));\n});\n\nawait new Promise<void>((resolve) => server.listen(8081, \"127.0.0.1\", resolve));\n\ntry {\n  arranged();\n  const result = await fetchLinkPreview(\"http://127.0.0.1:8081/\");\n  record(\"result\", result);\n  check(result === null, \"fetchLinkPreview returns null for non-HTML content\");\n} finally {\n  await new Promise<void>((resolve) => server.close(() => resolve()));\n} "
+      },
+      {
+        "name": "decoy: fetchLinkPreview returns null for 404 response",
+        "role": "decoy",
+        "asserts": "check(result === null, \"fetchLinkPreview returns null for 404 response\")",
+        "body": "const http = await import(\"node:http\");\n\n// Setup a local HTTP server that returns 404\nconst server = http.createServer((req, res) => {\n  res.writeHead(404, { \"Content-Type\": \"text/html\" });\n  res.end(`<!DOCTYPE html><html><head><title>Not Found</title></head><body>404</body></html>`);\n});\n\nawait new Promise<void>((resolve) => server.listen(8082, \"127.0.0.1\", resolve));\n\ntry {\n  arranged();\n  const result = await fetchLinkPreview(\"http://127.0.0.1:8082/\");\n  record(\"result\", result);\n  check(result === null, \"fetchLinkPreview returns null for 404 response\");\n} finally {\n  await new Promise<void>((resolve) => server.close(() => resolve()));\n} "
+      }
+    ],
+    "trace": {
+      "file": "lib/link-preview.ts",
+      "function": "fetchLinkPreview"
+    },
+    "tests_sha256": "54a692625910a56530661495ca61d873d839ae095503ea9d8d56b25d143c7273",
+    "frozen_at": "2026-10-25T20:30:04.512Z",
+    "harness_sha256": "073548e4207559f03fd715443cde9d253726e412b92a488d8d910cbb9e7aa941",
+    "harness_repairs": [],
+    "pre_freeze_redrafts": [
+      [
+        "test reproduction: fetchLinkPreview fetches localhost URL and returns internal admin console title: contains an import/export statement; sections are statements inside an async function: load app modules with `const { x } = await app(\"path\")` and packages with `await import(\"pkg\")`",
+        "test decoy: fetchLinkPreview returns null for non-HTML content type: contains an import/export statement; sections are statements inside an async function: load app modules with `const { x } = await app(\"path\")` and packages with `await import(\"pkg\")`",
+        "test decoy: fetchLinkPreview returns null for 404 response: contains an import/export statement; sections are statements inside an async function: load app modules with `const { x } = await app(\"path\")` and packages with `await import(\"pkg\")`",
+        "test reproduction: fetchLinkPreview fetches localhost URL and returns internal admin console title: syntax error at line 1: Unexpected \"http\" in: import http from \"node:http\";",
+        "test decoy: fetchLinkPreview returns null for non-HTML content type: syntax error at line 1: Unexpected \"http\" in: import http from \"node:http\";",
+        "test decoy: fetchLinkPreview returns null for 404 response: syntax error at line 1: Unexpected \"http\" in: import http from \"node:http\";"
+      ]
+    ],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": []
+    },
+    "reproduction_sha256": "3238eb701d39e9001bb06aabe2541cc50d4d471a9dc45ffd87499de6b8015307",
+    "setup_probe": [
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"result\",\"value\":null}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "function isLocalhostOrInternal(url: string): boolean {\n  try {\n    const parsed = new URL(url);\n    const hostname = parsed.hostname;\n\n    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {\n      return true;\n    }\n\n    const ipv4Match = hostname.match(/^\\d+\\.\\d+\\.\\d+\\.\\d+$/);\n    if (ipv4Match) {\n      const parts = hostname.split('.').map(Number);\n      if (parts[0] === 10) return true;\n      if (parts[0] === 127) return true;\n      if (parts[0] === 192 && parts[1] === 168) return true;\n      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;\n      return false;\n    }\n\n    return false;\n  } catch {\n    return true;\n  }\n}\n\nexport async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {\n  if (isLocalhostOrInternal(url)) {\n    return null;\n  }",
+    "file": "lib/link-preview.ts",
+    "changed_lines": 28,
+    "diff": "+function isLocalhostOrInternal(url: string): boolean {\n+  try {\n+    const parsed = new URL(url);\n+    const hostname = parsed.hostname;\n+\n+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {\n+      return true;\n+    }\n+\n+    const ipv4Match = hostname.match(/^\\d+\\.\\d+\\.\\d+\\.\\d+$/);\n+    if (ipv4Match) {\n+      const parts = hostname.split('.').map(Number);\n+      if (parts[0] === 10) return true;\n+      if (parts[0] === 127) return true;\n+      if (parts[0] === 192 && parts[1] === 168) return true;\n+      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;\n+      return false;\n+    }\n+\n+    return false;\n+  } catch {\n+    return true;\n+  }\n+}\n+\n export async function fetchLinkPreview(url: string): Promise<LinkPreview | null> {\n+  if (isLocalhostOrInternal(url)) {\n+    return null;\n+  }",
+    "rationale": "The fix adds a helper function isLocalhostOrInternal to detect URLs pointing to localhost or internal IP ranges and blocks them by returning null early in fetchLinkPreview. The change is minimal and only adds the helper and a single if check at the start of fetchLinkPreview, preserving all other code exactly as is.",
+    "attempts": [
+      {
+        "file": "lib/link-preview.ts",
+        "changed_lines": 35
+      },
+      {
+        "file": "lib/link-preview.ts",
+        "changed_lines": 29
+      },
+      {
+        "file": "lib/link-preview.ts",
+        "changed_lines": 28
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: fetchLinkPreview fetches localhost URL and returns internal admin console title",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "result",
+              "value": {
+                "url": "http://127.0.0.1:8080/admin",
+                "title": "Internal admin console",
+                "description": null,
+                "image": null,
+                "siteName": "127.0.0.1"
+              }
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: fetchLinkPreview returns null for non-HTML content type",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "result",
+              "value": null
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: fetchLinkPreview returns null for 404 response",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "result",
+              "value": null
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 2486,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: fetchLinkPreview fetches localhost URL and returns internal admin console title",
+          "role": "reproduction",
+          "pass": false,
+          "error": "Error: harmful outcome not observed: fetchLinkPreview fetched localhost URL and returned internal admin console title |     at globalThis.harm_observed (/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app/.wce/1692495-mvoa85ss-qlxb6u/t0.mts:9:95) |     at <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app/.wce/1692495-mvoa85ss-qlxb6u/",
+          "stack": "Error: harmful outcome not observed: fetchLinkPreview fetched localhost URL and returned internal admin console title\n    at globalThis.harm_observed (/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app/.wce/1692495-mvoa85ss-qlxb6u/t0.mts:9:95)\n    at <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app/.wce/1692495-mvoa85ss-qlxb6u/t0.mts:55:7)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app/.wce/1692495-mvoa85ss-qlxb6u/t0.mts:35:3)",
+          "recorded": [
+            {
+              "name": "result",
+              "value": null
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: fetchLinkPreview returns null for non-HTML content type",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "result",
+              "value": null
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: fetchLinkPreview returns null for 404 response",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "result",
+              "value": null
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 2321,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "fetch call without URL validation",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "const response = await fetch(url, {\n      signal: controller.signal,\n      redirect: \"follow\",\n      headers: {\n        \"User-Agent\": \"Mozilla/5.0 (compatible; PulseboardLinkPreview/1.0; +https://pulseboard.app)\",\n        Accept: \"text/html,application/xhtml+xml\",\n      },\n    });",
+        "quote_verified": true
+      }
+    ],
+    "reason": "1 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "lib/link-preview.ts",
+        "line": 53,
+        "text": "const response = await fetch(url, {"
+      },
+      {
+        "file": "lib/link-preview.ts",
+        "line": 54,
+        "text": "signal: controller.signal,"
+      },
+      {
+        "file": "lib/link-preview.ts",
+        "line": 55,
+        "text": "redirect: \"follow\","
+      },
+      {
+        "file": "lib/link-preview.ts",
+        "line": 56,
+        "text": "headers: {"
+      }
+    ],
+    "patch_file": "lib/link-preview.ts",
+    "patch_touched_lines": [
+      48
+    ],
+    "overlap": [],
+    "cause_gate": {
+      "harm_condition": "The test passes when result is not null AND result.title equals \"Internal admin console\". This means the function successfully fetched the localhost URL and extracted the title from the response body.",
+      "alternative_defect": "The function could fail to parse the HTML body correctly (e.g., the TextDecoder or cheerio parsing fails, or the early break on `</head>` prevents title extraction), yet still return a non-null result with a different title or null if the parsing error causes an early return.",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The cited lines directly perform the fetch without URL validation. The reproduction test checks that fetching http://127.0.0.1:8080/admin returns the admin console title. The harm condition (title === \"Internal admin console\") is exactly the outcome the production error reports, and the check asserts this specific symptom, not just a generic failure. The cited lines' behavior is the sole reason the check can pass with the claimed defect."
+    },
+    "rival": {
+      "status": "unavailable",
+      "proposal": {
+        "rival_cause": "The code constructs the User-Agent header string via template literal concatenation '+https://pulseboard.app', which, if the input URL contains a newline character, allows an attacker to inject arbitrary header fields (HTTP Request Smuggling / HTTP Desync), causing the request to be routed to an internal admin endpoint instead of the intended target.",
+        "rival_rule": "User-Agent header values must be validated and sanitized to prevent newline injection; the header string should be a static constant or strictly validated to exclude control characters.",
+        "rival_location": "const headers: { \"User-Agent\": \"Mozilla/5.0 (compatible; PulseboardLinkPreview/1.0; +https://pulseboard.app)\","
+      },
+      "attempts": [
+        "edit changes nothing",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged"
+      ]
+    },
+    "claim_causes": [
+      "The code lacks validation to prevent fetching localhost or internal IP addresses [fix: Add a check to reject or sanitize URLs matching localhost/internal IP patterns before the fetch call on line 'const response = await fetch(url, {']"
+    ]
+  },
+  "verdict": "patch_not_minimal",
+  "reasons": [
+    "reproduction test passes on the original code (bug reproduced on the real code)",
+    "reproduction test fails on the patch (Error: harmful outcome not observed: fetchLinkPreview fetched localhost URL and returned internal admin console title |     at globalThis.harm_observed (/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app/.wce/1692495-mvoa85ss-qlxb6u/t0.mts:9:95) |     at <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m12-v18b/pulseboard-ssrf/app/.wce/1692495-mvoa85ss-qlxb6u/): correcting the belief removes the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function lib/link-preview.ts:fetchLinkPreview",
+    "patch changes 28 lines (> 19)",
+    "patch changes lib/link-preview.ts lines 48 but the claim cites lib/link-preview.ts:53, lib/link-preview.ts:54, lib/link-preview.ts:55, lib/link-preview.ts:56: the fix is not at the claimed cause",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: not checked (unavailable)",
+    "mechanism gate (nemotron): consistent (1 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T20:30:40.927Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T20:30:40.927Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "pulseboard-link-preview",
+            "ts": "2026-10-25T02:59:38.835Z",
+            "severity": "high",
+            "service": "pulseboard",
+            "message": "Egress alert: link preview service made a request to http://127.0.0.1:8080/admin while creating a feedback card; the preview title returned was Internal admin console",
+            "frame_index": 0,
+            "frame_file": "lib/link-preview.ts",
+            "frame_line": 48,
+            "frame_function": "fetchLinkPreview",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/pulseboard-ssrf/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "transcript_replay",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 137,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "~/.cursor/skills-cursor/env-setup/SKILL.md",
+            "edit_line": 10,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "~/.cursor/skills-cursor/env-setup/SKILL.md",
+            "edit_line": 11,
+            "tool": "read_file",
+            "at": "2026-10-22T23:28:54.969Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

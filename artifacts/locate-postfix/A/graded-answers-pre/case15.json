@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that `caseStudies` array contains unique `slug` values for each case study, without checking for duplicates or ensuring the array length matches the expected 3 cards.",
+ "why_it_breaks": "React's warning \"Encountered two children with the same key\" means that two or more list items in the `caseStudies.map` loop have identical `slug` values. The agent used `study.slug` as the key, assuming each case study has a distinct slug, but the data source likely contains duplicate slugs (or fewer than 3 unique slugs), causing React to see the same key 6 times (3 cards \u00d7 2 occurrences each, or similar). The `index` variable available in the map callback was not used as the key, which would have been unique per render cycle but would not preserve identity across updates.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 110,
+   "quote": "L110| +          {caseStudies.map((study, index) => (\nL110| +            <li\nL110| +              key={study.slug}\nL110| +              className=\"fade-up\"\nL110| +              style={{ animationDelay: `${index * 80}ms` }}\nL110| +            >",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/components/selected-work.tsx",
+   "line": 25,
+   "quote": "key={study.slug}",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that the three case studies would always have distinct outcome bullet texts, so it did not add unique keys to the mapped outcome elements.",
+ "why_it_breaks": "The `field` function renders `study.role` and `study.dates` inside a `<Badge>` and `<span>` respectively. When the three case studies share identical placeholder values (e.g., the same `[Outcome \u2014 what changed.]` text), React assigns the same default key to each child, triggering the \"two children with the same key\" warning six times. The agent overlooked that mapped children need explicit `key` props when the rendered text can be non-unique across iterations.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 127,
+   "quote": "export function generateStaticParams() {\n  return caseStudies.map((study) => ({ slug: study.slug }));\n}",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/app/work/[slug]/page.tsx",
+   "line": 62,
+   "quote": "{field(study, study.dates)} \u00b7 {study.number} / 03\n",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/app/work/[slug]/page.tsx",
+   "line": 59,
+   "quote": "{field(study, study.role)}\n",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

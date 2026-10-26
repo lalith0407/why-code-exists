@@ -1,0 +1,31 @@
+{
+ "overlooked_assumption": "The agent assumed outcome.detail would be unique across all outcomes in all case studies, but multiple studies can have the same placeholder text like '[Outcome \u2014 what changed.]'",
+ "why_it_breaks": "When multiple case studies contain outcomes with identical placeholder detail text (e.g. '[Outcome \u2014 what changed.]'), React sees duplicate keys across the entire list of rendered outcomes, causing the 6 warnings (2 outcomes per study \u00d7 3 studies = 6 duplicates)",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 117,
+   "quote": "Extracting highlightTokens to avoid duplication.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/components/selected-work.tsx",
+   "line": 69,
+   "quote": "key={outcome.detail}",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/components/selected-work.tsx",
+   "line": 67,
+   "quote": "{study.outcomes.map((outcome) => (",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 1
+}

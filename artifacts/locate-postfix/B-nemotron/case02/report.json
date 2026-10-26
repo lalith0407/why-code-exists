@@ -1,0 +1,156 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case02",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "lib/actions/feedback.ts",
+   "line": 106,
+   "column": 23
+  },
+  "asked": {
+   "text": "Stack I want: TypeScript, Next.js (App Router), Postgres, Prisma,\nsimple email/password auth (no magic links). Deploy-ready README.\nSeed two workspaces with a few feedback items so I can click around.",
+   "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 1098
+  },
+  "understood": {
+   "text": "I'm now planning the feedback actions file with functions for creating feedback, toggling votes, and adding comments, each needing workspace context passed through binding the slug as the first argument from the client component.\n\nFor toggleVoteAction, since it's a button click rather than a form submission, I'm calling the server action directly within startTransition for optimistic updates, which works since server actions are just callable functions.\n\nFor createFeedbackAction, I'm working through the flow: validate the schema, check membership, fetch a URL preview with a timeout to keep things fast, create the record, then fire off a webhook notification—though I need to consider whether serverless execution terminates before that completes.\n\nSince Vercel functions can get cut off after the response returns, I should await the webhook send too rather than fire-and-forget, accepting the extra latency as a reasonable tradeoff. After creation, I'll revalidate the path for the board and return success state.\n\nThen I need toggleVoteAction, which checks for an existing vote by user+feedback and either deletes (un-vote) or creates it, with membership authorization checked against the feedback's workspace before revalidating. For addCommentAction, I'll validate the body, confirm workspace membership, create the comment, and revalidate the path. Time to write the file.",
+   "citation": "bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L121 (assistant, 201 words, 2 line(s) before the edit at L123)",
+   "valid": true,
+   "full_length": 1385
+  },
+  "happened": {
+   "text": "PrismaClientKnownRequestError:\nInvalid `prisma.vote.create()` invocation in\nlib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  at ? (lib/actions/feedback.ts:106)\n  106: await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n\nWritten by transcript edit L123 (search_replace):\n+    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n+  });\n+\n+  if (existing) {\n+    await prisma.vote.delete({ where: { id: existing.id } });\n+  } else {\n+    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n+  }\n+\n+  revalidatePath(`/w/${workspaceSlug}`);\n+  revalidatePath(`/w/${workspaceSlug}/feedback/${feedbackId}`);\n+}\n+",
+   "citation": "error case02 frame lib/actions/feedback.ts:106; bc-25dab342-ff3b-5916-ae3f-7b0214f24784.jsonl#L123",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 123,
+    "quote": "L123 [tool] TOOL: search_replace\nL123| CODE_WRITTEN: \nL123| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL123| +++ b//workspace/lib/actions/feedback.ts\nL123| @@ -1,0 +1,128 @@\nL123| +\"use server\";\nL123| +\nL123| +import { revalidatePath } from \"next/cache\";\nL123| +import { notFound } from \"next/navigation\";\nL123| +\nL123| +import { prisma } from \"@/lib/prisma\";\nL123| +import { requireUser } from \"@/lib/workspace\";\nL123| +import { extractFirstUrl, fetchLinkPreview } from \"@/lib/link-preview\";\nL123| +import { sendFeedbackWebhook } from \"@/lib/webhooks\";\nL123| +import { feedbackSchema, commentSchema } from \"@/lib/validations\";\nL123| +import type { ActionState } from \"@/lib/actions/auth\";\nL123| +\nL123| +/** Creates a new feedback post, scraping a link preview and firing the\nL123| + * workspace's outgoing webhook (if configured) once it's saved. */\nL123| +export async function createFeedbackAction(\nL123| +  workspaceSlug: string,\nL123| +  _prevState: ActionState,\nL123| +  formData: FormData\nL123| +): Promise<ActionState> {\nL123| +  const user = await requireUser();\nL123| +\nL123| +  const parsed = feedbackSchema.safeParse({\nL123| +    title: formData.get(\"title\"),\nL123| +    body: formData.get(\"body\"),\nL123| +  });\nL123| +  if (!parsed.success) {\nL123| +    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\nL123| +  }\nL123| +\nL123| +  const workspace = await prisma.workspace.findUnique({ where: { slug: workspaceSlug } });\nL123| +  if (!workspace) notFound();\nL123| +\nL123| +  const membership = await prisma.membership.findUnique({\nL123| +    where: { userId_workspaceId: { userId: user.id, workspaceId: workspace.id } },\nL123| +  });\nL123| +  if (!membership) notFound();\nL123| +\nL123| +  const { title, body } = parsed.d",
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "lib/actions/feedback.ts",
+    "line": 99,
+    "quote": "const existing = await prisma.vote.findUnique({\n    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n  });",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 14497,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:lib/actions/invites.ts (over budget)",
+    "transcript_window:reasoning mentioning \"revalidatePath\" (L115) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "PrismaClientKnownRequestError:\nInvalid `prisma.vote.create()` invocation in\nlib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  105 } else {\n→ 106   await prisma.vote.create(\nUnique constraint failed on the fields: (`feedbackId`,`userId`)\n    at toggleVoteAction (lib/actions/feedback.ts:106)\n    at a (node_modules/@prisma/client/src/runtime/getPrismaClient.ts:833)\n    at request (node_modules/@prisma/client/src/runtime/RequestHandler.ts:143)\n    at handleAndLogRequestError (node_modules/@prisma/client/src/runtime/RequestHandler.ts:174)\n    at handleRequestError (node_modules/@prisma/client/src/runtime/RequestHandler.ts:228)\n\nReported by a user who double-clicked the upvote button once and got a 500 response on one of the two requests.",
+   "edit": {
+    "file": "lib/actions/feedback.ts",
+    "line": 106,
+    "hunk": "+    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n+  });\n+\n+  if (existing) {\n+    await prisma.vote.delete({ where: { id: existing.id } });\n+  } else {\n+    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n+  }\n+\n+  revalidatePath(`/w/${workspaceSlug}`);\n+  revalidatePath(`/w/${workspaceSlug}/feedback/${feedbackId}`);\n+}\n+"
+   },
+   "code_window": "86:   return { success: true };\n87: }\n88: \n89: /** Toggles the current user's upvote on a feedback item. */\n90: export async function toggleVoteAction(workspaceSlug: string, feedbackId: string) {\n91:   const user = await requireUser();\n92: \n93:   const feedback = await prisma.feedback.findUnique({\n94:     where: { id: feedbackId },\n95:     include: { workspace: { include: { memberships: { where: { userId: user.id } } } } },\n96:   });\n97:   if (!feedback || feedback.workspace.memberships.length === 0) notFound();\n98: \n99:   const existing = await prisma.vote.findUnique({\n100:     where: { feedbackId_userId: { feedbackId, userId: user.id } },\n101:   });\n102: \n103:   if (existing) {\n104:     await prisma.vote.delete({ where: { id: existing.id } });\n105:   } else {\n106:     await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n107:   }\n108: \n109:   revalidatePath(`/w/${workspaceSlug}`);\n110:   revalidatePath(`/w/${workspaceSlug}/feedback/${feedbackId}`);\n111: }\n112: \n113: export async function addCommentAction(\n114:   workspaceSlug: string,\n115:   feedbackId: string,\n116:   _prevState: ActionState,\n117:   formData: FormData\n118: ): Promise<ActionState> {\n119:   const user = await requireUser();\n120: \n121:   const parsed = commentSchema.safeParse({ body: formData.get(\"body\") });\n122:   if (!parsed.success) {\n123:     return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\n124:   }\n125: \n126:   const feedback = await prisma.feedback.findUnique({",
+   "related_files": [],
+   "three_piece": {
+    "asked": "Stack I want: TypeScript, Next.js (App Router), Postgres, Prisma,\nsimple email/password auth (no magic links). Deploy-ready README.\nSeed two workspaces with a few feedback items so I can click around.",
+    "understood": "I'm now planning the feedback actions file with functions for creating feedback, toggling votes, and adding comments, each needing workspace context passed through binding the slug as the first argument from the client component.\n\nFor toggleVoteAction, since it's a button click rather than a form submission, I'm calling the server action directly within startTransition for optimistic updates, which works since server actions are just callable functions.\n\nFor createFeedbackAction, I'm working through the flow: validate the schema, check membership, fetch a URL preview with a timeout to keep things fast, create the record, then fire off a webhook notification—though I need to consider whether serverless execution terminates before that completes.\n\nSince Vercel functions can get cut off after the response returns, I should await the webhook send too rather than fire-and-forget, accepting the extra latency as a reasonable tradeoff. After creation, I'll revalidate the path for the board and return success state.\n\nThen I need toggleVoteAction, which checks for an existing vote by user+feedback and either deletes (un-vote) or creates it, with membership authorization checked against the feedback's workspace before revalidating. For addCommentAction, I'll validate the body, confirm workspace membership, create the comment, and revalidate the path. Time to write the file.",
+    "happened": "PrismaClientKnownRequestError:\nInvalid `prisma.vote.create()` invocation in\nlib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  at ? (lib/actions/feedback.ts:106)\n  106: await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n\nWritten by transcript edit L123 (search_replace):\n+    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n+  });\n+\n+  if (existing) {\n+    await prisma.vote.delete({ where: { id: existing.id } });\n+  } else {\n+    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n+  }\n+\n+  revalidatePath(`/w/${workspaceSlug}`);\n+  revalidatePath(`/w/${workspaceSlug}/feedback/${feedbackId}`);\n+}\n+"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L123)",
+     "text": "L120 [tool] TOOL: search_replace\nL120| CODE_WRITTEN: \nL120| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL120| +++ b//workspace/lib/actions/login.ts\nL120| @@ -1,0 +1,45 @@\nL120| +\"use server\";\nL120| +\nL120| +import { AuthError } from \"next-auth\";\nL120| +\nL120| +import { signIn } from \"@/lib/auth\";\nL120| +import { loginSchema } from \"@/lib/validations\";\nL120| +import type { ActionState } from \"@/lib/actions/auth\";\nL120| +\nL120| +export async function loginAction(\nL120| +  _prevState: ActionState,\nL120| +  formData: FormData\nL120| +): Promise<ActionState> {\nL120| +  const parsed = loginSchema.safeParse({\nL120| +    email: formData.get(\"email\"),\nL120| +    password: formData.get(\"password\"),\nL120| +  });\nL120| +\nL120| +  if (!parsed.success) {\nL120| +    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\nL120| +  }\nL120| +\nL120| +  const redirectTo = (formData.get(\"redirectTo\") as string | null) || \"/\";\nL120| +\nL120| +  try {\nL120| +    await signIn(\"credentials\", {\nL120| +      email: parsed.data.email,\nL120| +      password: parsed.data.password,\nL120| +      redirectTo,\nL120| +    });\nL120| +  } catch (error) {\nL120| +    if (error instanceof AuthError) {\nL120| +      switch (error.type) {\nL120| +        case \"CredentialsSignin\":\nL120| +          return { error: \"Invalid email or password\" };\nL120| +        default:\nL120| +          return { error: \"Something went wrong signing you in\" };\nL120| +      }\nL120| +    }\nL120| +    // next-auth signals a successful sign-in by throwing Next's redirect\nL120| +    // error — let it propagate so the browser actually navigates.\nL120| +    throw error;\nL120| +  }\nL120| +\nL120| +  return {};\nL120| +}\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":45}],\"editor\":\"EDITOR_AI\",\"hit\nL121 [assistant] THINKING: I'm now planning the feedback actions file with functions for creating feedback, toggling votes, and adding comments, each needing workspace context passed through binding the slug as the first argument from the client component.\nL121| \nL121| For toggleVoteAction, since it's a button click rather than a form submission, I'm calling the server action directly within startTransition for optimistic updates, which works since server actions are just callable functions.\nL121| \nL121| For createFeedbackAction, I'm working through the flow: validate the schema, check membership, fetch a URL preview with a timeout to keep things fast, create the record, then fire off a webhook notification—though I need to consider whether serverless execution terminates before that completes.\nL121| \nL121| Since Vercel functions can get cut off after the response returns, I should await the webhook send too rather than fire-and-forget, accepting the extra latency as a reasonable tradeoff. After creation, I'll revalidate the path for the board and return success state.\nL121| \nL121| Then I need toggleVoteAction, which checks for an existing vote by user+feedback and either deletes (un-vote) or creates it, with membership authorization checked against the feedback's workspace before revalidating. For addCommentAction, I'll validate the body, confirm workspace membership, create the comment, and revalidate the path. Time to write the file.\nL121| \nL121| \nL122 [assistant] (empty message)\nL123 [tool] TOOL: search_replace\nL123| CODE_WRITTEN: \nL123| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL123| +++ b//workspace/lib/actions/feedback.ts\nL123| @@ -1,0 +1,128 @@\nL123| +\"use server\";\nL123| +\nL123| +import { revalidatePath } from \"next/cache\";\nL123| +import { notFound } from \"next/navigation\";\nL123| +\nL123| +import { prisma } from \"@/lib/prisma\";\nL123| +import { requireUser } from \"@/lib/workspace\";\nL123| +import { extractFirstUrl, fetchLinkPreview } from \"@/lib/link-preview\";\nL123| +import { sendFeedbackWebhook } from \"@/lib/webhooks\";\nL123| +import { feedbackSchema, commentSchema } from \"@/lib/validations\";\nL123| +import type { ActionState } from \"@/lib/actions/auth\";\nL123| +\nL123| +/** Creates a new feedback post, scraping a link preview and firing the\nL123| + * workspace's outgoing webhook (if configured) once it's saved. */\nL123| +export async function createFeedbackAction(\nL123| +  workspaceSlug: string,\nL123| +  _prevState: ActionState,\nL123| +  formData: FormData\nL123| +): Promise<ActionState> {\nL123| +  const user = await requireUser();\nL123| +\nL123| +  const parsed = feedbackSchema.safeParse({\nL123| +    title: formData.get(\"title\"),\nL123| +    body: formData.get(\"body\"),\nL123| +  });\nL123| +  if (!parsed.success) {\nL123| +    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\nL123| +  }\nL123| +\nL123| +  const workspace = await prisma.workspace.findUnique({ where: { slug: workspaceSlug } });\nL123| +  if (!workspace) notFound();\nL123| +\nL123| +  const membership = await prisma.membership.findUnique({\nL123| +    where: { userId_workspaceId: { userId: user.id, workspaceId: workspace.id } },\nL123| +  });\nL123| +  if (!membership) notFound();\nL123| +\nL123| +  const { title, body } = parsed.d\nL124 [assistant] THINKING: I'm moving on to workspace settings actions, planning admin-only updates and webhook secret regeneration, then invite actions for creating, accepting, and revoking invites.\nL124| \nL124| \nL125 [assistant] (empty message)\nL126 [tool] TOOL: search_replace\nL126| CODE_WRITTEN: \nL126| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL126| +++ b//workspace/lib/actions/workspace-settings.ts\nL126| @@ -1,0 +1,57 @@\nL126| +\"use server\";\nL126| +\nL126| +import crypto from \"crypto\";\nL126| +import { revalidatePath } from \"next/cache\";\nL126| +import { redirect } from \"next/navigation\";\nL126| +\nL126| +import { prisma } from \"@/lib/prisma\";\nL126| +import { requireWorkspaceAdmin } from \"@/lib/workspace\";\nL126| +import { workspaceSettingsSchema } from \"@/lib/validations\";\nL126| +import type { ActionState } from \"@/lib/actions/auth\";\nL126| +\nL126| +export async function updateWorkspaceSettingsAction(\nL126| +  currentSlug: string,\nL126| +  _prevState: ActionState,\nL126| +  formData: FormData\nL126| +): Promise<ActionState> {\nL126| +  const { workspace } = await requireWorkspaceAdmin(currentSlug);\nL126| +\nL126| +  const parsed = workspaceSettingsSchema.safeParse({\nL126| +    name: formData.get(\"name\"),\nL126| +    slug: formData.get(\"slug\"),\nL126| +    webhookUrl: formData.get(\"webhookUrl\") ?? \"\",\nL126| +    slackSigningSecret: formData.get(\"slackSigningSecret\") ?? \"\",\nL126| +  });\nL126| +\nL126| +  if (!parsed.success) {\nL126| +    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\nL126| +  }\nL126| +\nL126| +  const { name, slug, webhookUrl, slackSigningSecret } = parsed.data;\nL126| +\nL126| +  if (slug !== workspace.slug) {\nL126| +    const slugTaken = await prisma.workspace.findUnique({ where: { slug } });\nL126| +    if (slugTaken) {\nL126| +      return { error: \"That slug is already taken\" };\nL126| +    }\nL126| +  }\nL126| +\nL126| +  await prisma.workspace.update({\nL126| +    where: { id: workspace.id },\nL126| +    data: { name, slug, webhookUrl: webhookUrl ?? null, slac"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that checking for an existing vote with `findUnique` and then conditionally creating or deleting would be sufficient, without accounting for concurrent requests that could both pass the existence check before either operation completes.",
+  "why_it_breaks": "The error \"Unique constraint failed on the fields: (`feedbackId`,`userId`)\" occurs because two concurrent requests (e.g., from a double-click) both pass the `findUnique` check at line 99-101 and find no existing vote, then both attempt to `create` at line 106, violating the database's unique constraint on (feedbackId, userId). The agent's code only guards against the case where a vote already exists and deletes it, but does not handle the race condition where two simultaneous requests both see the absence of a vote and try to create one.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 123,
+    "quote": "L123 [tool] TOOL: search_replace\nL123| CODE_WRITTEN: \nL123| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL123| +++ b//workspace/lib/actions/feedback.ts\nL123| @@ -1,0 +1,128 @@\nL123| +\"use server\";\nL123| +\nL123| +import { revalidatePath } from \"next/cache\";\nL123| +import { notFound } from \"next/navigation\";\nL123| +\nL123| +import { prisma } from \"@/lib/prisma\";\nL123| +import { requireUser } from \"@/lib/workspace\";\nL123| +import { extractFirstUrl, fetchLinkPreview } from \"@/lib/link-preview\";\nL123| +import { sendFeedbackWebhook } from \"@/lib/webhooks\";\nL123| +import { feedbackSchema, commentSchema } from \"@/lib/validations\";\nL123| +import type { ActionState } from \"@/lib/actions/auth\";\nL123| +\nL123| +/** Creates a new feedback post, scraping a link preview and firing the\nL123| + * workspace's outgoing webhook (if configured) once it's saved. */\nL123| +export async function createFeedbackAction(\nL123| +  workspaceSlug: string,\nL123| +  _prevState: ActionState,\nL123| +  formData: FormData\nL123| +): Promise<ActionState> {\nL123| +  const user = await requireUser();\nL123| +\nL123| +  const parsed = feedbackSchema.safeParse({\nL123| +    title: formData.get(\"title\"),\nL123| +    body: formData.get(\"body\"),\nL123| +  });\nL123| +  if (!parsed.success) {\nL123| +    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\nL123| +  }\nL123| +\nL123| +  const workspace = await prisma.workspace.findUnique({ where: { slug: workspaceSlug } });\nL123| +  if (!workspace) notFound();\nL123| +\nL123| +  const membership = await prisma.membership.findUnique({\nL123| +    where: { userId_workspaceId: { userId: user.id, workspaceId: workspace.id } },\nL123| +  });\nL123| +  if (!membership) notFound();\nL123| +\nL123| +  const { title, body } = parsed.d",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "lib/actions/feedback.ts",
+    "line": 99,
+    "quote": "const existing = await prisma.vote.findUnique({\n    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n  });",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "lib/actions/feedback.ts",
+    "line": 106,
+    "quote": "await prisma.vote.create({ data: { feedbackId, userId: user.id } });",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that a user can only have one vote per feedback item, and that checking for an existing vote with findUnique followed by create or delete is sufficient, without considering that concurrent requests could both pass the existence check before either completes.",
+  "why_it_breaks": "The agent implemented a check-then-act pattern (findUnique to see if a vote exists, then create or delete). When a user double-clicks the upvote button, two concurrent requests can both pass the findUnique check before either vote is created, causing both to attempt prisma.vote.create() with the same feedbackId and userId, which violates the unique constraint on (feedbackId, userId). The agent overlooked the race condition between the existence check and the create operation.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 121,
+    "quote": "For toggleVoteAction, since it's a button click rather than a form submission, I'm calling the server action directly within startTransition for optimistic updates, which works since server actions are just callable functions.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "lib/actions/feedback.ts",
+    "line": 99,
+    "quote": "const existing = await prisma.vote.findUnique({ where: { feedbackId_userId: { feedbackId, userId: user.id } } });",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 1
+ }
+}

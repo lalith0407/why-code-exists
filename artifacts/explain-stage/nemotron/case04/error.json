@@ -1,0 +1,8 @@
+{
+ "id": "case04",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "Risk review flagged a trade that should not have gone through during a drawdown halt.\n\nObserved: portfolio drawdown was -30.0% from its peak at the time (the halt threshold is -20%). A new buy of FALN at $2.10 per share was placed and filled anyway. No rejection or warning was logged for this order.\n",
+ "frames": []
+}

@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that calling risk.check_caps on the weights from portfolio.size_position would enforce the single-name cap, but the tool only validates weights after they are produced and does not prevent a weight exceeding the cap from being generated in the first place.",
+ "why_it_breaks": "The guide instructs the agent to ask portfolio.size_position for weights, then call risk.check_caps on those weights. The agent assumes risk.check_caps will prevent any weight from exceeding the 15% single-name cap. However, risk.check_caps likely only validates or adjusts weights after the fact; it does not cap the size_position output. Since the agent generates a 95% position first and then checks caps, the oversized weight passes through uncorrected before the check runs, and the check either finds no violation (if it compares against a different threshold) or simply downsizes the order after the fact, but the initial 95% weight was already approved by the agent's procedure.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "guides/risk_manager/v1.md",
+   "line": 15,
+   "quote": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "guides/risk_manager/v1.md",
+   "line": 3,
+   "quote": "Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 60,
+   "quote": "L60 [tool] TOOL: search_replace\nL60| CODE_WRITTEN: \nL60| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL60| +++ b//workspace/guides/risk_manager/v1.md\nL60| @@ -1,0 +1,27 @@\nL60| +# Risk manager guide v1\nL60| +\nL60| +Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\nL60| +\nL60| +## 1. Read task\nL60| +\nL60| +Read the analyst's selected names, the current portfolio, incoming contribution cash, and the option-gate status.\nL60| +\nL60| +## 2. Choose tools/sources\nL60| +\nL60| +Allowed tools: `portfolio.size_position`, `risk.check_caps`, `risk.option_gate`, `research.write_observation`, `broker.render_ticket`.\nL60| +\nL60| +## 3. Write procedure\nL60| +\nL60| +Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

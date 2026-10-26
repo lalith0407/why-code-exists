@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that all selected tickers have corresponding entries in the position-sizing output, but size_position may only output results for a subset of tickers (e.g., only those within weight caps), leaving others absent.",
+ "why_it_breaks": "The citation verifier checks that each claim's fact_refs point to valid log_entry_ids and fact references in the store. When size_position runs, it may only produce output entries for tickers that pass weight caps or other filters. If a claim references AAPL but the sizing output has no AAPL entry (only MSFT), the verifier either drops the claim or fails to validate it. The agent assumed all selected tickers would appear in the sizing output, but the actual output may omit some, causing the verifier to keep a claim that points to nonexistent data.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 251,
+   "quote": "The loop now renders the broker ticket from the sized orders. It constructs a claims list containing selected tickers, the risk opinion, the option gate fact, and per-ticker weight facts.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 476,
+   "quote": "kept = verified.output[\"kept\"]",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 456,
+   "quote": "{\"orders\": sized.output.get(\"orders\", [])}",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

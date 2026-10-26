@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/main.py:1127
+stage: ok
+provider: nemotron
+frame: litellm/main.py:1127
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that removing the blanket "reasoning on = reject function tools" rule and adding version-gated logic would correctly route gpt-5.4/5.5 with function tools back to Chat Completions, but failed to account for the fact that the model name matching logic still routes gpt-5.5 requests to the Responses API when reasoning_effort is unset, causing the 400 error from the provider.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/A/u02/report.html

@@ -1,0 +1,31 @@
+{
+ "overlooked_assumption": "The agent assumed that calling risk.check_caps on the weights from portfolio.size_position would enforce the single-name cap, but the tool only validates weights after they are produced and does not prevent an oversized position from being generated in the first place.",
+ "why_it_breaks": "The procedure instructs the agent to first ask portfolio.size_position for orders and their weights, then call risk.check_caps on those weights. If the weights already violate the 15% single-name cap (e.g., 95% in KVXR), risk.check_caps may return no violation if it only checks other cap types or does not enforce the single-name limit at the generation stage. The agent\u2019s assumption that checking caps after size_position would catch breaches is wrong because size_position can produce weights that exceed the cap before any validation runs, and the check step does not guarantee downsizing before the order is rendered.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "guides/risk_manager/v1.md",
+   "line": 15,
+   "quote": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "guides/risk_manager/v1.md",
+   "line": 3,
+   "quote": "Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 60,
+   "quote": "Ask `portfolio.size_position` for orders. Cite the resulting weights. Call `risk.check_caps` on those weights. Call `risk.option_gate` and leave options unused while the gate is shut. Render one ticket block for the proposed orders.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 1
+}

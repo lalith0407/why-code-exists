@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/app/work/[slug]/page.tsx:0
+stage: ok
+provider: nemotron
+frame: src/components/selected-work.tsx:12
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that `caseStudies` array contains unique `slug` values, so using `study.slug` as the React key would guarantee uniqueness. It did not account for the possibility that multiple case studies could share the same slug or that `slug` might be undefined/duplicate.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-nemotron/case15/report.html

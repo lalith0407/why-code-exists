@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> app/w/[slug]/settings/page.tsx:90
+stage: ok
+provider: nemotron
+frame: app/w/[slug]/settings/page.tsx:90
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that any Slack event with text starting "/pulse feedback" would be recognized and processed into a feedback item, without accounting for multi-line messages where the text continues on the next line after a line break.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-nemotron/case01/report.html

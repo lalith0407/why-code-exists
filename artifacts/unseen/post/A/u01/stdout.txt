@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16
+stage: ok
+provider: nemotron
+frame: litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that changing the default from `= []` to `Field(default=[])` would preserve the same mutable default behavior, but pydantic's `defer_build` mechanism means the class attribute is not initialized until first access, so `Field(default=[])` creates a fresh list per instance only after the model is built, while the old `= []` shared the same class-level list until the model was first instantiated. Under concurrent load on a fresh worker, the class-level list is never pre-seeded, and the first concurrent access triggers a build race or leaves attributes unavailable, causing the `use_litellm_proxy` missing error.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/A/u01/report.html

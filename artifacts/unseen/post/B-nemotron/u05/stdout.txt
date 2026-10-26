@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs:1264
+stage: ok
+provider: nemotron
+frame: src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs:1264
+status: verified (code quotes 3, transcript quotes 1)
+overlooked_assumption: The code assumes that for Modified commands, the original value and current value are always comparable, but it does not account for cases where the index value is store-generated (e.g., serial/identity) and the original value may be null or unavailable, causing the equality check to incorrectly skip edge creation and produce duplicate key violations.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/B-nemotron/u05/report.html

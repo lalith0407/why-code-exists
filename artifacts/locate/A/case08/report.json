@@ -1,0 +1,398 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case08",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "tests/test_guarded_kinds.py",
+   "line": 111
+  },
+  "asked": {
+   "text": "HOLD: do not merge the pass-2 bundle commits yet. The user wants to weigh in first. Finish the import and your own hardening branch, and leave the pass-2 commits unapplied until told.",
+   "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L131 (user message, latest of 4 before the edit)",
+   "valid": true,
+   "full_length": 183
+  },
+  "understood": {
+   "text": "The block stems from the readers_subset check — the evidence covers table-level targets like orders, but dependents such as query_log's ad-hoc app/api traffic fall outside the allowed reader set defined at propose time (finance_dashboard, nightly_revenue_job), so rechecking right before execution flags it.\n\nI should debug exactly which new_readers are showing up. I'm also noticing migrate_known_readers only swaps the \"legacy_discount\" string for \"discount_cents\" in known yaml refs — it never touches the \"orders\" table name, so even after migration nightly_revenue_job's query still references orders directly, meaning the table-level match still picks it up as a reader.\n\nThis means condition c2 (readers_migrated) can never pass for table-level drop/truncate kinds, since every scheduler/dashboard file always mentions the literal table name \"orders\" regardless of migration — this is why we see \"blocked\" instead of \"executed\". The test setup is really built around the column-rename demo scenario, not genuine table-wide drops, so it's structurally unrealistic for this check.\n\nI should rewrite these two tests to construct their own clean scenario instead of relying on the shared \"orders\" fixture — maybe using \"customers\" or a brand-new table with no baked-in dependents, adding just one dependent myself and fully removing it to simulate true migration.\n\nWriting test setup code...\n\nI should double check whether customers has other hidden dependents in the seed data beyond the scheduler job I already accounted for, since I want the truncate scenario to be unambiguous.\n\nThat's fine for this test since we're on the dangerous path, not the zero-dependents safe path—extra dependents just need to be correctly recognized and addressed before the final step. The real issue is timing: readers_subset checks evidence since signed_at, but readers_migrated checks scheduler/bi sources without any time filtering, so I need to recheck how the condition logic actually handles this.\n\nLooking at the readers_migrated branch, it passes `since=signed_at` to who_depends_on, but SchedulerSource and BIDashboardSource both ignore the since parameter in their readers() method, meaning they always check current file state regardless of timing. This confirms my earlier analysis—all scheduler/bi files referencing the target table need to be rewritten before the final step, since by default only the nightly_revenue_job references \"orders\" while nothing references \"customers.\"\n\nChecking the finance_dashboard cards, I confirm BI/scheduler have zero textual references to \"customers,\" so readers_migrated should pass trivially for that table. The real risk is readers_subset, which checks live query_log evidence from the original propose() call—since an app process doing a SELECT on customers could leave noise there regardless of migration status.\n\nI need to verify timing: the seed() noise is timestamped in the past relative to when approve() runs, so I'm checking whether that old noise would still register as a \"new\" reader after the since=signed_at filter is applied during recheck.\n\nSo since signed_at is set right after seeding, all that noise data is strictly older than signed_at, meaning the recheck's \"since=signed_at\" filter yields an empty current-activity set and the drift check passes trivially unless something genuinely new happens post-signing — which is exactly the intended behavior.\n\nSo I should switch my two failing tests to target \"customers\" instead of \"orders\" to dodge the baked-in scheduler/bi dependents, while still exercising propose→evidence→plan→sign→execute. But I also want the test to show dependents actually get discovered and that the gating logic is meaningful, not just trivially passing — using \"customers\" with zero deps would only exercise the readers_subset condition in a trivial way.\n\nI'll rewrite those two tests with \"customers\" as the target table. Also I need to fix the canonical-SQL test: dropping \"fax_number\" has zero dependents, so MockReasoner returns an \"allow\" decision with no plan at all, which explains the index error on d.plan[-1]. I should swap in a column like legacy_discount that actually has dependents so a plan gets generated.",
+   "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L221 (assistant, 617 words, 2 line(s) before the edit at L223)",
+   "valid": true,
+   "full_length": 4205
+  },
+  "happened": {
+   "text": "Data-quality alert: the `customers` table now has two rows with the same email address, ana@example.com, even though new signups with an already-registered email are supposed to be rejected.\n\nThe timing lines up with a signed schema change that had just been approved and run against this table (changing the `tier` column's type to a wider numeric type). No application code was deployed between the schema change and the duplicate signup being accepted. Before that schema change, a duplicate signup with the same email had always been rejected in testing.\n\n  at ? (tests/test_guarded_kinds.py:111)\n  111: # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n\nWritten by transcript edit L223 (search_replace):\n \n \n def test_truncate_gets_evidence_blocked_then_executed_once_migrated(guard, world):\n-    d = guard.propose(TRUNCATE)\n+    # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n+    # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n+    # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n+    truncate_customers = \"TRUNCATE TABLE customers\"\n+    d = guard.propose(truncate_customers)\n     assert d.verdict == \"safer_plan\" and d.action.kind == \"truncate\"\n-    direct = guard.execute(TRUNCATE)\n+    direct = guard.execute(truncate_customers)\n     assert direct[\"status\"] == \"rejected\"",
+   "citation": "error case08 frame tests/test_guarded_kinds.py:111; bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L223",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Data-quality alert: the `customers` table now has two rows with the same email address, ana@example.com, even though new signups with an already-registered email are supposed to be rejected.\n\nThe timing lines up with a signed schema change that had just been approved and run against this table (changing the `tier` column's type to a wider numeric type). No application code was deployed between the schema change and the duplicate signup being accepted. Before that schema change, a duplicate signup with the same email had always been rejected in testing.\n",
+  "terms": [
+   "customers",
+   "tier",
+   "the timing lines up",
+   "no application code was",
+   "before that schema change",
+   "example",
+   "com",
+   "data",
+   "quality",
+   "alert",
+   "table",
+   "rows",
+   "same",
+   "email",
+   "address",
+   "though",
+   "signups",
+   "already",
+   "registered",
+   "supposed",
+   "rejected",
+   "timing",
+   "lines",
+   "signed",
+   "schema",
+   "change",
+   "approved",
+   "against",
+   "changing",
+   "column",
+   "type",
+   "wider",
+   "numeric",
+   "application",
+   "code",
+   "deployed",
+   "duplicate",
+   "signup",
+   "accepted",
+   "always",
+   "testing"
+  ],
+  "layer1": {
+   "symbols_indexed": 1822,
+   "edited_hunks_indexed": 33,
+   "candidates": [
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 111,
+     "end_line": 124,
+     "text": "    # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.",
+     "score": 15.5544,
+     "matched_terms": [
+      "customers",
+      "table",
+      "same",
+      "column"
+     ],
+     "edit_line": 223,
+     "tool": "search_replace",
+     "hunk_id": "L223#24",
+     "snippet": "109:     # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n110:     # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n111:     # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n112:     truncate_customers = \"TRUNCATE TABLE customers\"\n113:     d = guard.propose(truncate_customers)\n115:     direct = guard.execute(truncate_customers)\n118:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 50\n124:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 0",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 164,
+     "end_line": 164,
+     "text": "        assert not db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='customers'\").fetchone()",
+     "score": 12.2454,
+     "matched_terms": [
+      "customers",
+      "table",
+      "type"
+     ],
+     "edit_line": 225,
+     "tool": "search_replace",
+     "hunk_id": "L225#25",
+     "snippet": "157:     d = guard.propose(\"DROP TABLE customers\")  # see note in the truncate test above\n164:         assert not db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='customers'\").fetchone()",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "blast_radius/reasoner/base.py",
+     "line": 46,
+     "end_line": 54,
+     "text": "        return [deprecate, PlanStep(2, f\"Change the type of {action.target} after the window, only if every \"",
+     "function": "safe_plan",
+     "score": 10.8144,
+     "matched_terms": [
+      "change",
+      "table",
+      "same",
+      "signed",
+      "column",
+      "type"
+     ],
+     "edit_line": 98,
+     "tool": "search_replace",
+     "hunk_id": "L98#4",
+     "snippet": "14: def _deprecation_step(action: Action) -> PlanStep:\n15:     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n16:     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n17:                      f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n18:                      f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\n19: \n21:     \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n22: \n23:     Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n24:     there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "world/db.py",
+     "line": 75,
+     "end_line": 109,
+     "text": "    r'^\\\\s*ALTER\\\\s+TABLE\\\\s+\"?(\\\\w+)\"?\\\\s+ALTER\\\\s+COLUMN\\\\s+\"?(\\\\w+)\"?\\\\s+SET\\\\s+DATA\\\\s+TYPE\\\\s+(.+?)\\\\s*;?\\\\s*$', re.I)",
+     "function": "config",
+     "score": 9.5926,
+     "matched_terms": [
+      "data",
+      "table",
+      "already",
+      "column",
+      "type"
+     ],
+     "edit_line": 161,
+     "tool": "search_replace",
+     "hunk_id": "L161#7",
+     "snippet": "69: # SQLite has no TRUNCATE and no ALTER COLUMN ... TYPE (it's dynamically typed, so a full table\n70: # rebuild is the only honest equivalent). These only ever see SQL the guard has already\n71: # validated and canonicalized (see blast_radius/models.py); they are an execution-compatibility\n72: # shim for the sqlite dev/test backend, not a safety boundary.\n73: _TRUNCATE_RE = re.compile(r'^\\\\s*TRUNCATE\\\\s+TABLE\\\\s+\"?(\\\\w+)\"?\\\\s*;?\\\\s*$', re.I)\n74: _RETYPE_RE = re.compile(\n75:     r'^\\\\s*ALTER\\\\s+TABLE\\\\s+\"?(\\\\w+)\"?\\\\s+ALTER\\\\s+COLUMN\\\\s+\"?(\\\\w+)\"?\\\\s+SET\\\\s+DATA\\\\s+TYPE\\\\s+(.+?)\\\\s*;?\\\\s*$', re.I)\n76: \n77: def _retype_column_sqlite(conn: sqlite3.Connection, table: str, column: str, new_type: str) -> None:\n78:     \"\"\"Rebuild `table` with `column`'s declared type changed to `new_type` (SQLite's documented",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "blast_radius/models.py",
+     "line": 73,
+     "end_line": 189,
+     "text": "    \"\"\"Unqualified identifier name (schema/db prefixes stripped), from a Table/Column/Identifier.\"\"\"",
+     "function": "normalize_sql",
+     "score": 9.0824,
+     "matched_terms": [
+      "schema",
+      "data",
+      "table",
+      "rejected",
+      "signed",
+      "against",
+      "column",
+      "type",
+      "always"
+     ],
+     "edit_line": 78,
+     "tool": "search_replace",
+     "hunk_id": "L78#0",
+     "snippet": "1: \"\"\"Core data types shared by every module.\n2: \n3: Action parsing uses a real SQL parser (sqlglot) instead of regex so that comments, quoting,\n4: schema qualification, stacked/transactional statements and side-effecting function calls are\n5: understood structurally rather than pattern-matched. The parser fails closed: anything it can't\n6: parse as exactly one statement, or any statement whose shape it doesn't explicitly recognize as\n7: safe, is classified \"other\" and is rejected by the guard unless a signed contract covers it.\n8: \"\"\"\n13: import sqlglot\n14: from sqlglot import exp",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 127,
+     "end_line": 174,
+     "text": "        \"schema_qualified\": f\"ALTER TABLE main.{table} DROP COLUMN {col}\",",
+     "function": "_bypass_sql",
+     "score": 8.795,
+     "matched_terms": [
+      "schema",
+      "table",
+      "rejected",
+      "against",
+      "column",
+      "type"
+     ],
+     "edit_line": 180,
+     "tool": "search_replace",
+     "hunk_id": "L180#14",
+     "snippet": "86: def table_exists(w, table) -> bool:\n87:     with DB(w) as db:\n88:         return bool(db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name=?\", (table,)).fetchone())\n89: \n90: def col_type(w, table, col) -> str | None:\n91:     with DB(w) as db:\n92:         for row in db.execute(f\"PRAGMA table_info({table})\").fetchall():\n93:             if row[1] == col: return row[2]\n94:     return None\n95: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_guarded_kinds.py",
+     "line": 83,
+     "end_line": 178,
+     "text": "def test_rename_column_rejected_unsigned(guard, world):",
+     "score": 7.8788,
+     "matched_terms": [
+      "table",
+      "rejected",
+      "signed",
+      "approved",
+      "column",
+      "type"
+     ],
+     "edit_line": 215,
+     "tool": "search_replace",
+     "hunk_id": "L215#22",
+     "snippet": "1: \"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\n2: closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\n3: import pytest\n4: from world.db import DB\n5: from blast_radius.models import parse_action\n6: \n7: \n8: # ---- (a) parser classification: bypass vectors must never be misread as \"read\" or auto-allowed\n9: \n10: @pytest.mark.parametrize(\"sql,kind\", [",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 156,
+     "end_line": 164,
+     "text": "            # whole-table kinds (drop_table/truncate/delete_unbounded/update_unbounded) always have",
+     "function": "run_one",
+     "score": 7.8413,
+     "matched_terms": [
+      "table",
+      "column",
+      "type",
+      "always"
+     ],
+     "edit_line": 194,
+     "tool": "search_replace",
+     "hunk_id": "L194#20",
+     "snippet": "155:         if cls == \"safe_ddl\":\n156:             # whole-table kinds (drop_table/truncate/delete_unbounded/update_unbounded) always have\n157:             # *some* dependent in the shared seed template (the demo's own finance/nightly jobs, plus\n158:             # seeded app traffic) -- there's no such thing as a truly dependent-free table action in\n159:             # this world, so only column-level kinds are exercised as the \"zero evidence\" control here.\n160:             kind = rnd.choice([\"drop_column\", \"rename_column\", \"alter_type\"])\n161:         elif cls in (\"dangerous_ddl\", \"unsigned\", \"tampered\", \"out_of_order\"):\n162:             kind = rnd.choice(list(KIND_SQL))\n163:         else:\n164:             kind = \"drop_column\"",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "blast_radius/guard.py",
+     "line": 96,
+     "end_line": 99,
+     "text": "                return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}",
+     "function": "execute",
+     "score": 5.6131,
+     "matched_terms": [
+      "rows",
+      "type"
+     ],
+     "edit_line": 239,
+     "tool": "search_replace",
+     "hunk_id": "L239#28",
+     "snippet": "95:             try:\n96:                 return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}\n97:             except Exception as e:\n98:                 self._log(\"execution_error\", sql=action.sql, error=str(e)[:200])\n99:                 return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\"}",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 35,
+     "end_line": 40,
+     "text": "    \"alter_type\": lambda t, c: f\"ALTER TABLE {t} ALTER COLUMN {c} TYPE TEXT\",",
+     "score": 5.3878,
+     "matched_terms": [
+      "table",
+      "column",
+      "type"
+     ],
+     "edit_line": 180,
+     "tool": "search_replace",
+     "hunk_id": "L180#13",
+     "snippet": "22:     \"safe_read\": .08, \"safe_ddl\": .10, \"dangerous_ddl\": .12, \"safe_plan_complete\": .08,\n23:     \"unsigned\": .10, \"tampered\": .10, \"out_of_order\": .08, \"drift\": .12, \"evasion\": .08,\n24:     \"injection\": .06, \"guard_bypass\": .08,\n28: # Every guarded kind gets a SQL builder, keyed by (table, col) from add_target. Table-level kinds\n29: # ignore col but we still create it so the evidence sources have something that both the column\n30: # and table names appear in (mirrors how a real dependent query references both).\n31: KIND_SQL = {\n32:     \"drop_column\": lambda t, c: f\"ALTER TABLE {t} DROP COLUMN {c}\",\n33:     \"drop_table\": lambda t, c: f\"DROP TABLE {t}\",\n34:     \"rename_column\": lambda t, c: f\"ALTER TABLE {t} RENAME COLUMN {c} TO {c}_renamed\",",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "tests/test_guarded_kinds.py",
+   "line": 111,
+   "end_line": 124,
+   "text": "    # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.",
+   "score": 15.5544,
+   "matched_terms": [
+    "customers",
+    "table",
+    "same",
+    "column"
+   ],
+   "edit_line": 223,
+   "tool": "search_replace",
+   "hunk_id": "L223#24",
+   "snippet": "109:     # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n110:     # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n111:     # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n112:     truncate_customers = \"TRUNCATE TABLE customers\"\n113:     d = guard.propose(truncate_customers)\n115:     direct = guard.execute(truncate_customers)\n118:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 50\n124:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 0",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 17606,
+   "truncated": true,
+   "dropped_sections": [
+    "transcript_window:reasoning mentioning \"demo\" (L1) (over budget)",
+    "transcript_window:reasoning mentioning \"demo\" (L43) (over budget)",
+    "transcript_window:reasoning mentioning \"demo\" (L46) (over budget)",
+    "transcript_window:reasoning mentioning \"demo\" (L49) (over budget)",
+    "transcript_window:reasoning mentioning \"demo\" (L52) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Data-quality alert: the `customers` table now has two rows with the same email address, ana@example.com, even though new signups with an already-registered email are supposed to be rejected.\n\nThe timing lines up with a signed schema change that had just been approved and run against this table (changing the `tier` column's type to a wider numeric type). No application code was deployed between the schema change and the duplicate signup being accepted. Before that schema change, a duplicate signup with the same email had always been rejected in testing.",
+   "edit": {
+    "file": "tests/test_guarded_kinds.py",
+    "line": 111,
+    "hunk": " \n \n def test_truncate_gets_evidence_blocked_then_executed_once_migrated(guard, world):\n-    d = guard.propose(TRUNCATE)\n+    # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n+    # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n+    # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n+    truncate_customers = \"TRUNCATE TABLE customers\"\n+    d = guard.propose(truncate_customers)\n     assert d.verdict == \"safer_plan\" and d.action.kind == \"truncate\"\n-    direct = guard.execute(TRUNCATE)\n+    direct = guard.execute(truncate_customers)\n     assert direct[\"status\"] == \"rejected\""
+   },
+   "code_window": "91:     assert d.verdict == \"safer_plan\" and d.action.kind == \"alter_type\"\n92:     assert {e.reader for e in d.evidence if e.source != \"repo_grep\"}\n93: \n94: \n95: def test_alter_type_signed_and_executed(guard, world):\n96:     d = guard.propose(RETYPE)\n97:     cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\n98:     guard.execute(d.plan[0].sql, cid)\n99:     from world.drift import migrate_known_readers\n100:     migrate_known_readers(world)\n101:     final = guard.execute(d.plan[1].sql, cid)\n102:     assert final[\"status\"] == \"executed\"\n103:     with DB(world) as db:\n104:         assert \"TEXT\" in (db.execute(\"PRAGMA table_info(orders)\").fetchall()[0][2] or \"\") or True  # sanity: ran without error\n105:     assert \"legacy_discount\" in _cols(world)  # retype keeps the column, only its declared type changes\n106: \n107: \n108: def test_truncate_gets_evidence_blocked_then_executed_once_migrated(guard, world):\n109:     # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n110:     # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n111:     # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n112:     truncate_customers = \"TRUNCATE TABLE customers\"\n113:     d = guard.propose(truncate_customers)\n114:     assert d.verdict == \"safer_plan\" and d.action.kind == \"truncate\"\n115:     direct = guard.execute(truncate_customers)\n116:     assert direct[\"status\"] == \"rejected\"\n117:     with DB(world) as db:\n118:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 50\n119:     cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\n120:     guard.execute(d.plan[0].sql, cid)\n121:     final = guard.execute(d.plan[1].sql, cid)\n122:     assert final[\"status\"] == \"executed\"\n123:     with DB(world) as db:\n124:         assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 0\n125: \n126: \n127: def test_truncate_drift_blocks_and_learns(guard, world):\n128:     d = guard.propose(TRUNCATE)\n129:     cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\n130:     guard.execute(d.plan[0].sql, cid)\n131:     from world.drift import inject_drift, migrate_known_readers",
+   "related_files": [],
+   "three_piece": {
+    "asked": "HOLD: do not merge the pass-2 bundle commits yet. The user wants to weigh in first. Finish the import and your own hardening branch, and leave the pass-2 commits unapplied until told.",
+    "understood": "The block stems from the readers_subset check — the evidence covers table-level targets like orders, but dependents such as query_log's ad-hoc app/api traffic fall outside the allowed reader set defined at propose time (finance_dashboard, nightly_revenue_job), so rechecking right before execution flags it.\n\nI should debug exactly which new_readers are showing up. I'm also noticing migrate_known_readers only swaps the \"legacy_discount\" string for \"discount_cents\" in known yaml refs — it never touches the \"orders\" table name, so even after migration nightly_revenue_job's query still references orders directly, meaning the table-level match still picks it up as a reader.\n\nThis means condition c2 (readers_migrated) can never pass for table-level drop/truncate kinds, since every scheduler/dashboard file always mentions the literal table name \"orders\" regardless of migration — this is why we see \"blocked\" instead of \"executed\". The test setup is really built around the column-rename demo scenario, not genuine table-wide drops, so it's structurally unrealistic for this check.\n\nI should rewrite these two tests to construct their own clean scenario instead of relying on the shared \"orders\" fixture — maybe using \"customers\" or a brand-new table with no baked-in dependents, adding just one dependent myself and fully removing it to simulate true migration.\n\nWriting test setup code...\n\nI should double check whether customers has other hidden dependents in the seed data beyond the scheduler job I already accounted for, since I want the truncate scenario to be unambiguous.\n\nThat's fine for this test since we're on the dangerous path, not the zero-dependents safe path—extra dependents just need to be correctly recognized and addressed before the final step. The real issue is timing: readers_subset checks evidence since signed_at, but readers_migrated checks scheduler/bi sources without any time filtering, so I need to recheck how the condition logic actually handles this.\n\nLooking at the readers_migrated branch, it passes `since=signed_at` to who_depends_on, but SchedulerSource and BIDashboardSource both ignore the since parameter in their readers() method, meaning they always check current file state regardless of timing. This confirms my earlier analysis—all scheduler/bi files referencing the target table need to be rewritten before the final step, since by default only the nightly_revenue_job references \"orders\" while nothing references \"customers.\"\n\nChecking the finan",
+    "happened": "Data-quality alert: the `customers` table now has two rows with the same email address, ana@example.com, even though new signups with an already-registered email are supposed to be rejected.\n\nThe timing lines up with a signed schema change that had just been approved and run against this table (changing the `tier` column's type to a wider numeric type). No application code was deployed between the schema change and the duplicate signup being accepted. Before that schema change, a duplicate signup with the same email had always been rejected in testing.\n\n  at ? (tests/test_guarded_kinds.py:111)\n  111: # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n\nWritten by transcript edit L223 (search_replace):\n \n \n def test_truncate_gets_evidence_blocked_then_executed_once_migrated(guard, world):\n-    d = guard.propose(TRUNCATE)\n+    # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n+    # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n+    # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n+    truncate_customers = \"TRUNCATE TABLE customers\"\n+    d = guard.propose(truncate_customers)\n     assert d.verdict == \"safer_plan\" and d.action.kind == \"truncate\"\n-    direct = guard.execute(TRUNCATE)\n+    direct = guard.execute(truncate_customers)\n     assert direct[\"status\"] == \"rejected\""
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L223)",
+     "text": "L220 [tool] TOOL: run_terminal_cmd {\"command\":\"cd /workspace && python3 -m pytest tests/test_guarded_kinds.py -q 2>&1 | tail -100\",\"is_background\":false}\nL221 [assistant] THINKING: The block stems from the readers_subset check — the evidence covers table-level targets like orders, but dependents such as query_log's ad-hoc app/api traffic fall outside the allowed reader set defined at propose time (finance_dashboard, nightly_revenue_job), so rechecking right before execution flags it.\nL221| \nL221| I should debug exactly which new_readers are showing up. I'm also noticing migrate_known_readers only swaps the \"legacy_discount\" string for \"discount_cents\" in known yaml refs — it never touches the \"orders\" table name, so even after migration nightly_revenue_job's query still references orders directly, meaning the table-level match still picks it up as a reader.\nL221| \nL221| This means condition c2 (readers_migrated) can never pass for table-level drop/truncate kinds, since every scheduler/dashboard file always mentions the literal table name \"orders\" regardless of migration — this is why we see \"blocked\" instead of \"executed\". The test setup is really built around the column-rename demo scenario, not genuine table-wide drops, so it's structurally unrealistic for this check.\nL221| \nL221| I should rewrite these two tests to construct their own clean scenario instead of relying on the shared \"orders\" fixture — maybe using \"customers\" or a brand-new table with no baked-in dependents, adding just one dependent myself and fully removing it to simulate true migration.\nL221| \nL221| Writing test setup code...\nL221| \nL221| I should double check whether customers has other hidden dependents in the seed data beyond the scheduler job I already accounted for, since I want the truncate scenario to be unambiguous.\nL221| \nL221| That's fine for this test since we're on the dangerous path, not the zero-dependents safe path—extra dependents just need to be correctly recognized and addressed before the final step. The real issue is timing: readers_subset checks evidence since signed_at, but readers_migrated checks scheduler/bi sources without any time filtering, so I need to recheck how the condition logic actually handles this.\nL221| \nL221| Looking at the readers_migrated branch, it passes `since=signed_at` to who_depends_on, but SchedulerSource and BIDashboardSource both ignore the since parameter in their readers() method, meaning they always check current file state regardless of timing. This confirms my earlier analysis—all scheduler/bi files referencing the target table need to be rewritten before the final step, since by default only the nightly_revenue_job references \"orders\" while nothing references \"customers.\"\nL221| \nL221| Checking the finance_dashboard cards, I confirm BI/scheduler have zero textual references to \"customers,\" so readers_migrated should pass trivially for that table. The real risk is readers_subset, which checks live query_log evidence from the original propose() call—since an app process doing a SELECT on customers could leave noise there regardless of migration status.\nL221| \nL221| I need to verify timing: the seed() noise is timestamped in the past relative to when approve() runs, so I'm checking whether that old noise would still register as a \"new\" reader after the since=signed_at filter is applied during recheck.\nL221| \nL221| So since signed_at is set right after seeding, all that noise data is strictly older than signed_at, meaning the recheck's \"since=signed_at\" filter yields an empty current-activity set and the drift check passes trivially unless something genuinely new happens post-signing — which is exactly the intended behavior.\nL221| \nL221| So I should switch my two failing tests to target \"customers\" instead of \"orders\" to dodge the baked-in scheduler/bi dependents, while still exercising propose→evidence→plan→sign→execute. But I also want the test to show dependents actually get discovered and that the gating logic is meaningful, not just trivially passing — using \"customers\" with zero deps would only exercise the readers_subset condition in a trivial way.\nL221| \nL221| I'll rewrite those two tests with \"customers\" as the target table. Also I need to fix the canonical-SQL test: dropping \"fax_number\" has zero dependents, so MockReasoner returns an \"allow\" decision with no plan at all, which explains the index error on d.plan[-1]. I should swap in a column like legacy_discount that actually has dependents so a plan gets generated.\nL221| \nL221| \nL222 [assistant] (empty message)\nL223 [tool] TOOL: search_replace\nL223| CODE_WRITTEN: \nL223| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/tests/test_guarded_kinds.py\nL223| +++ b//workspace/tests/test_guarded_kinds.py\nL223| @@ -106,20 +106,22 @@\nL223|  \nL223|  \nL223|  def test_truncate_gets_evidence_blocked_then_executed_once_migrated(guard, world):\nL223| -    d = guard.propose(TRUNCATE)\nL223| +    # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\nL223| +    # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\nL223| +    # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\nL223| +    truncate_customers = \"TRUNCATE TABLE customers\"\nL223| +    d = guard.propose(truncate_customers)\nL223|      assert d.verdict == \"safer_plan\" and d.action.kind == \"truncate\"\nL223| -    direct = guard.execute(TRUNCATE)\nL223| +    direct = guard.execute(truncate_customers)\nL223|      assert direct[\"status\"] == \"rejected\"\nL223|      with DB(world) as db:\nL223| -        assert db.execute(\"SELECT COUNT(*) FROM orders\").fetchone()[0] == 500\nL223| +        assert db.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0] == 50\nL223|      cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\nL223|      guard.execute(d.plan[0].sql, cid)\nL223| -    from world.drift import migrate_known_readers\nL223| -    migrate_known_readers(world)\nL223|      final = guard.execute(d.plan[1].sql, cid)\nL223|      assert final[\"status\"] == \"executed\"\nL223|      with DB(world) as db:\nL223| -        assert db.execute(\"SELECT COUNT(*) FROM orders\").fetchone()[0] == 0\nL223| +        assert db.execute(\"SELEC\nL224 [assistant] (empty message)\nL225 [tool] TOOL: search_replace\nL225| CODE_WRITTEN: \nL225| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/tests/test_guarded_kinds.py\nL225| +++ b//workspace/tests/test_guarded_kinds.py\nL225| @@ -154,16 +154,14 @@\nL225|  \nL225|  \nL225|  def test_drop_table_safe_plan_and_execution(guard, world):\nL225| -    d = guard.propose(\"DROP TABLE orders\")\nL225| +    d = guard.propose(\"DROP TABLE customers\")  # see note in the truncate test above\nL225|      assert d.action.kind == \"drop_table\" and d.verdict == \"safer_plan\"\nL225|      cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\nL225|      guard.execute(d.plan[0].sql, cid)\nL225| -    from world.drift import migrate_known_readers\nL225| -    migrate_known_readers(world)\nL225|      final = guard.execute(d.plan[1].sql, cid)\nL225|      assert final[\"status\"] == \"executed\"\nL225|      with DB(world) as db:\nL225| -        assert not db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='orders'\").fetchone()\nL225| +        assert not db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='customers'\").fetchone()\nL225|  \nL225|  \nL225|  # ---- canonicalization: what's signed/hashed/executed is re-derived from the parsed AST, not the\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":4,\"linesAdded\":2}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL226 [assistant] (empty message)"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that switching the test target from 'orders' to 'customers' would avoid the readers_migrated gating condition, not realizing that readers_subset still blocks execution because it checks live query_log evidence from the original propose() call, and that the approve→execute flow rechecks readers_migrated without time-filtering the scheduler/bi sources.",
+  "why_it_breaks": "The agent switched the test target from 'orders' to 'customers' to avoid the readers_migrated condition, assuming 'customers' has no scheduler/BI dependents. However, the execution recheck still runs readers_subset against the live query_log from the propose() call, which contains evidence of the truncate attempt itself (or other recent activity). More critically, the approve→execute flow re-evaluates readers_migrated, but since SchedulerSource and BIDashboardSource ignore the `since` parameter, they always check current file state. The agent overlooked that the original propose() call for 'customers' may still have generated evidence that triggers the readers_subset recheck, and that the readers_migrated condition will still fail on recheck because it has no time filtering applied to scheduler/bi sources. The test expects truncate_customers to be rejected at direct execution, but the actual block likely comes from the recheck during approve/execute, not the initial direct call.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 221,
+    "quote": "The real issue is timing: readers_subset checks evidence since signed_at, but readers_migrated checks scheduler/bi sources without any time filtering, so I need to recheck how the condition logic actually handles this.",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 221,
+    "quote": "Looking at the readers_migrated branch, it passes `since=signed_at` to who_depends_on, but SchedulerSource and BIDashboardSource both ignore the since parameter in their readers() method, meaning they always check current file state regardless of timing.",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 221,
+    "quote": "So since signed_at is set right after seeding, all that noise data is strictly older than signed_at, meaning the recheck's \"since=signed_at\" filter yields an empty current-activity set and the drift check passes trivially unless something genuinely new happens post-signing",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 221,
+    "quote": "I should rewrite these two tests to construct their own clean scenario instead of relying on the shared \"orders\" fixture — maybe using \"customers\" or a brand-new table with no baked-in dependents, adding just one dependent myself and fully removing it to simulate true migration.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "tests/test_guarded_kinds.py",
+    "line": 115,
+    "quote": "direct = guard.execute(truncate_customers)",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "tests/test_guarded_kinds.py",
+    "line": 116,
+    "quote": "assert direct[\"status\"] == \"rejected\"",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 4
+ }
+}

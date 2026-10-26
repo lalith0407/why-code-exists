@@ -1,0 +1,18 @@
+{
+ "overlooked_assumption": "The agent assumed that table names in action.target would never contain quote characters, so it interpolated them directly into SQL strings without escaping or parameterization.",
+ "why_it_breaks": "The `safe_plan` function constructs SQL statements by f-string interpolation of `action.target` and `action.table` directly into raw SQL (e.g., `f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"`). When the agent originally typed the table name with quote characters (e.g., `\"customers\"`), those quotes were embedded literally into the SQL string. The system then interpreted the quoted name as a valid identifier and executed the drop on the live table, bypassing the intended guardrails because the signed conditions were attached to the wrong SQL construction path.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 98,
+   "quote": "L98 [tool] TOOL: search_replace\nL98| CODE_WRITTEN: \nL98| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/blast_radius/reasoner/base.py\nL98| +++ b//workspace/blast_radius/reasoner/base.py\nL98| @@ -11,19 +11,47 @@\nL98| \nL98|  REPLACEMENT = {\"orders.legacy_discount\": (\"discount_cents\", \"INTEGER\")}\nL98|  \nL98| +def _deprecation_step(action: Action) -> PlanStep:\nL98| +    # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\nL98| +    return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\nL98| +                     f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\nL98| +                     f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\nL98| +\nL98|  def safe_plan(action: Action, conds: list[Condition]) -> list[PlanStep]:\nL98| -    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))\nL98| +    \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\nL98| +\nL98| +    Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\nL98| +    there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\nL98| +    delete/update) don't have as clean an intermediate column-level fallback, so they get a\nL98| +    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\nL98| +    \"\"\"\nL98|      gate = [c.id for c in conds]\nL98| -    return [\nL98| -        PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\nL98| -                 # p\"}",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

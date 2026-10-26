@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> tests/test_churn.py:269
+stage: ok
+provider: anthropic
+frame: tests/test_churn.py:276
+status: verified (code quotes 2, transcript quotes 2)
+overlooked_assumption: The agent assumed that stop-loss orders would automatically bypass swing-trade counting, but did not verify that the compliance guard actually exempts stop-triggered exits from the quarterly swing-trade cap.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case12/report.html

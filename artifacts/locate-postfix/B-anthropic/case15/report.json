@@ -1,0 +1,864 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case15",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "src/components/selected-work.tsx",
+   "line": 69
+  },
+  "asked": {
+   "text": "## Site structure (required sections)\n1. **Nav** — name/mark, links: Work, About, Contact (or Hire). Optional Resume link as `#` placeholder.\n2. **Hero** — headline for founding AI eng, 1–2 sentence pitch, primary CTA (Get in touch / Hire me), secondary (View work). Placeholder name: Lalith Vardhan. Placeholder role line: Founding AI Engineer · open to founding / early-stage roles. Include a small proof-chip row (e.g. YC W24, Founding AI Eng, [Metric], [Domain]) as clearly marked placeholders.\n3. **Selected work** — exactly **3 case study cards**. Each card: title, one-line problem, 2–3 outcome bullets with `[metric]` placeholders, role tag, “Read case study” (can be anchor or expand). Placeholder titles like “Case study 01 — [Product / system]”.\n4. **Proof / credibility strip** — chips or compact stats: years, YC, domains, stack highlights — all placeholders.\n5. **About** — short founding-builder narrative (2–3 paragraphs of placeholder/lorem that sounds like a founding AI eng, not generic “passionate developer”).\n6. **Hire / contact CTA** — email placeholder `hello@example.com`, optional LinkedIn/GitHub `#` links, clear open-to-roles line.\n7. **Footer** — minimal.",
+   "citation": "bc-cfc1fe44-a598-5ad2-9c23-b2ad05242a85.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 3213
+  },
+  "understood": {
+   "text": "Math.random() was used for keys in the why hire terminal. This breaks server-side rendering hydration.\n\nReplacing Math.random() with array indices in hero.tsx and selected-work to fix SSR hydration. Continuing with remaining components.",
+   "citation": "bc-cfc1fe44-a598-5ad2-9c23-b2ad05242a85.jsonl#L106 (assistant, 32 words, 4 line(s) before the edit at L110)",
+   "valid": true,
+   "full_length": 236
+  },
+  "happened": {
+   "text": "Browser dev-build console, while loading the homepage's \"Selected work\" section, logs 6 React warnings:\n\nEncountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.\n\nQA noticed this while reviewing the homepage in a local dev build; the page still renders, but the warning repeats 6 times in a row.\n\n  at ? (src/components/selected-work.tsx:69)\n  69: key={outcome.detail}\n\nWritten by transcript edit L110 (search_replace):\n+            {highlightTokens(study.problem)}\n+          </p>\n+\n+          <ul className=\"mt-5 space-y-2.5\">\n+            {study.outcomes.map((outcome) => (\n+              <li\n+                key={outcome.detail}\n+                className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\"\n+              >\n+                <Token className=\"shrink-0 text-[13px]\">{outcome.metric}</Token>\n+                <span className=\"text-sm text-paper/85\">{outcome.detail}</span>\n+              </li>\n+            ))}",
+   "citation": "error case15 frame src/components/selected-work.tsx:69; bc-cfc1fe44-a598-5ad2-9c23-b2ad05242a85.jsonl#L110",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Browser dev-build console, while loading the homepage's \"Selected work\" section, logs 6 React warnings:\n\nEncountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.\n\nQA noticed this while reviewing the homepage in a local dev build; the page still renders, but the warning repeats 6 times in a row.\n",
+  "terms": [
+   "s",
+   "section, logs 6 react warnings:\n\nencountered two children with the same key,",
+   "browser dev",
+   "selected work",
+   "react warnings",
+   "encountered two children with",
+   "keys should be unique",
+   "qa noticed this while",
+   "6",
+   "browser",
+   "build",
+   "console",
+   "loading",
+   "homepage",
+   "selected",
+   "work",
+   "section",
+   "logs",
+   "react",
+   "warnings",
+   "encountered",
+   "children",
+   "same",
+   "outcome",
+   "changed",
+   "keys",
+   "unique",
+   "components",
+   "maintain",
+   "identity",
+   "across",
+   "updates",
+   "cause",
+   "duplicated",
+   "omitted",
+   "behavior",
+   "unsupported",
+   "change",
+   "future",
+   "version",
+   "noticed",
+   "reviewing",
+   "local",
+   "page",
+   "renders",
+   "warning",
+   "repeats",
+   "times"
+  ],
+  "layer1": {
+   "symbols_indexed": 534,
+   "edited_hunks_indexed": 145,
+   "candidates": [
+    {
+     "file": "src/app/work/[slug]/page.tsx",
+     "line": 0,
+     "end_line": 141,
+     "text": "          Selected work",
+     "function": "CaseStudyPage",
+     "score": 15.5178,
+     "matched_terms": [
+      "section",
+      "react",
+      "key",
+      "selected",
+      "work",
+      "outcome",
+      "changed",
+      "components",
+      "page",
+      "selected work"
+     ],
+     "edit_line": 127,
+     "tool": "search_replace",
+     "hunk_id": "L127#17",
+     "snippet": "1: import Link from \"next/link\";\n2: import { notFound } from \"next/navigation\";\n3: import { ArrowLeft, ArrowUpRight } from \"lucide-react\";\n4: import { Container } from \"@/components/container\";\n5: import { PlaceholderLabel, Token } from \"@/components/placeholder\";\n6: import { Badge } from \"@/components/ui/badge\";\n7: import { buttonVariants } from \"@/components/ui/button\";\n8: import { caseStudies, getCaseStudy } from \"@/lib/site\";\n9: import { cn } from \"@/lib/utils\";\n10: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 47,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 46,
+       "text": "          <ArrowLeft className=\"size-3.5\" />"
+      },
+      {
+       "line": 47,
+       "text": "          Selected work"
+      },
+      {
+       "line": 48,
+       "text": "        </Link>"
+      }
+     ],
+     "anchor": "unanchored"
+    },
+    {
+     "file": "src/components/selected-work.tsx",
+     "line": 12,
+     "end_line": 114,
+     "text": "        <SectionLabel index=\"/ 03\">Selected work</SectionLabel>",
+     "function": "SelectedWork",
+     "score": 14.5333,
+     "matched_terms": [
+      "section",
+      "react",
+      "key",
+      "selected",
+      "work",
+      "outcome",
+      "components",
+      "selected work"
+     ],
+     "edit_line": 110,
+     "tool": "search_replace",
+     "hunk_id": "L110#9",
+     "snippet": "1: import Link from \"next/link\";\n2: import { ArrowUpRight } from \"lucide-react\";\n3: import { Container, SectionLabel } from \"@/components/container\";\n4: import { PlaceholderLabel, Token } from \"@/components/placeholder\";\n5: import { Badge } from \"@/components/ui/badge\";\n6: import { caseStudies, type CaseStudy } from \"@/lib/site\";\n7: \n8: export function SelectedWork() {\n9:   return (\n10:     <section id=\"work\" className=\"scroll-mt-20 py-8 sm:py-12\">",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 12,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 11,
+       "text": "      <Container>"
+      },
+      {
+       "line": 12,
+       "text": "        <SectionLabel index=\"/ 03\">Selected work</SectionLabel>"
+      },
+      {
+       "line": 13,
+       "text": "        <div className=\"mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between\">"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/app/page.tsx",
+     "line": 0,
+     "end_line": 15,
+     "text": "import { SelectedWork } from \"@/components/selected-work\";",
+     "function": "Home",
+     "score": 13.4953,
+     "matched_terms": [
+      "selected",
+      "work",
+      "components"
+     ],
+     "edit_line": 121,
+     "tool": "search_replace",
+     "hunk_id": "L121#14",
+     "snippet": "1: import { About } from \"@/components/about\";\n2: import { Hero } from \"@/components/hero\";\n3: import { HireCta } from \"@/components/hire-cta\";\n4: import { ProofStrip } from \"@/components/proof-strip\";\n5: import { SelectedWork } from \"@/components/selected-work\";\n9:     <main id=\"main\">\n10:       <Hero />\n11:       <SelectedWork />\n12:       <ProofStrip />\n13:       <About />",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 5,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 4,
+       "text": "import { ProofStrip } from \"@/components/proof-strip\";"
+      },
+      {
+       "line": 5,
+       "text": "import { SelectedWork } from \"@/components/selected-work\";"
+      },
+      {
+       "line": 9,
+       "text": "    <main id=\"main\">"
+      }
+     ],
+     "anchor": "unanchored"
+    },
+    {
+     "file": "src/components/container.tsx",
+     "line": 7,
+     "end_line": 34,
+     "text": "  children: React.ReactNode;",
+     "function": "Container",
+     "score": 13.0348,
+     "matched_terms": [
+      "section",
+      "react",
+      "children"
+     ],
+     "edit_line": 98,
+     "tool": "search_replace",
+     "hunk_id": "L98#4",
+     "snippet": "1: import { cn } from \"@/lib/utils\";\n2: \n3: export function Container({\n4:   children,\n5:   className,\n6: }: {\n7:   children: React.ReactNode;\n8:   className?: string;\n9: }) {\n10:   return (",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 7,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 6,
+       "text": "}: {"
+      },
+      {
+       "line": 7,
+       "text": "  children: React.ReactNode;"
+      },
+      {
+       "line": 8,
+       "text": "  className?: string;"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/lib/site.ts",
+     "line": 80,
+     "end_line": 94,
+     "text": "      { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },",
+     "function": "caseStudyStub",
+     "score": 11.0163,
+     "matched_terms": [
+      "outcome",
+      "changed"
+     ],
+     "edit_line": 1015,
+     "tool": "search_replace",
+     "hunk_id": "L1015#133",
+     "snippet": "66:   placeholder: boolean;\n69: function caseStudyStub(number: \"01\" | \"02\" | \"03\"): CaseStudy {\n70:   return {\n71:     slug: `case-${number}`,\n72:     number,\n73:     title: `Case study ${number} — [Title]`,\n74:     product: \"[Product]\",\n75:     problem: \"[Problem — what was broken and why it mattered.]\",\n76:     role: \"[Role]\",\n77:     dates: \"[Dates]\",",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 80,
+     "hunk_start": 66,
+     "context_lines": [
+      {
+       "line": 78,
+       "text": "    tags: [\"[Tag]\", \"[Stack]\", \"[Domain]\"],"
+      },
+      {
+       "line": 80,
+       "text": "      { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },"
+      },
+      {
+       "line": 81,
+       "text": "      { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/components/placeholder.tsx",
+     "line": 7,
+     "end_line": 24,
+     "text": "  children: React.ReactNode;",
+     "function": "Token",
+     "score": 10.2056,
+     "matched_terms": [
+      "react",
+      "children"
+     ],
+     "edit_line": 96,
+     "tool": "search_replace",
+     "hunk_id": "L96#3",
+     "snippet": "1: import { cn } from \"@/lib/utils\";\n2: \n3: export function Token({\n4:   children,\n5:   className,\n6: }: {\n7:   children: React.ReactNode;\n8:   className?: string;\n9: }) {\n10:   return <span className={cn(\"token\", className)}>{children}</span>;",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 7,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 6,
+       "text": "}: {"
+      },
+      {
+       "line": 7,
+       "text": "  children: React.ReactNode;"
+      },
+      {
+       "line": 8,
+       "text": "  className?: string;"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/components/case-studies.tsx",
+     "line": 0,
+     "end_line": 101,
+     "text": "                key={outcome.detail}",
+     "function": "CaseStudyCard",
+     "score": 8.5756,
+     "matched_terms": [
+      "section",
+      "react",
+      "key",
+      "work",
+      "outcome",
+      "components"
+     ],
+     "edit_line": 475,
+     "tool": "search_replace",
+     "hunk_id": "L475#74",
+     "snippet": "1: import Link from \"next/link\";\n2: import { ArrowUpRight } from \"lucide-react\";\n3: import { Container, SectionLabel } from \"@/components/container\";\n4: import { Token } from \"@/components/placeholder\";\n5: import { Badge } from \"@/components/ui/badge\";\n6: import { caseStudies, site, type CaseStudy } from \"@/lib/site\";\n7: \n8: export function CaseStudies() {\n9:   return (\n10:     <section id=\"work\" className=\"scroll-mt-24 py-10 sm:py-14\">",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 69,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 68,
+       "text": "              <li"
+      },
+      {
+       "line": 69,
+       "text": "                key={outcome.detail}"
+      },
+      {
+       "line": 70,
+       "text": "                className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\""
+      }
+     ],
+     "anchor": "unanchored"
+    },
+    {
+     "file": "public/iu-logo.svg",
+     "line": 2,
+     "end_line": 5,
+     "text": "<!-- Indiana University trident. Source: IU visual identity (Wikimedia Commons: Indiana Hoosiers logo.svg). Unaltered mark, IU Crimson #990000. -->",
+     "score": 7.9189,
+     "matched_terms": [
+      "identity",
+      "version"
+     ],
+     "edit_line": 829,
+     "tool": "search_replace",
+     "hunk_id": "L829#117",
+     "snippet": "1: <?xml version=\"1.0\" encoding=\"utf-8\"?>\n2: <!-- Indiana University trident. Source: IU visual identity (Wikimedia Commons: Indiana Hoosiers logo.svg). Unaltered mark, IU Crimson #990000. -->\n3: <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 270 341\" width=\"270\" height=\"341\" role=\"img\" aria-label=\"Indiana University Bloomington\">\n4:   <path fill=\"#990000\" d=\"M88.2,0 v25.6 h19.9 v188h-37.9v-142.6h17.8v-25.7h-88v25.7h19.9v165.2l32.3,33h55.9v38.1h-19.9v33h93.4v-33h-19.9v-38.1h55.9l32.3,-33v-165.2h19.9v-25.7h-88v25.7h17.8v142.6h-37.9v-188h19.9v-25.6z\"/>\n5: </svg>",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 2,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 1,
+       "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+      },
+      {
+       "line": 2,
+       "text": "<!-- Indiana University trident. Source: IU visual identity (Wikimedia Commons: Indiana Hoosiers logo.svg). Unaltered mark, IU Crimson #990000. -->"
+      },
+      {
+       "line": 3,
+       "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 270 341\" width=\"270\" height=\"341\" role=\"img\" aria-label=\"Indiana University Bloomington\">"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/components/case-studies.tsx",
+     "line": 74,
+     "end_line": 106,
+     "text": "                key={`${study.slug}-outcome-${outcomeIndex}`}",
+     "function": "CaseStudyCard",
+     "score": 7.7525,
+     "matched_terms": [
+      "key",
+      "outcome"
+     ],
+     "edit_line": 1018,
+     "tool": "search_replace",
+     "hunk_id": "L1018#137",
+     "snippet": "56:               {field(study, study.role)}\n59:               {field(study, study.dates)}\n61:             {study.placeholder ? <PlaceholderLabel /> : null}\n65:             {field(study, study.title)}\n68:             {field(study, study.problem)}\n72:             {study.outcomes.map((outcome, outcomeIndex) => (\n74:                 key={`${study.slug}-outcome-${outcomeIndex}`}\n77:                 {study.placeholder ? (\n78:                   <span className=\"shrink-0 text-[13px]\">\n79:                     {withTokens(outcome.metric)}",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 74,
+     "hunk_start": 56,
+     "context_lines": [
+      {
+       "line": 72,
+       "text": "            {study.outcomes.map((outcome, outcomeIndex) => ("
+      },
+      {
+       "line": 74,
+       "text": "                key={`${study.slug}-outcome-${outcomeIndex}`}"
+      },
+      {
+       "line": 77,
+       "text": "                {study.placeholder ? ("
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "package.json",
+     "line": 6,
+     "end_line": 8,
+     "text": "    \"dev\": \"next dev --hostname 127.0.0.1 --port 43123\",",
+     "score": 7.7081,
+     "matched_terms": [
+      "dev"
+     ],
+     "edit_line": 131,
+     "tool": "search_replace",
+     "hunk_id": "L131#19",
+     "snippet": "2:   \"name\": \"lalith-vardhan-portfolio\",\n6:     \"dev\": \"next dev --hostname 127.0.0.1 --port 43123\",\n8:     \"start\": \"next start --hostname 127.0.0.1 --port 43123\",",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 6,
+     "hunk_start": 2,
+     "context_lines": [
+      {
+       "line": 2,
+       "text": "  \"name\": \"lalith-vardhan-portfolio\","
+      },
+      {
+       "line": 6,
+       "text": "    \"dev\": \"next dev --hostname 127.0.0.1 --port 43123\","
+      },
+      {
+       "line": 8,
+       "text": "    \"start\": \"next start --hostname 127.0.0.1 --port 43123\","
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "src/components/selected-work.tsx",
+    "line": 69,
+    "end_line": 114,
+    "text": "                key={outcome.detail}",
+    "score": 0,
+    "matched_terms": [],
+    "edit_line": 110,
+    "tool": "search_replace",
+    "hunk_id": "L110#9",
+    "snippet": "69:                 key={outcome.detail}",
+    "method": "agentic_model",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 71,
+    "hunk_start": 1,
+    "anchor": "exact",
+    "context_lines": [
+     {
+      "line": 70,
+      "text": "              <li"
+     },
+     {
+      "line": 71,
+      "text": "                key={outcome.detail}"
+     },
+     {
+      "line": 72,
+      "text": "                className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\""
+     }
+    ]
+   },
+   {
+    "file": "src/app/work/[slug]/page.tsx",
+    "line": 0,
+    "end_line": 141,
+    "text": "          Selected work",
+    "function": "CaseStudyPage",
+    "score": 15.5178,
+    "matched_terms": [
+     "section",
+     "react",
+     "key",
+     "selected",
+     "work",
+     "outcome",
+     "changed",
+     "components",
+     "page",
+     "selected work"
+    ],
+    "edit_line": 127,
+    "tool": "search_replace",
+    "hunk_id": "L127#17",
+    "snippet": "1: import Link from \"next/link\";\n2: import { notFound } from \"next/navigation\";\n3: import { ArrowLeft, ArrowUpRight } from \"lucide-react\";\n4: import { Container } from \"@/components/container\";\n5: import { PlaceholderLabel, Token } from \"@/components/placeholder\";\n6: import { Badge } from \"@/components/ui/badge\";\n7: import { buttonVariants } from \"@/components/ui/button\";\n8: import { caseStudies, getCaseStudy } from \"@/lib/site\";\n9: import { cn } from \"@/lib/utils\";\n10: ",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 47,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 46,
+      "text": "          <ArrowLeft className=\"size-3.5\" />"
+     },
+     {
+      "line": 47,
+      "text": "          Selected work"
+     },
+     {
+      "line": 48,
+      "text": "        </Link>"
+     }
+    ],
+    "anchor": "unanchored"
+   },
+   {
+    "file": "src/app/page.tsx",
+    "line": 0,
+    "end_line": 15,
+    "text": "import { SelectedWork } from \"@/components/selected-work\";",
+    "function": "Home",
+    "score": 13.4953,
+    "matched_terms": [
+     "selected",
+     "work",
+     "components"
+    ],
+    "edit_line": 121,
+    "tool": "search_replace",
+    "hunk_id": "L121#14",
+    "snippet": "1: import { About } from \"@/components/about\";\n2: import { Hero } from \"@/components/hero\";\n3: import { HireCta } from \"@/components/hire-cta\";\n4: import { ProofStrip } from \"@/components/proof-strip\";\n5: import { SelectedWork } from \"@/components/selected-work\";\n9:     <main id=\"main\">\n10:       <Hero />\n11:       <SelectedWork />\n12:       <ProofStrip />\n13:       <About />",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 5,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 4,
+      "text": "import { ProofStrip } from \"@/components/proof-strip\";"
+     },
+     {
+      "line": 5,
+      "text": "import { SelectedWork } from \"@/components/selected-work\";"
+     },
+     {
+      "line": 9,
+      "text": "    <main id=\"main\">"
+     }
+    ],
+    "anchor": "unanchored"
+   }
+  ],
+  "picked": {
+   "file": "src/components/selected-work.tsx",
+   "line": 69,
+   "end_line": 114,
+   "text": "                key={outcome.detail}",
+   "score": 0,
+   "matched_terms": [],
+   "edit_line": 110,
+   "tool": "search_replace",
+   "hunk_id": "L110#9",
+   "snippet": "69:                 key={outcome.detail}",
+   "method": "agentic_model",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 71,
+   "hunk_start": 1,
+   "anchor": "exact",
+   "context_lines": [
+    {
+     "line": 70,
+     "text": "              <li"
+    },
+    {
+     "line": 71,
+     "text": "                key={outcome.detail}"
+    },
+    {
+     "line": 72,
+     "text": "                className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\""
+    }
+   ]
+  },
+  "method": "layer2_agentic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "Outcome — what changed"
+     },
+     "result": "src/lib/site.ts:80: { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },\nsrc/lib/site.ts:81: { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },\nsrc/lib/site.ts:82: { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },"
+    },
+    {
+     "step": 2,
+     "action": "read",
+     "args": {
+      "file": "src/lib/site.ts",
+      "start": 75,
+      "end": 90
+     },
+     "result": "75:     problem: \"[Problem — what was broken and why it mattered.]\",\n76:     role: \"[Role]\",\n77:     dates: \"[Dates]\",\n78:     tags: [\"[Tag]\", \"[Stack]\", \"[Domain]\"],\n79:     outcomes: [\n80:       { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },\n81:       { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },\n82:       { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },\n83:     ],\n84:     context: \"[Context — situation, constraints, and the system.]\",\n85:     owned: [\"[What I owned.]\", \"[What I owned.]\", \"[What I owned.]\"],\n86:     close: \"[Outcome / close.]\",\n87:     placeholder: true,\n88:   };\n89: }\n90: "
+    },
+    {
+     "step": 3,
+     "action": "grep",
+     "args": {
+      "pattern": "outcomes.*map"
+     },
+     "result": "src/components/case-studies.tsx:72: {study.outcomes.map((outcome, outcomeIndex) => (\nsrc/components/selected-work.tsx:67: {study.outcomes.map((outcome) => (\nsrc/app/work/[slug]/page.tsx:75: {study.outcomes.map((outcome, outcomeIndex) => ("
+    },
+    {
+     "step": 4,
+     "action": "read",
+     "args": {
+      "file": "src/components/selected-work.tsx",
+      "start": 60,
+      "end": 75
+     },
+     "result": "60:             {study.title}\n61:           </h3>\n62:           <p className=\"mt-2 max-w-2xl text-[15px] leading-relaxed text-muted-foreground\">\n63:             {study.problem}\n64:           </p>\n65: \n66:           <ul className=\"mt-5 space-y-2.5\">\n67:             {study.outcomes.map((outcome) => (\n68:               <li\n69:                 key={outcome.detail}\n70:                 className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\"\n71:               >\n72:                 <Token className=\"shrink-0 text-[13px]\">{outcome.metric}</Token>\n73:                 <span className=\"text-sm text-paper/85\">{outcome.detail}</span>\n74:               </li>\n75:             ))}"
+    },
+    {
+     "step": 5,
+     "action": "answer",
+     "args": {
+      "file": "src/components/selected-work.tsx",
+      "line": 69,
+      "reason": "The key prop uses outcome.detail which is '[Outcome — what changed.]' for all three outcomes in the placeholder data, causing React to warn about duplicate keys. The map should use outcomeIndex as the key instead, like the other components do."
+     },
+     "result": "confirmed: the line exists and was written by an agent edit"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ],
+   "candidate": {
+    "file": "src/components/selected-work.tsx",
+    "line": 69,
+    "end_line": 114,
+    "text": "                key={outcome.detail}",
+    "score": 0,
+    "matched_terms": [],
+    "edit_line": 110,
+    "tool": "search_replace",
+    "hunk_id": "L110#9",
+    "snippet": "69:                 key={outcome.detail}",
+    "method": "agentic_model",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 71,
+    "hunk_start": 1,
+    "anchor": "exact",
+    "context_lines": [
+     {
+      "line": 70,
+      "text": "              <li"
+     },
+     {
+      "line": 71,
+      "text": "                key={outcome.detail}"
+     },
+     {
+      "line": 72,
+      "text": "                className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\""
+     }
+    ]
+   }
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 15591,
+   "truncated": true,
+   "dropped_sections": [
+    "transcript_window:reasoning mentioning \"highlightTokens\" (L178) (over budget)",
+    "transcript_window:reasoning mentioning \"highlightTokens\" (L167) (over budget)",
+    "transcript_window:reasoning mentioning \"highlightTokens\" (L132) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Browser dev-build console, while loading the homepage's \"Selected work\" section, logs 6 React warnings:\n\nEncountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.\n\nQA noticed this while reviewing the homepage in a local dev build; the page still renders, but the warning repeats 6 times in a row.",
+   "edit": {
+    "file": "components/selected-work.tsx",
+    "line": 69,
+    "hunk": "+            {highlightTokens(study.problem)}\n+          </p>\n+\n+          <ul className=\"mt-5 space-y-2.5\">\n+            {study.outcomes.map((outcome) => (\n+              <li\n+                key={outcome.detail}\n+                className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\"\n+              >\n+                <Token className=\"shrink-0 text-[13px]\">{outcome.metric}</Token>\n+                <span className=\"text-sm text-paper/85\">{outcome.detail}</span>\n+              </li>\n+            ))}"
+   },
+   "code_window": "49:               variant=\"outline\"\n50:               className=\"h-6 rounded-full px-2.5 font-mono text-[10px] font-normal tracking-wide text-muted-foreground\"\n51:             >\n52:               {study.role}\n53:             </Badge>\n54:             <span className=\"font-mono text-[11px] text-muted-foreground\">\n55:               {study.dates}\n56:             </span>\n57:           </div>\n58: \n59:           <h3 className=\"mt-3 text-xl font-medium tracking-tight text-paper sm:text-[1.35rem]\">\n60:             {study.title}\n61:           </h3>\n62:           <p className=\"mt-2 max-w-2xl text-[15px] leading-relaxed text-muted-foreground\">\n63:             {study.problem}\n64:           </p>\n65: \n66:           <ul className=\"mt-5 space-y-2.5\">\n67:             {study.outcomes.map((outcome) => (\n68:               <li\n69:                 key={outcome.detail}\n70:                 className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\"\n71:               >\n72:                 <Token className=\"shrink-0 text-[13px]\">{outcome.metric}</Token>\n73:                 <span className=\"text-sm text-paper/85\">{outcome.detail}</span>\n74:               </li>\n75:             ))}\n76:           </ul>\n77: \n78:           <div className=\"mt-6 flex flex-wrap items-center justify-between gap-3\">\n79:             <div className=\"flex flex-wrap gap-1.5\">\n80:               {study.tags.map((tag) => (\n81:                 <span\n82:                   key={tag}\n83:                   className=\"font-mono text-[11px] text-muted-foreground\"\n84:                 >\n85:                   {tag}\n86:                 </span>\n87:               ))}\n88:             </div>\n89:             <Link",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "components/selected-work.tsx",
+     "line": 69,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 0,
+     "method": "agentic_model",
+     "text": "64:           </p>\n65: \n66:           <ul className=\"mt-5 space-y-2.5\">\n67:             {study.outcomes.map((outcome) => (\n68:               <li\n69:                 key={outcome.detail}\n70:                 className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\"\n71:               >\n72:                 <Token className=\"shrink-0 text-[13px]\">{outcome.metric}</Token>\n73:                 <span className=\"text-sm text-paper/85\">{outcome.detail}</span>\n74:               </li>"
+    },
+    {
+     "label": "candidate 2",
+     "file": "app/work/[slug]/page.tsx",
+     "line": 0,
+     "function": "CaseStudyPage",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "unanchored",
+     "score": 15.5178,
+     "method": "deterministic_bm25",
+     "text": "(unanchored)"
+    },
+    {
+     "label": "candidate 3",
+     "file": "app/page.tsx",
+     "line": 0,
+     "function": "Home",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "unanchored",
+     "score": 13.4953,
+     "method": "deterministic_bm25",
+     "text": "(unanchored)"
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "## Site structure (required sections)\n1. **Nav** — name/mark, links: Work, About, Contact (or Hire). Optional Resume link as `#` placeholder.\n2. **Hero** — headline for founding AI eng, 1–2 sentence pitch, primary CTA (Get in touch / Hire me), secondary (View work). Placeholder name: Lalith Vardhan. Placeholder role line: Founding AI Engineer · open to founding / early-stage roles. Include a small proof-chip row (e.g. YC W24, Founding AI Eng, [Metric], [Domain]) as clearly marked placeholders.\n3. **Selected work** — exactly **3 case study cards**. Each card: title, one-line problem, 2–3 outcome bullets with `[metric]` placeholders, role tag, “Read case study” (can be anchor or expand). Placeholder titles like “Case study 01 — [Product / system]”.\n4. **Proof / credibility strip** — chips or compact stats: years, YC, domains, stack highlights — all placeholders.\n5. **About** — short founding-builder narrative (2–3 paragraphs of placeholder/lorem that sounds like a founding AI eng, not generic “passionate developer”).\n6. **Hire / contact CTA** — email placeholder `hello@example.com`, optional LinkedIn/GitHub `#` links, clear open-to-roles line.\n7. **Footer** — minimal.",
+    "understood": "Math.random() was used for keys in the why hire terminal. This breaks server-side rendering hydration.\n\nReplacing Math.random() with array indices in hero.tsx and selected-work to fix SSR hydration. Continuing with remaining components.",
+    "happened": "Browser dev-build console, while loading the homepage's \"Selected work\" section, logs 6 React warnings:\n\nEncountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.\n\nQA noticed this while reviewing the homepage in a local dev build; the page still renders, but the warning repeats 6 times in a row.\n\n  at ? (src/components/selected-work.tsx:69)\n  69: key={outcome.detail}\n\nWritten by transcript edit L110 (search_replace):\n+            {highlightTokens(study.problem)}\n+          </p>\n+\n+          <ul className=\"mt-5 space-y-2.5\">\n+            {study.outcomes.map((outcome) => (\n+              <li\n+                key={outcome.detail}\n+                className=\"flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4\"\n+              >\n+                <Token className=\"shrink-0 text-[13px]\">{outcome.metric}</Token>\n+                <span className=\"text-sm text-paper/85\">{outcome.detail}</span>\n+              </li>\n+            ))}"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L110)",
+     "text": "L107 [assistant] (empty message)\nL108 [tool] TOOL: search_replace\nL108| CODE_WRITTEN: \nL108| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/src/components/hero.tsx\nL108| +++ b//workspace/src/components/hero.tsx\nL108| @@ -75,8 +75,8 @@\nL108|                <PlaceholderLabel />\nL108|              </div>\nL108|              <pre className=\"overflow-x-auto font-mono text-[12px] leading-6 text-paper/90 sm:text-[13px]\">\nL108| -              {whyHireLines.map((line) => (\nL108| -                <span key={line + String(Math.random())} className=\"block\">\nL108| +              {whyHireLines.map((line, index) => (\nL108| +                <span key={`why-${index}`} className=\"block\">\nL108|                    {formatWhyLine(line)}\nL108|                  </span>\nL108|                ))}\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":2,\"linesAdded\":2}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL109 [assistant] (empty message)\nL110 [tool] TOOL: search_replace\nL110| CODE_WRITTEN: \nL110| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL110| +++ b//workspace/src/components/selected-work.tsx\nL110| @@ -1,0 +1,114 @@\nL110| +import Link from \"next/link\";\nL110| +import { ArrowUpRight } from \"lucide-react\";\nL110| +import { Container, SectionLabel } from \"@/components/container\";\nL110| +import { PlaceholderLabel, Token } from \"@/components/placeholder\";\nL110| +import { Badge } from \"@/components/ui/badge\";\nL110| +import { caseStudies, type CaseStudy } from \"@/lib/site\";\nL110| +\nL110| +export function SelectedWork() {\nL110| +  return (\nL110| +    <section id=\"work\" className=\"scroll-mt-20 py-8 sm:py-12\">\nL110| +      <Container>\nL110| +        <SectionLabel index=\"/ 03\">Selected work</SectionLabel>\nL110| +        <div className=\"mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between\">\nL110| +          <h2 className=\"max-w-xl text-2xl font-medium tracking-tight sm:text-3xl\">\nL110| +            Three case studies. No filler.\nL110| +          </h2>\nL110| +          <p className=\"max-w-sm text-sm leading-relaxed text-muted-foreground\">\nL110| +            Each card is a placeholder for a real ship: the problem, the\nL110| +            outcomes, the role. Swap the brackets.\nL110| +          </p>\nL110| +        </div>\nL110| +\nL110| +        <ol className=\"flex flex-col gap-4\">\nL110| +          {caseStudies.map((study, index) => (\nL110| +            <li\nL110| +              key={study.slug}\nL110| +              className=\"fade-up\"\nL110| +              style={{ animationDelay: `${index * 80}ms` }}\nL110| +            >\nL110| +              <CaseStudyCard study={study} />\nL110| +            </li>\nL110| +          ))}\nL110| +        \nL111 [assistant] (empty message)\nL112 [tool] TOOL: search_replace\nL112| CODE_WRITTEN: \nL112| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL112| +++ b//workspace/src/components/proof-strip.tsx\nL112| @@ -1,0 +1,34 @@\nL112| +import { Container, SectionLabel } from \"@/components/container\";\nL112| +import { PlaceholderLabel, Token } from \"@/components/placeholder\";\nL112| +import { proofChips } from \"@/lib/site\";\nL112| +\nL112| +export function ProofStrip() {\nL112| +  return (\nL112| +    <section className=\"py-12 sm:py-16\">\nL112| +      <Container>\nL112| +        <SectionLabel index=\"/ proof\">Credibility</SectionLabel>\nL112| +        <div className=\"mb-6 flex items-end justify-between gap-4\">\nL112| +          <h2 className=\"text-2xl font-medium tracking-tight\">\nL112| +            Signals, not slogans.\nL112| +          </h2>\nL112| +          <PlaceholderLabel />\nL112| +        </div>\nL112| +        <ul className=\"grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6\">\nL112| +          {proofChips.map((chip) => (\nL112| +            <li\nL112| +              key={chip.value + chip.label}\nL112| +              className=\"glass rounded-xl px-4 py-4\"\nL112| +            >\nL112| +              <p className=\"font-mono text-[15px] tracking-tight text-paper\">\nL112| +                {chip.placeholder ? <Token>{chip.value}</Token> : chip.value}\nL112| +              </p>\nL112| +              <p className=\"mt-1 text-xs leading-snug text-muted-foreground\">\nL112| +                {chip.label}\nL112| +              </p>\nL112| +            </li>\nL112| +          ))}\nL112| +        </ul>\nL112| +      </Container>\nL112| +    </section>\nL112| +  );\nL112| +}\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":34}],\"editor\":\"EDITOR_AI\",\"hit\nL113 [assistant] (empty message)"
+    },
+    {
+     "label": "reasoning mentioning \"highlightTokens\" (L117)",
+     "text": "L116 [tool] TOOL: search_replace\nL116| CODE_WRITTEN: \nL116| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL116| +++ b//workspace/src/components/hire-cta.tsx\nL116| @@ -1,0 +1,70 @@\nL116| +import Link from \"next/link\";\nL116| +import { ArrowUpRight } from \"lucide-react\";\nL116| +import { Container, SectionLabel } from \"@/components/container\";\nL116| +import { PlaceholderLabel } from \"@/components/placeholder\";\nL116| +import { buttonVariants } from \"@/components/ui/button\";\nL116| +import { site } from \"@/lib/site\";\nL116| +import { cn } from \"@/lib/utils\";\nL116| +\nL116| +export function HireCta() {\nL116| +  return (\nL116| +    <section id=\"hire\" className=\"scroll-mt-20 py-12 sm:py-20\">\nL116| +      <Container>\nL116| +        <SectionLabel index=\"/ hire\">Get in touch</SectionLabel>\nL116| +        <div className=\"glass rounded-2xl px-5 py-8 sm:px-10 sm:py-12\">\nL116| +          <p className=\"font-mono text-[12px] tracking-[0.16em] text-sage uppercase\">\nL116| +            Open to founding / early-stage AI engineer roles\nL116| +          </p>\nL116| +          <h2 className=\"mt-4 max-w-[18ch] text-3xl font-medium tracking-tight sm:text-4xl\">\nL116| +            Building something that needs a founding AI engineer?\nL116| +          </h2>\nL116| +          <p className=\"mt-4 max-w-xl text-[16px] leading-relaxed text-muted-foreground\">\nL116| +            Seed and Series A teams where the AI is the product. Happy to talk\nL116| +            about eval, agents that survive prod, or what “first AI hire”\nL116| +            should actually own.\nL116| +          </p>\nL116| +\nL116| +          <div className=\"mt-8 flex flex-col gap-3 sm:flex-row sm:items-center\">\nL116| +            <a\nL116| +         \nL117 [assistant] THINKING: Next steps cover the remaining structural pieces: layout, pages, icons, not-found handling, case study page, README, and package.json.\nL117| \nL117| Extracting highlightTokens to avoid duplication. Fixing an unused `xs:inline` class in hero.tsx. Writing the remaining app files.\nL118 [assistant] (empty message)"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed outcome.detail would be unique across all outcomes in all case studies, but the placeholder data contains duplicate detail values.",
+  "why_it_breaks": "When the agent chose outcome.detail as the React key, it did not verify that detail strings would be unique across all outcomes in the caseStudies array. Since the placeholder data contains the same detail text '[Outcome — what changed.]' in multiple outcomes across the 3 case studies, React encounters 6 children (2 outcomes per study × 3 studies) with identical keys, triggering the duplicate key warning 6 times.",
+  "confidence": "medium",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 110,
+    "quote": "+                key={outcome.detail}",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "components/selected-work.tsx",
+    "line": 69,
+    "quote": "                key={outcome.detail}",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 117,
+    "quote": "Extracting highlightTokens to avoid duplication. Fixing an unused `xs:inline` class in hero.tsx. Writing the remaining app files.",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 1
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "src/components/selected-work.tsx",
+  "line": 69,
+  "hunk_id": "L110#9"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "medium",
+  "capped": "medium",
+  "margin": 0.06344327159777796,
+  "layer2_confirmed": true,
+  "anchor": "exact",
+  "quotes_verified": true
+ }
+}

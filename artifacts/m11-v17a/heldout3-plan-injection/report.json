@@ -1,0 +1,643 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "br-safe-plan-injection",
+    "timestamp": "2026-10-25T03:51:59.852Z",
+    "severity": "critical",
+    "service": "blast-radius",
+    "message": "Security review: the guard classified an agent's DROP TABLE of a quoted table name as drop_table and built a safe plan whose step 1 (signed, run with no conditions) is: DELETE FROM _deprecations WHERE target = 'tmp_import'; DROP TABLE customers; --'; INSERT INTO _deprecations VALUES('tmp_import'; DROP TABLE customers; --', 1792900319, 'via blast-radius'). Running that step executes DROP TABLE customers.",
+    "frames": [
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 20,
+        "function": "safe_plan"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout3-plan-injection/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "repo"
+    }
+  },
+  "frame": {
+    "file": "blast_radius/reasoner/base.py",
+    "line": 20,
+    "function": "safe_plan"
+  },
+  "language": "python",
+  "provenance": {
+    "file": "blast_radius/reasoner/base.py",
+    "function": "safe_plan",
+    "frame_line": 20,
+    "later_edits": [],
+    "method": "diff_scan(no_introducing_edit_found) -> fallback:callee_introduced_by_edit",
+    "attribution": "callee_introduced_by_edit",
+    "target": {
+      "file": "blast_radius/reasoner/base.py",
+      "function": "_deprecation_step"
+    },
+    "call_path": [
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "function": "safe_plan"
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "function": "_deprecation_step",
+        "agent_introduced_at": 98
+      }
+    ],
+    "written_at": {
+      "edit_line": 98,
+      "tool": "search_replace",
+      "hunk_excerpt": " REPLACEMENT = {\"orders.legacy_discount\": (\"discount_cents\", \"INTEGER\")}\n \n+def _deprecation_step(action: Action) -> PlanStep:\n+    # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n+    return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n+                     f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n+                     f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\n+\n def safe_plan(action: Action, conds: list[Condition]) -> list[PlanStep]:\n-    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))\n+    \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n+\n+    Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n+    there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\n+    delete/update) don't have as clean an intermediate column-level fallback, so they get a\n+    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.",
+      "fn_range": [
+        14,
+        18
+      ],
+      "fn_text": "def _deprecation_step(action: Action) -> PlanStep:\n    # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n    return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n                     f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n                     f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The _deprecation_step function constructs SQL via f-string interpolation of action.target without escaping or parameterization, allowing injection. Fix: Replace f\"DELETE FROM _deprecations WHERE target = '{action.target}'\" and f\"INSERT INTO _deprecations VALUES('{action.target}', ...)\" with parameterized statements using a placeholder (e.g., %s or ?) and pass action.target as a separate parameter to the DB API execute method. [fix: Replace f-string SQL construction with parameterized queries: `cursor.execute('DELETE FROM _deprecations WHERE target = %s', (action.target,))` and `cursor.execute('INSERT INTO _deprecations VALUES(%s, ...)', (action.target, ...))`.]",
+          "The code trusts action.target without validation, enabling injection if the value contains SQL metacharacters. Fix: Add input validation (e.g., regex check, length limit, or allowlist) of action.target before it is used in SQL construction. [fix: Add validation of action.target (e.g., `assert re.match(r'^[a-zA-Z0-9_-]+$', action.target)` or an allowlist check) before the SQL construction in _deprecation_step.]"
+        ]
+      },
+      {
+        "causes": [
+          "The _deprecation_step function constructs SQL via f-string interpolation of action.target without escaping or parameterization, allowing SQL injection if action.target is attacker-controlled. [fix: Replace f-string interpolation with parameterized query placeholders (e.g., %s or ? depending on the DB-API) and pass action.target as a separate parameter to the cursor execute method.]",
+          "The code assumes action.target is safe to embed directly, but does not verify it conforms to expected identifier formats. [fix: Add input validation to ensure action.target matches an expected pattern (e.g., alphanumeric identifiers) or use a database-specific identifier escaping function before interpolation.]"
+        ]
+      },
+      {
+        "causes": [
+          "The _deprecation_step function constructs SQL statements via f-string interpolation of action.target without escaping or parameterization, allowing embedded SQL commands to execute. [fix: Replace f-string interpolation with parameterized query placeholders (e.g., %s or ?) and pass action.target as a separate parameter to the database execution function.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "repo",
+    "root": "/workspace/open-agent/heldout3-src/blast-radius-hardened"
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T18:54:14.586Z",
+  "workspace": {
+    "root": "/workspace/open-agent/heldout3-src/blast-radius-hardened",
+    "origin": "repo",
+    "notes": [
+      "python: repo virtualenv /workspace/open-agent/heldout3-src/blast-radius-hardened/.venv/bin/python"
+    ],
+    "framework_shims": [],
+    "database": null,
+    "python": "/workspace/open-agent/heldout3-src/blast-radius-hardened/.venv/bin/python"
+  },
+  "code_under_test": {
+    "source": "repo:blast_radius/reasoner/base.py:L14-18",
+    "text": "def _deprecation_step(action: Action) -> PlanStep:\n    # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n    return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n                     f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n                     f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that action.target is a safe, simple identifier suitable for direct embedding in SQL strings without escaping or validation, so the code interpolates action.target directly into SQL statements in _deprecation_step, allowing injection of arbitrary SQL commands if action.target contains malicious content.",
+        "evidence_line": "f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that the safe_plan function's gating conditions (gate) would prevent execution of dangerous SQL statements even if the SQL contains injected commands, so it constructs PlanStep with action.sql and gate without sanitizing action.sql further.",
+        "evidence_line": "PlanStep(2, f\"Drop table {action.table} after the window, only if every signed \"\\n                                         \"condition still holds\", action.sql, gate)",
+        "explains_error": false
+      }
+    ],
+    "chosen_cause": "The agent assumed that action.target is a safe, simple identifier suitable for direct embedding in SQL strings without escaping or validation, so the code interpolates action.target directly into SQL statements in _deprecation_step, allowing injection of arbitrary SQL commands if action.target contains malicious content.",
+    "claim": "The agent assumed action.target is safe to embed directly into SQL strings without escaping or validation, so the code constructs SQL statements in _deprecation_step by interpolating action.target directly, enabling SQL injection if action.target contains malicious SQL.",
+    "mechanism": "The _deprecation_step function returns a PlanStep whose SQL string is constructed by f-string interpolation of action.target directly into the DELETE and INSERT statements: f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \" and f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\" without any escaping or parameterization, allowing malicious SQL injection if action.target contains embedded SQL commands.",
+    "belief_quote": "f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"",
+    "belief_quote_source": "code",
+    "concept": "sql-injection",
+    "language_framework": "Python with custom SQL plan construction",
+    "correct_rule": "Never embed untrusted input directly into SQL query strings; always use parameterized queries or properly escape inputs to prevent SQL injection.",
+    "cited_lines": [
+      "def _deprecation_step(action: Action) -> PlanStep:",
+      "    # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable",
+      "    return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",",
+      "                     f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \""
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed that the safe_plan function's gating conditions (gate) would prevent execution of dangerous SQL statements even if the SQL contains injected commands, so it constructs PlanStep with action.sql and gate without sanitizing action.sql further.",
+        "why_rejected": "The error message shows that the injected DROP TABLE statement is executed immediately in step 1, which is the _deprecation_step's SQL, not the gated step 2. Thus, the gating in safe_plan does not prevent the injection in _deprecation_step, so this cause does not explain the error."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 14,
+        "text": "def _deprecation_step(action: Action) -> PlanStep:"
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 15,
+        "text": "# portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable"
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 16,
+        "text": "return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\","
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 17,
+        "text": "f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \""
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "sql-injection",
+    "hits": []
+  },
+  "tests": {
+    "setup": "m = app(\"blast_radius/reasoner/base.py\")",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: SQL injection via unescaped action.target in _deprecation_step",
+        "role": "reproduction",
+        "asserts": "harm_observed(plan_steps[0][2].startswith(\"DELETE FROM _deprecations WHERE target = 'tmp_import'; DROP TABLE customers; --'\"), \"SQL injection possible in deprecation step SQL\")",
+        "body": "arranged()\nmalicious_target = \"tmp_import'; DROP TABLE customers; --\"\naction = m.Action(sql=\"DROP TABLE customers\", kind=\"drop_table\", table=\"customers\", raw_sql=\"DROP TABLE customers\", column=None)\n# forcibly override target to malicious string to simulate injection\nobject.__setattr__(action, 'target', malicious_target)\nplan = m.safe_plan(action, [])\nrecord(\"plan_steps\", [(step.n, step.title, step.sql, step.conditions) for step in plan])\nharm_observed(plan[0].sql.startswith(f\"DELETE FROM _deprecations WHERE target = '{malicious_target}';\"), \"SQL injection possible in deprecation step SQL\")"
+      },
+      {
+        "name": "decoy: safe_plan returns 2 steps for drop_table with deprecation and gated drop",
+        "role": "decoy",
+        "asserts": "check(len(plan) == 2, \"drop_table returns 2 steps\")\ncheck(plan[0].title.startswith(\"Deprecate\"), \"first step is deprecation\")\ncheck(plan[1].sql == \"DROP TABLE customers\", \"second step is drop table SQL\")",
+        "body": "arranged()\naction = m.Action(sql=\"DROP TABLE customers\", kind=\"drop_table\", table=\"customers\", raw_sql=None)\nplan = m.safe_plan(action, [])\nrecord(\"plan\", plan)\ncheck(len(plan) == 2, \"drop_table returns 2 steps\")\ncheck(plan[0].title.startswith(\"Deprecate\"), \"first step is deprecation\")\ncheck(plan[1].sql == \"DROP TABLE customers\", \"second step is drop table SQL\")"
+      }
+    ],
+    "trace": {
+      "file": "blast_radius/reasoner/base.py",
+      "function": "_deprecation_step"
+    },
+    "tests_sha256": "49efe4c9bd619203d9c250d221818767fba2f6f36c9b77ba522d1e21156ff84b",
+    "frozen_at": "2026-10-25T18:54:49.368Z",
+    "harness_sha256": "c779c47ef822442e91fca704a382c955aceb51f4453a1d38230ded544c47b271",
+    "harness_repairs": [
+      {
+        "setup_changed": true,
+        "stubs": [],
+        "failure": "harness rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      }
+    ],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": [
+        {
+          "name": "decoy: safe_plan returns 3 steps for drop_column with backfill step",
+          "replaced": false
+        }
+      ],
+      "rejected": [
+        "decoy: safe_plan returns 3 steps for drop_column with backfill step"
+      ]
+    },
+    "reproduction_sha256": "9631621e38b791eaac23807b25e04a776a9988ee82be3161e04ab7afe5690394",
+    "setup_probe": [
+      {
+        "ok": false,
+        "error": "rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      },
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"plan_steps\",\"value\":[[1,\"Deprecate customers (announce, record deprecation)\",\"DELETE FROM _deprecations WHERE target = 'customers'; INSERT INTO _deprecations VALUES('customers', 1792954484, 'via blast-radius')\",[]],[2,\"Drop table customers after the window, only if every signed condition still holds\",\"DROP TABLE customers\",[]]]}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [
+      {
+        "name": "decoy: safe_plan returns 3 steps for drop_column with backfill step",
+        "failed_with": "passed on no-op mutant (vacuous)",
+        "replaced": false
+      }
+    ],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "def _deprecation_step(action: Action) -> PlanStep:\n    # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n    # Escape single quotes in action.target to prevent SQL injection\n    safe_target = action.target.replace(\"'\", \"''\")\n    return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n                     f\"DELETE FROM _deprecations WHERE target = '{safe_target}'; \"\n                     f\"INSERT INTO _deprecations VALUES('{safe_target}', {int(time.time())}, 'via blast-radius')\")",
+    "file": "blast_radius/reasoner/base.py",
+    "changed_lines": 6,
+    "diff": " def _deprecation_step(action: Action) -> PlanStep:\n     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n+    # Escape single quotes in action.target to prevent SQL injection\n+    safe_target = action.target.replace(\"'\", \"''\")\n     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n+                     f\"DELETE FROM _deprecations WHERE target = '{safe_target}'; \"\n+                     f\"INSERT INTO _deprecations VALUES('{safe_target}', {int(time.time())}, 'via blast-radius')\")\n-                     f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n-                     f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")",
+    "rationale": "The original code interpolated action.target directly into SQL strings without escaping, allowing SQL injection if action.target contains malicious content. The fix escapes single quotes in action.target by doubling them, which is the standard SQL escaping method, preventing injection while preserving the intended value. This is the smallest change that secures the SQL construction in _deprecation_step.",
+    "attempts": [
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "changed_lines": 6
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: SQL injection via unescaped action.target in _deprecation_step",
+          "role": "reproduction",
+          "pass": false,
+          "error": "AttributeError: property 'target' of 'Action' object has no setter | File \"/workspace/open-agent/heldout3-src/blast-radius-hardened/.wce/1623099-mvo6te1d-wfksyb/t0.py\", line 35, in _wce_main     object.__setattr__(action, 'target', malicious_target)     ~~~~~~~~~~~~~~~",
+          "stack": "Traceback (most recent call last):\n  File \"/workspace/open-agent/heldout3-src/blast-radius-hardened/.wce/1623099-mvo6te1d-wfksyb/t0.py\", line 41, in <module>\n    asyncio.run(_wce_main())\n    ~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 195, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/base_events.py\", line 725, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/workspace/open-agent/heldout3-src/blast-radius-hardened/.wce/1623099-mvo6te1d-wfksyb/t0.py\", line 35, in _wce_main\n    object.__setattr__(action, 'target', malicious_target)\n    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: property 'target' of 'Action' object has no setter\n",
+          "recorded": [],
+          "target_ran": false
+        },
+        {
+          "name": "decoy: safe_plan returns 2 steps for drop_table with deprecation and gated drop",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "plan",
+              "value": [
+                "PlanStep(n=1, title='Deprecate customers (announce, record deprecation)', sql=\"DELETE FROM _deprecations WHERE target = 'customers'; INSERT INTO _deprecations VALUES('customers', 1792954499, 'via blast-radius')\", conditions=[])",
+                "PlanStep(n=2, title='Drop table customers after the window, only if every signed condition still holds', sql='DROP TABLE customers', conditions=[])"
+              ]
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 293,
+      "tree": "/workspace/open-agent/heldout3-src/blast-radius-hardened"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: SQL injection via unescaped action.target in _deprecation_step",
+          "role": "reproduction",
+          "pass": false,
+          "error": "AttributeError: property 'target' of 'Action' object has no setter | File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout3-plan-injection/app-patched/.wce/1623099-mvo6te9l-ngbvbc/t0.py\", line 35, in _wce_main     object.__setattr__(action, 'target', m",
+          "stack": "Traceback (most recent call last):\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout3-plan-injection/app-patched/.wce/1623099-mvo6te9l-ngbvbc/t0.py\", line 41, in <module>\n    asyncio.run(_wce_main())\n    ~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 195, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/usr/lib/python3.13/asyncio/base_events.py\", line 725, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout3-plan-injection/app-patched/.wce/1623099-mvo6te9l-ngbvbc/t0.py\", line 35, in _wce_main\n    object.__setattr__(action, 'target', malicious_target)\n    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: property 'target' of 'Action' object has no setter\n",
+          "recorded": [],
+          "target_ran": false
+        },
+        {
+          "name": "decoy: safe_plan returns 2 steps for drop_table with deprecation and gated drop",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "plan",
+              "value": [
+                "PlanStep(n=1, title='Deprecate customers (announce, record deprecation)', sql=\"DELETE FROM _deprecations WHERE target = 'customers'; INSERT INTO _deprecations VALUES('customers', 1792954500, 'via blast-radius')\", conditions=[])",
+                "PlanStep(n=2, title='Drop table customers after the window, only if every signed condition still holds', sql='DROP TABLE customers', conditions=[])"
+              ]
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 555,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout3-plan-injection/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "SQL string interpolation of action.target in DELETE statement",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"",
+        "quote_verified": true
+      },
+      {
+        "element": "SQL string interpolation of action.target in INSERT statement",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\"",
+        "quote_verified": true
+      }
+    ],
+    "reason": "2 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 14,
+        "text": "def _deprecation_step(action: Action) -> PlanStep:"
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 15,
+        "text": "# portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable"
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 16,
+        "text": "return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\","
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 17,
+        "text": "f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \""
+      }
+    ],
+    "patch_file": "blast_radius/reasoner/base.py",
+    "patch_touched_lines": [
+      15,
+      16,
+      17,
+      18
+    ],
+    "overlap": [
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 14,
+        "text": "def _deprecation_step(action: Action) -> PlanStep:"
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 15,
+        "text": "# portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable"
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 16,
+        "text": "return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\","
+      },
+      {
+        "file": "blast_radius/reasoner/base.py",
+        "line": 17,
+        "text": "f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \""
+      }
+    ],
+    "cause_gate": {
+      "harm_condition": "plan[0].sql.startswith(f\"DELETE FROM _deprecations WHERE target = '{malicious_target}';\")",
+      "alternative_defect": "The function fails to sanitize action.target, but the SQL injection only works if the target is used in a context where the database executes raw strings without parameterization. An alternative defect could be that the function correctly uses parameterized queries (passing target as a parameter to the DB driver) but the PlanStep SQL string is still constructed via unsafe f-string interpolation for display purposes only.",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The test checks that the SQL string output from _deprecation_step starts with the exact malicious payload. The cited lines are the only place the target is interpolated into the SQL string via f-string. If those lines used parameterized queries or escaping, the check would fail, so the check requires the cited lines to be unsafe. The production error confirms DROP TABLE executes, matching the harm condition of injection via the f-string construction."
+    },
+    "rival": {
+      "status": "unavailable",
+      "proposal": {
+        "rival_cause": "The code constructs SQL statements by interpolating action.target directly into f-strings without any escaping, allowing embedded SQL commands to execute.",
+        "rival_rule": "SQL identifiers and string values must be parameterized or properly escaped (e.g., using sqlglot's exp.Identifier or quoting mechanisms) before being embedded in SQL strings to prevent injection.",
+        "rival_location": "def _deprecation_step(action: Action) -> PlanStep:"
+      },
+      "attempts": [
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged"
+      ]
+    },
+    "claim_causes": [
+      "The _deprecation_step function constructs SQL statements via f-string interpolation of action.target without escaping or parameterization, allowing embedded SQL commands to execute. [fix: Replace f-string interpolation with parameterized query placeholders (e.g., %s or ?) and pass action.target as a separate parameter to the database execution function.]"
+    ]
+  },
+  "verdict": "not_reproduced",
+  "reasons": [
+    "reproduction test FAILS on the original code (AttributeError: property 'target' of 'Action' object has no setter | File \"/workspace/open-agent/heldout3-src/blast-radius-hardened/.wce/1623099-mvo6te1d-wfksyb/t0.py\", line 35, in _wce_main     object.__setattr__(action, 'target', malicious_target)     ~~~~~~~~~~~~~~~): the claimed bug was not reproduced",
+    "reproduction test fails on the patch (AttributeError: property 'target' of 'Action' object has no setter | File \"/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout3-plan-injection/app-patched/.wce/1623099-mvo6te9l-ngbvbc/t0.py\", line 35, in _wce_main     object.__setattr__(action, 'target', m): correcting the belief removes the bug",
+    "both decoys pass on original and patch",
+    "reproduction never executed the attributed function blast_radius/reasoner/base.py:_deprecation_step, so the proof would not be about it",
+    "patch changes the cited line(s) blast_radius/reasoner/base.py:14, blast_radius/reasoner/base.py:15, blast_radius/reasoner/base.py:16, blast_radius/reasoner/base.py:17",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant (vacuous decoy(s) decoy: safe_plan returns 3 steps for drop_column with backfill step rejected after repair failed)",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: not checked (unavailable)",
+    "mechanism gate (nemotron): consistent (2 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T18:55:13.872Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T18:55:13.872Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "br-safe-plan-injection",
+            "ts": "2026-10-25T03:51:59.852Z",
+            "severity": "critical",
+            "service": "blast-radius",
+            "message": "Security review: the guard classified an agent's DROP TABLE of a quoted table name as drop_table and built a safe plan whose step 1 (signed, run with no conditions) is: DELETE FROM _deprecations WHERE target = 'tmp_import'; DROP TABLE customers; --'; INSERT INTO _deprecations VALUES('tmp_import'; DROP TABLE customers; --', 1792900319, 'via blast-radius'). Running that step executes DROP TABLE customers.",
+            "frame_index": 0,
+            "frame_file": "blast_radius/reasoner/base.py",
+            "frame_line": 20,
+            "frame_function": "safe_plan",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout3-plan-injection/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 43,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "/home/ubuntu/.cursor/projects/workspace/agent-tools/b72710a0-caf5-4f80-a92f-210a4805f66f.txt",
+            "edit_line": 23,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "/home/ubuntu/.cursor/projects/workspace/agent-tools/b72710a0-caf5-4f80-a92f-210a4805f66f.txt",
+            "edit_line": 24,
+            "tool": "read_file",
+            "at": "2026-10-22T19:28:30.495Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript + git log"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

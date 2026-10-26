@@ -1,0 +1,7 @@
+locate: layer2_agentic -> lib/validations.ts:46
+stage: ok
+provider: anthropic
+frame: lib/validations.ts:41
+status: verified (code quotes 3, transcript quotes 1)
+overlooked_assumption: The agent assumed that lowercasing the webhook URL would preserve its validity, but Zapier webhook URLs contain case-sensitive path segments that become invalid when lowercased.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case06/report.html

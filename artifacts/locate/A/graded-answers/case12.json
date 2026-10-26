@@ -1,0 +1,24 @@
+{
+ "overlooked_assumption": "The agent assumed that a stop-loss order with a small notional (< $50) would be allowed to execute even though the position had been held for fewer sessions than the minimum-hold period required to classify an exit as a swing trade, believing the stop rule would bypass the minimum-hold check.",
+ "why_it_breaks": "The test sets last_trade_session to 10 sessions but does not set last_decision_on or entry_session, so the churn engine cannot verify whether the minimum-hold period was satisfied. The agent's transcript belief that 'stop rules bypass minimum-hold checks' caused it to omit the minimum-hold state needed for the guard to correctly reject the sell as a swing trade violation. Without that state, the guard allows the stop-loss to execute, producing the compliance breach where swing-trade count exceeds the cap.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5941,
+   "quote": "Hard drawdown rules bypass minimum-hold checks. A ~$1.8 one-dollar trim falls below the $50 threshold. Stop tests assert the reason is stop.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_churn.py",
+   "line": 285,
+   "quote": "book.last_trade_session[\"AAPL\"] = 10",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

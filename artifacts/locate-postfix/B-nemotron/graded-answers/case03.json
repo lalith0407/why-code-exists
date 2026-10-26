@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "_xirr assumes the first cashflow is an investment (negative amount) and the last is a return (positive amount), but the provided cashflows have a negative amount on the start date and a positive amount on the end date with no intermediate investment, causing the Newton-Raphson solver to fail to converge or produce a meaningful rate.",
+ "why_it_breaks": "The _xirr function computes IRR by solving for the rate that makes NPV=0 using Newton-Raphson. It relies on the cashflow sign pattern (initial outflow, later inflows) to bracket the root. In the reported case, the cashflows are [2024-01-02: -100000, 2024-01-12: 106000]. The algorithm starts at rate=0.1 and uses dnpv (negative gradient) to update the rate. With only two cashflows spanning 10 days and no intermediate investment, the NPV at any positive rate is already negative (because the -100000 term dominates for short times), and the Newton step pushes the rate outside the clamped bounds [-0.9, 5.0] or causes divergence, ultimately returning None which renders the IRR cell as n/a.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 219,
+   "quote": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n    if len(cashflows) < 2:\n        return None\n    start = cashflows[0][0]\n    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n    amounts = [amount for _day, amount in cashflows]",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 43,
+   "quote": "amounts = [amount for _day, amount in cashflows]",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

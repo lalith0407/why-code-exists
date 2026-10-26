@@ -1,0 +1,853 @@
+{
+  "version": "gen-v18-patch-revision",
+  "error": {
+    "id": "pulseboard-vote-500",
+    "timestamp": "2026-10-25T02:57:57.923Z",
+    "severity": "error",
+    "service": "pulseboard",
+    "message": "PrismaClientKnownRequestError: \nInvalid `prisma.vote.create()` invocation in\nlib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  105 } else {\n→ 106   await prisma.vote.create(\nUnique constraint failed on the fields: (`feedbackId`,`userId`)",
+    "frames": [
+      {
+        "file": "node_modules/@prisma/client/src/runtime/RequestHandler.ts",
+        "line": 228,
+        "function": "handleRequestError"
+      },
+      {
+        "file": "node_modules/@prisma/client/src/runtime/RequestHandler.ts",
+        "line": 174,
+        "function": "handleAndLogRequestError"
+      },
+      {
+        "file": "node_modules/@prisma/client/src/runtime/RequestHandler.ts",
+        "line": 143,
+        "function": "request"
+      },
+      {
+        "file": "node_modules/@prisma/client/src/runtime/getPrismaClient.ts",
+        "line": 833,
+        "function": "a"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 106,
+        "function": "toggleVoteAction"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout-vote-race/scenario.json (exception message and stack frames from a real run)",
+      "tree": "transcript_replay"
+    }
+  },
+  "frame": {
+    "file": "lib/actions/feedback.ts",
+    "line": 106,
+    "function": "toggleVoteAction"
+  },
+  "language": "ts",
+  "provenance": {
+    "file": "lib/actions/feedback.ts",
+    "function": "toggleVoteAction",
+    "frame_line": 106,
+    "later_edits": [
+      {
+        "edit_line": 178,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": "         body: feedback.body,\n         url: `${process.env.APP_URL ?? \"\"}/w/${workspace.slug}/feedback/${feedback.id}`,\n-        author: { name: feedback.author.name, email: feedback.author.email },\n+        author: { name: feedback.author?.name ?? \"Unknown\", email: feedback.author?.email ?? \"\" },\n         linkPreview: preview ? { title: preview.title, url: preview.url } : null,\n       },\n-    }).catch((error) => {\n-      console.error(`[pulseboard] webhook delivery failed for workspace ${workspace.slug}:`, error);\n     });\n+\n+    await prisma.webhookDelivery.create({\n+      data: {\n+        workspaceId: workspace.id,\n+        feedbackId: feedback.id,"
+      },
+      {
+        "edit_line": 240,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": " \n   revalidatePath(`/w/${workspaceSlug}`);\n-  return {};\n+  return { success: true };\n }\n \n /** Toggles the current user's upvote on a feedback item. */"
+      }
+    ],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 123,
+      "tool": "search_replace",
+      "fn_range": [
+        80,
+        101
+      ],
+      "frame_line_in_range": false,
+      "hunk_excerpt": "+\n+/** Toggles the current user's upvote on a feedback item. */\n+export async function toggleVoteAction(workspaceSlug: string, feedbackId: string) {\n+  const user = await requireUser();\n+\n+  const feedback = await prisma.feedback.findUnique({\n+    where: { id: feedbackId },\n+    include: { workspace: { include: { memberships: { where: { userId: user.id } } } } },\n+  });\n+  if (!feedback || feedback.workspace.memberships.length === 0) notFound();\n+\n+  const existing = await prisma.vote.findUnique({\n+    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n+  });\n+\n+  if (existing) {",
+      "fn_text": "export async function toggleVoteAction(workspaceSlug: string, feedbackId: string) {\n  const user = await requireUser();\n\n  const feedback = await prisma.feedback.findUnique({\n    where: { id: feedbackId },\n    include: { workspace: { include: { memberships: { where: { userId: user.id } } } } },\n  });\n  if (!feedback || feedback.workspace.memberships.length === 0) notFound();\n\n  const existing = await prisma.vote.findUnique({\n    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n  });\n\n  if (existing) {\n    await prisma.vote.delete({ where: { id: existing.id } });\n  } else {\n    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n  }\n\n  revalidatePath(`/w/${workspaceSlug}`);\n  revalidatePath(`/w/${workspaceSlug}/feedback/${feedbackId}`);\n}"
+    },
+    "reasoning_before": {
+      "line": 121,
+      "words": 201,
+      "silent": false,
+      "excerpt": "I'm now planning the feedback actions file with functions for creating feedback, toggling votes, and adding comments, each needing workspace context passed through binding the slug as the first argument from the client component.\n\nFor toggl"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The code performs a delete-then-create sequence without transactional isolation, allowing concurrent requests to both pass the findUnique check and create duplicate votes before the first transaction commits. [fix: Implement a transaction with a unique constraint and retry logic to ensure atomicity.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "transcript_replay",
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout-vote-race/app",
+    "files": 76,
+    "applied_edits": 81,
+    "failed_edits": [
+      {
+        "file": "package.json",
+        "line": 61,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "next.config.ts",
+        "line": 375,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": ".gitignore",
+        "line": 458,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "README.md",
+        "line": 483,
+        "reason": "edit to a file not created in the transcript"
+      }
+    ]
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_vacuous_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch_revision:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "zetaris_sql:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T19:51:49.168Z",
+  "workspace": {
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout-vote-race/app",
+    "origin": "transcript_replay",
+    "notes": [
+      "npm deps from the app's package.json (cache /home/box/.cache/wce/deps/cc39abd72f073c52/node_modules)",
+      "no tsconfig \"paths\" in tree: \"@/x\" resolved to <app root>/x (inferred alias: the base under which the tree's own \"@/\" imports resolve)",
+      "real PostgreSQL database from /workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout-vote-race/app/prisma/schema.prisma (template wce_tpl_5aa2c096)",
+      "framework boundary shims (engine-built from real exports): next/headers[headers,cookies,draftMode]; next/cache[revalidatePath,revalidateTag,updateTag,refresh,unstable_noStore,cacheLife,cacheTag,unstable_cacheLife,unstable_cacheTag,unstable_cache]; next/server[after,connection]; next-auth[default]"
+    ],
+    "framework_shims": [
+      {
+        "module": "next/headers",
+        "version": "next@16.4.2",
+        "replaced": [
+          "headers",
+          "cookies",
+          "draftMode"
+        ],
+        "why": "Next.js request APIs read the live request store (AsyncLocalStorage) that only exists inside a running Next server; the test supplies the request with set_request()",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next/cache",
+        "version": "next@16.4.2",
+        "replaced": [
+          "revalidatePath",
+          "revalidateTag",
+          "updateTag",
+          "refresh",
+          "unstable_noStore",
+          "cacheLife",
+          "cacheTag",
+          "unstable_cacheLife",
+          "unstable_cacheTag",
+          "unstable_cache"
+        ],
+        "why": "Next.js cache invalidation needs the render/work store of a running Next server; calls are recorded (framework_calls) instead",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next/server",
+        "version": "next@16.4.2",
+        "replaced": [
+          "after",
+          "connection"
+        ],
+        "why": "after()/connection() need the request store of a running Next server; after() callbacks run immediately and are awaited by the harness",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next-auth",
+        "version": "next-auth@5.0.0-beta.32",
+        "replaced": [
+          "default"
+        ],
+        "why": "Auth.js reads the signed-in user from the encrypted session cookie of the live request; auth() returns the session given with set_session() (everything else in the package stays real)",
+        "label": "stand-in at framework request boundary (engine-built)"
+      }
+    ],
+    "database": {
+      "kind": "postgresql",
+      "schema": "/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout-vote-race/app/prisma/schema.prisma"
+    }
+  },
+  "code_under_test": {
+    "source": "transcript_replay:lib/actions/feedback.ts:L90-111",
+    "text": "export async function toggleVoteAction(workspaceSlug: string, feedbackId: string) {\n  const user = await requireUser();\n\n  const feedback = await prisma.feedback.findUnique({\n    where: { id: feedbackId },\n    include: { workspace: { include: { memberships: { where: { userId: user.id } } } } },\n  });\n  if (!feedback || feedback.workspace.memberships.length === 0) notFound();\n\n  const existing = await prisma.vote.findUnique({\n    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n  });\n\n  if (existing) {\n    await prisma.vote.delete({ where: { id: existing.id } });\n  } else {\n    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n  }\n\n  revalidatePath(`/w/${workspaceSlug}`);\n  revalidatePath(`/w/${workspaceSlug}/feedback/${feedbackId}`);\n}"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that deleting an existing vote before creating a new one would prevent unique constraint violations, so the code deletes the existing vote only if found, but does not handle concurrent requests causing duplicate vote creation attempts.",
+        "evidence_line": "  if (existing) {\n    await prisma.vote.delete({ where: { id: existing.id } });\n  } else {\n    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n  }",
+        "explains_error": true
+      },
+      {
+        "cause": "The agent assumed that the unique constraint on (feedbackId, userId) would be enforced only by the database and did not implement application-level locking or transaction to prevent race conditions.",
+        "evidence_line": "  if (existing) {\n    await prisma.vote.delete({ where: { id: existing.id } });\n  } else {\n    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n  }",
+        "explains_error": false
+      }
+    ],
+    "chosen_cause": "The agent assumed that deleting an existing vote before creating a new one would prevent unique constraint violations, so the code deletes the existing vote only if found, but does not handle concurrent requests causing duplicate vote creation attempts.",
+    "claim": "The agent assumed that deleting an existing vote before creating a new one would prevent unique constraint violations, so the code deletes the existing vote only if found, but does not handle concurrent requests causing duplicate vote creation attempts.",
+    "mechanism": "The code checks for an existing vote with prisma.vote.findUnique and deletes it if found before creating a new vote with prisma.vote.create, but lacks transaction or concurrency control to prevent race conditions.",
+    "belief_quote": "  if (existing) {\n    await prisma.vote.delete({ where: { id: existing.id } });\n  } else {\n    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n  }",
+    "belief_quote_source": "code",
+    "concept": "race-condition-in-database-operations",
+    "language_framework": "TypeScript with Prisma ORM",
+    "correct_rule": "Database operations that depend on checking and then creating or deleting records with unique constraints must be performed atomically or with concurrency control (e.g., transactions or locks) to prevent race conditions causing unique constraint violations.",
+    "cited_lines": [
+      "  if (existing) {",
+      "    await prisma.vote.delete({ where: { id: existing.id } });",
+      "  } else {",
+      "    await prisma.vote.create({ data: { feedbackId, userId: user.id } });"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed the unique constraint violation was caused by incorrect data input or missing validation.",
+        "why_rejected": "The error clearly indicates a unique constraint violation on (feedbackId, userId) during vote creation, which matches the code logic for toggling votes, not input validation issues."
+      },
+      {
+        "cause": "The agent assumed that the existing vote check was unnecessary and always creates a new vote.",
+        "why_rejected": "The code explicitly checks for existing votes and deletes them before creating new ones, so the assumption is not that it always creates new votes without checking."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 103,
+        "text": "if (existing) {"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 104,
+        "text": "await prisma.vote.delete({ where: { id: existing.id } });"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 105,
+        "text": "} else {"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 106,
+        "text": "await prisma.vote.create({ data: { feedbackId, userId: user.id } });"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "race-condition-in-database-operations",
+    "hits": []
+  },
+  "tests": {
+    "setup": "const { prisma } = await app(\"lib/prisma.ts\");\nconst { toggleVoteAction, createFeedbackAction } = await app(\"lib/actions/feedback.ts\");\nconst { requireUser } = await app(\"lib/workspace.ts\");\n\n// Create a user\nconst user = await prisma.user.create({ data: { email: \"user@example.com\", name: \"Test User\", passwordHash: \"hash\" } });\n\n// Create a workspace\nconst workspace = await prisma.workspace.create({ data: { name: \"Test Workspace\", slug: \"test-workspace\", webhookSecret: \"secret\" } });\n\n// Add membership for user in workspace\nawait prisma.membership.create({ data: { userId: user.id, workspaceId: workspace.id, role: \"MEMBER\" } });\n\n// Create a feedback item in the workspace\nconst feedback = await prisma.feedback.create({ data: { title: \"Test Feedback\", body: \"This is a test feedback.\", workspaceId: workspace.id, authorId: user.id } });\n\n// Set session for the user\nset_session({ user: { id: user.id, email: user.email, name: user.name } });\n",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: concurrent toggleVoteAction calls cause unique constraint violation",
+        "role": "reproduction",
+        "asserts": "The test asserts that a unique constraint violation error occurs when two toggleVoteAction calls run concurrently, demonstrating the race condition and harmful outcome.",
+        "body": "arranged();\n\n// Run two toggleVoteAction calls concurrently without waiting for the first to finish\nconst p1 = toggleVoteAction(workspace.slug, feedback.id);\nconst p2 = toggleVoteAction(workspace.slug, feedback.id);\n\nlet err1 = null;\nlet err2 = null;\n\ntry {\n  await p1;\n} catch (e) {\n  err1 = e;\n}\ntry {\n  await p2;\n} catch (e) {\n  err2 = e;\n}\n\nrecord(\"error1\", err1 ? String(err1.message) : null);\nrecord(\"error2\", err2 ? String(err2.message) : null);\n\n// Count votes for the feedback\nconst voteCount = await prisma.vote.count({ where: { feedbackId: feedback.id } });\nrecord(\"voteCount\", voteCount);\n\n// Harm observed if either call threw a unique constraint violation error\nconst harmObserved = (err1 && err1.message.includes(\"Unique constraint failed\")) || (err2 && err2.message.includes(\"Unique constraint failed\"));\nharm_observed(harmObserved, \"Unique constraint violation occurred due to concurrent vote toggles\");"
+      },
+      {
+        "name": "decoy: toggleVoteAction adds and removes vote correctly in sequence",
+        "role": "decoy",
+        "asserts": "The test asserts that toggleVoteAction correctly adds a vote when none exists and removes it when called again sequentially, without errors and with correct vote count.",
+        "body": "arranged();\n\n// Initially no votes\nlet count = await prisma.vote.count({ where: { feedbackId: feedback.id } });\ncheck(count === 0, \"No votes initially\");\n\n// Add vote\nawait toggleVoteAction(workspace.slug, feedback.id);\ncount = await prisma.vote.count({ where: { feedbackId: feedback.id } });\ncheck(count === 1, \"One vote after adding\");\n\n// Remove vote\nawait toggleVoteAction(workspace.slug, feedback.id);\ncount = await prisma.vote.count({ where: { feedbackId: feedback.id } });\ncheck(count === 0, \"No votes after removing\");"
+      },
+      {
+        "name": "decoy: createFeedbackAction creates feedback with valid data",
+        "role": "decoy",
+        "asserts": "The test asserts that createFeedbackAction successfully creates a feedback item with valid input and returns success, unrelated to vote toggling concurrency.",
+        "body": "arranged();\n\n// Count votes before toggling\nconst initialCount = await prisma.vote.count({ where: { feedbackId: feedback.id } });\n\n// Call toggleVoteAction once\nawait toggleVoteAction(workspace.slug, feedback.id);\n\n// Count votes after toggling\nconst afterToggleCount = await prisma.vote.count({ where: { feedbackId: feedback.id } });\n\n// The vote count should have changed by exactly 1 (either added or removed)\ncheck(\n  afterToggleCount === initialCount + 1 || afterToggleCount === initialCount - 1,\n  `Vote count changed by 1 after toggle: before=${initialCount}, after=${afterToggleCount}`\n);"
+      }
+    ],
+    "trace": {
+      "file": "lib/actions/feedback.ts",
+      "function": "toggleVoteAction"
+    },
+    "tests_sha256": "56bdf898ef19017cffe2e666bf77d499fc171011f3fca5b5aa32352f89aa32b1",
+    "frozen_at": "2026-10-25T19:52:10.055Z",
+    "harness_sha256": "7b1d001303e495b155d94e5ef83d8fca91b249cf76b3b0465e235570e326d3a6",
+    "harness_repairs": [],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": [
+        {
+          "name": "decoy: createFeedbackAction creates feedback with valid data",
+          "replaced": true
+        }
+      ]
+    },
+    "reproduction_sha256": "ec1f248a25d274640803f75897e1f401d896b9cd5514804ac7bdb8b8528d356b",
+    "setup_probe": [
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"error\",\"value\":null},{\"name\":\"voteCount\",\"value\":0}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [
+      {
+        "name": "decoy: createFeedbackAction creates feedback with valid data",
+        "failed_with": "passed on no-op mutant (vacuous)",
+        "replaced": true
+      }
+    ],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "  await prisma.$transaction(async (tx) => {\n    const existing = await tx.vote.findUnique({\n      where: { feedbackId_userId: { feedbackId, userId: user.id } },\n    });\n\n    if (existing) {\n      await tx.vote.delete({ where: { id: existing.id } });\n    } else {\n      await tx.vote.create({ data: { feedbackId, userId: user.id } });\n    }\n  });",
+    "file": "lib/actions/feedback.ts",
+    "changed_lines": 8,
+    "diff": "+  await prisma.$transaction(async (tx) => {\n+    const existing = await tx.vote.findUnique({\n-  const existing = await prisma.vote.findUnique({\n     where: { feedbackId_userId: { feedbackId, userId: user.id } },\n   });\n \n   if (existing) {\n+      await tx.vote.delete({ where: { id: existing.id } });\n-    await prisma.vote.delete({ where: { id: existing.id } });\n   } else {\n+      await tx.vote.create({ data: { feedbackId, userId: user.id } });\n-    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n   }\n+  });",
+    "rationale": "The previous patch wrapped the toggle vote logic in a transaction but still encountered unique constraint violations due to race conditions. To correctly prevent these, the entire toggle operation must be performed atomically within a single transaction using the Prisma transaction API. This ensures that the check for an existing vote and the subsequent delete or create operation happen without interference from concurrent requests, thus avoiding unique constraint violations.",
+    "attempts": [
+      {
+        "file": "lib/actions/feedback.ts",
+        "changed_lines": 9
+      }
+    ],
+    "revised_from": {
+      "diff": "   if (!feedback || feedback.workspace.memberships.length === 0) notFound();\n \n+  // Use a transaction to atomically toggle the vote to avoid race conditions\n+  await prisma.$transaction(async (tx) => {\n+    const existing = await tx.vote.findUnique({\n-  const existing = await prisma.vote.findUnique({\n     where: { feedbackId_userId: { feedbackId, userId: user.id } },\n   });\n \n   if (existing) {\n+      await tx.vote.delete({ where: { id: existing.id } });\n-    await prisma.vote.delete({ where: { id: existing.id } });\n   } else {\n+      await tx.vote.create({ data: { feedbackId, userId: user.id } });\n-    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n   }\n+  });\n \n   revalidatePath(`/w/${workspaceSlug}`);",
+      "rationale": "The original code checks for an existing vote and then deletes or creates a vote accordingly, but these operations are not atomic, leading to race conditions and unique constraint violations when concurrent requests occur. Wrapping the find, delete, and create operations inside a Prisma transaction ensures atomicity and prevents race conditions, thus avoiding unique constraint errors."
+    },
+    "revision": {
+      "applied": true
+    }
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: concurrent toggleVoteAction calls cause unique constraint violation",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "error1",
+              "value": "\nInvalid `prisma.vote.create()` invocation in\n/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout-vote-race/app/lib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  105 } else {\n→ 106   await prisma.vote.create(\nUnique constraint failed on the fields: (`feedbackId`,`userId`)"
+            },
+            {
+              "name": "error2",
+              "value": null
+            },
+            {
+              "name": "voteCount",
+              "value": 1
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Vote",
+              "op": "insert",
+              "row": {
+                "id": "cmvo8w1ex00079uhero3u5y9w",
+                "userId": "cmvo8w1dv00009uhek0yeab1i",
+                "createdAt": "2026-10-25T19:53:02.505",
+                "feedbackId": "cmvo8w1e300059uhe0npk8qc6"
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: toggleVoteAction adds and removes vote correctly in sequence",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: createFeedbackAction creates feedback with valid data",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Vote",
+              "op": "insert",
+              "row": {
+                "id": "cmvo8w3de00079u5qngamwc0u",
+                "userId": "cmvo8w3ch00009u5q4zz0dc6t",
+                "createdAt": "2026-10-25T19:53:05.042",
+                "feedbackId": "cmvo8w3co00059u5q43b1rv1p"
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 38117,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout-vote-race/app"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: concurrent toggleVoteAction calls cause unique constraint violation",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "error1",
+              "value": "\nInvalid `tx.vote.create()` invocation in\n/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout-vote-race/app-patched/lib/actions/feedback.ts:107:21\n\n  104 if (existing) {\n  105   await tx.vote.delete({ where: { id: existing.id } });\n  106 } else {\n→ 107   await tx.vote.create(\nUnique constraint failed on the fields: (`feedbackId`,`userId`)"
+            },
+            {
+              "name": "error2",
+              "value": null
+            },
+            {
+              "name": "voteCount",
+              "value": 1
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Vote",
+              "op": "insert",
+              "row": {
+                "id": "cmvo8w9d000079uc9ez367l77",
+                "userId": "cmvo8w9c200009uc9bx4sp2ve",
+                "createdAt": "2026-10-25T19:53:12.804",
+                "feedbackId": "cmvo8w9cb00059uc953px77e7"
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: toggleVoteAction adds and removes vote correctly in sequence",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: createFeedbackAction creates feedback with valid data",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Vote",
+              "op": "insert",
+              "row": {
+                "id": "cmvo8wb6800079ufaqdpq5qzo",
+                "userId": "cmvo8wb5e00009ufat7jz2za8",
+                "createdAt": "2026-10-25T19:53:15.153",
+                "feedbackId": "cmvo8wb5l00059ufa2kheecge"
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 3849,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m12-v18a/heldout-vote-race/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "findUnique check for existing vote",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "const existing = await prisma.vote.findUnique({\n    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n  });",
+        "quote_verified": true
+      },
+      {
+        "element": "conditional delete-if-found before create",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if (existing) {\n    await prisma.vote.delete({ where: { id: existing.id } });\n  } else {\n    await prisma.vote.create({ data: { feedbackId, userId: user.id } });\n  }",
+        "quote_verified": true
+      },
+      {
+        "element": "lack of transaction or concurrency control to prevent race conditions",
+        "claimed": "absent",
+        "actual": "absent",
+        "quote": ""
+      }
+    ],
+    "reason": "3 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 103,
+        "text": "if (existing) {"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 104,
+        "text": "await prisma.vote.delete({ where: { id: existing.id } });"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 105,
+        "text": "} else {"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 106,
+        "text": "await prisma.vote.create({ data: { feedbackId, userId: user.id } });"
+      }
+    ],
+    "patch_file": "lib/actions/feedback.ts",
+    "patch_touched_lines": [
+      99,
+      103,
+      104,
+      105,
+      106,
+      107
+    ],
+    "overlap": [
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 103,
+        "text": "if (existing) {"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 104,
+        "text": "await prisma.vote.delete({ where: { id: existing.id } });"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 105,
+        "text": "} else {"
+      },
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 106,
+        "text": "await prisma.vote.create({ data: { feedbackId, userId: user.id } });"
+      }
+    ],
+    "cause_gate": {
+      "harm_condition": "The test's check passes when either err1 or err2 contains a message that includes the string \"Unique constraint failed\".",
+      "alternative_defect": "The code could fail to create a vote because the `feedbackId` or `userId` data passed to `prisma.vote.create` is missing, null, or of the wrong type, causing Prisma to throw a different validation error rather than a unique constraint violation.",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The test checks for the exact \"Unique constraint failed\" message that the production error reports. The cited lines (the delete/create logic) are the only code path that can produce that specific constraint violation; if those lines behaved correctly (e.g., using a transaction or proper upsert), the check would not pass. Therefore, the claim is pinned down by the reproduction test."
+    },
+    "rival": {
+      "status": "unavailable",
+      "proposal": {
+        "rival_cause": "The code uses `prisma.vote.create` with only `feedbackId` and `userId` in the data, but the Vote model has a composite unique constraint on (`feedbackId`, `userId`) that Prisma enforces even without an explicit `unique` block, causing the error when the delete operation fails to remove a prior vote due to a stale connection cache or missing `rejectOn: ['uniqueViolation']` handling, allowing a second concurrent create to slip through.",
+        "rival_rule": "Use `prisma.vote.create({ data: { feedbackId, userId }, conflictResolution: { vote: { set: null } } })` or wrap the read-delete-create in a Prisma transaction with `isolationLevel: 'Serializable'` to guarantee atomicity and prevent unique constraint violations from concurrent requests.",
+        "rival_location": "lib/actions/feedback.ts:106:23"
+      },
+      "attempts": [
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged"
+      ]
+    },
+    "claim_causes": [
+      "The code performs a delete-then-create sequence without transactional isolation, allowing concurrent requests to both pass the findUnique check and create duplicate votes before the first transaction commits. [fix: Implement a transaction with a unique constraint and retry logic to ensure atomicity.]"
+    ]
+  },
+  "verdict": "patch_ineffective",
+  "reasons": [
+    "reproduction test passes on the original code (bug reproduced on the real code)",
+    "reproduction test still passes on the patch: the corrected belief does not remove the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function lib/actions/feedback.ts:toggleVoteAction",
+    "patch changes the cited line(s) lib/actions/feedback.ts:103, lib/actions/feedback.ts:104, lib/actions/feedback.ts:105, lib/actions/feedback.ts:106",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "rival-cause counterfactual: not checked (unavailable)",
+    "mechanism gate (nemotron): consistent (3 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T20:02:56.443Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "SELECT DISTINCT el.error_id, el.ts, el.message, adw.id, adw.userId, adw.feedbackId\nFROM ERROR_LOG el\nJOIN APP_DB_WRITES adw ON el.__empty = 0 AND adw.__empty = 0\nWHERE el.message LIKE '%Unique constraint failed on the fields: (`feedbackId`,`userId`)%' \n  AND adw.db_table = 'Vote'\n  AND adw.op = 'insert'\n  AND adw.scenario = 'reported_scenario'\n  AND el.__empty = 0\n  AND adw.__empty = 0\nLIMIT 1",
+    "sha256": "20bd35be9194ae8a299797af10f01c4913d22248538e71c1ccac80e6649fcd23",
+    "frozen_at": "2026-10-25T20:02:53.552Z",
+    "rationale": "The claim describes a race condition causing unique constraint violations on the Vote table's (feedbackId, userId) fields during vote creation. The ERROR_LOG table contains error messages indicating such unique constraint failures in prisma.vote.create(). The APP_DB_WRITES table records actual Vote insert operations in the reported scenario. Joining these tables and filtering for the unique constraint error message and Vote inserts in the reported scenario returns rows exactly when the harmful outcome (duplicate vote creation causing unique constraint violation) occurred, confirming the claim's mechanism.",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 5,
+        "sample": [
+          {
+            "error_id": "pulseboard-vote-500",
+            "ts": "2026-10-25T02:57:57.923Z",
+            "severity": "error",
+            "service": "pulseboard",
+            "message": "PrismaClientKnownRequestError: \nInvalid `prisma.vote.create()` invocation in\nlib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  105 } else {\n→ 106   await prisma.vote.create(\nUnique constraint failed on the fields: (`feedbackId`,`userId`)",
+            "frame_index": 0,
+            "frame_file": "node_modules/@prisma/client/src/runtime/RequestHandler.ts",
+            "frame_line": 228,
+            "frame_function": "handleRequestError",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout-vote-race/scenario.json (exception message and stack frames from a real run)",
+            "ctx_tree": "transcript_replay",
+            "__empty": 0
+          },
+          {
+            "error_id": "pulseboard-vote-500",
+            "ts": "2026-10-25T02:57:57.923Z",
+            "severity": "error",
+            "service": "pulseboard",
+            "message": "PrismaClientKnownRequestError: \nInvalid `prisma.vote.create()` invocation in\nlib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  105 } else {\n→ 106   await prisma.vote.create(\nUnique constraint failed on the fields: (`feedbackId`,`userId`)",
+            "frame_index": 1,
+            "frame_file": "node_modules/@prisma/client/src/runtime/RequestHandler.ts",
+            "frame_line": 174,
+            "frame_function": "handleAndLogRequestError",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout-vote-race/scenario.json (exception message and stack frames from a real run)",
+            "ctx_tree": "transcript_replay",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 137,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "~/.cursor/skills-cursor/env-setup/SKILL.md",
+            "edit_line": 10,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "~/.cursor/skills-cursor/env-setup/SKILL.md",
+            "edit_line": 11,
+            "tool": "read_file",
+            "at": "2026-10-22T23:28:54.969Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run STRING",
+          "scenario STRING",
+          "db_table STRING",
+          "op STRING",
+          "id STRING",
+          "userId STRING",
+          "createdAt STRING",
+          "feedbackId STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 2,
+        "sample": [
+          {
+            "run": "original",
+            "scenario": "reported_scenario",
+            "db_table": "Vote",
+            "op": "insert",
+            "id": "cmvo8w1ex00079uhero3u5y9w",
+            "userId": "cmvo8w1dv00009uhek0yeab1i",
+            "createdAt": "2026-10-25T19:53:02.505",
+            "feedbackId": "cmvo8w1e300059uhe0npk8qc6",
+            "__empty": 0
+          },
+          {
+            "run": "original",
+            "scenario": "other_behaviour",
+            "db_table": "Vote",
+            "op": "insert",
+            "id": "cmvo8w3de00079u5qngamwc0u",
+            "userId": "cmvo8w3ch00009u5q4zz0dc6t",
+            "createdAt": "2026-10-25T19:53:05.042",
+            "feedbackId": "cmvo8w3co00059u5q43b1rv1p",
+            "__empty": 0
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [
+      "ERROR_LOG",
+      "APP_DB_WRITES"
+    ],
+    "sql_attempts": [],
+    "original_rows": 1,
+    "patched_rows": 1,
+    "original_sample": [
+      [
+        "pulseboard-vote-500",
+        "2026-10-25T02:57:57.923Z",
+        "PrismaClientKnownRequestError: \nInvalid `prisma.vote.create()` invocation in\nlib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  105 } else {\n→ 106   await prisma.vote.create(\nUnique constraint failed on the fields: (`feedbackId`,`userId`)",
+        "cmvo8w1ex00079uhero3u5y9w",
+        "cmvo8w1dv00009uhek0yeab1i",
+        "cmvo8w1e300059uhe0npk8qc6"
+      ]
+    ],
+    "patched_sample": [
+      [
+        "pulseboard-vote-500",
+        "2026-10-25T02:57:57.923Z",
+        "PrismaClientKnownRequestError: \nInvalid `prisma.vote.create()` invocation in\nlib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  105 } else {\n→ 106   await prisma.vote.create(\nUnique constraint failed on the fields: (`feedbackId`,`userId`)",
+        "cmvo8w9d000079uc9ez367l77",
+        "cmvo8w9c200009uc9bx4sp2ve",
+        "cmvo8w9cb00059uc953px77e7"
+      ]
+    ],
+    "verdict": "does_not_confirm"
+  }
+}

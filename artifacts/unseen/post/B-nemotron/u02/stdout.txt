@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/main.py:1127
+stage: ok
+provider: nemotron
+frame: litellm/main.py:1127
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that removing the blanket "reasoning on = bridge to Responses" rule would automatically make gpt-5.4/5.5 work with function tools on Chat Completions, without accounting for the fact that OpenAI's API still rejects function tools with any non‑`none` reasoning_effort in chat completions, causing the 400 error reported in production.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/B-nemotron/u02/report.html

@@ -1,0 +1,795 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u03",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "litellm/decisions/call.py",
+   "line": 179,
+   "function": "prepare_call"
+  },
+  "asked": {
+   "text": "(PR-derived transcript: the original request is not public.)",
+   "citation": "u03.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 60
+  },
+  "understood": {
+   "text": "feat(decisions): backport the decisions and Jev follow-ups to stable/1.104.x and bump to 1.104.3\n\n## TLDR\n\nBackports the decisions and Jev work merged on main since #45190 onto stable/1.104.x, without the decisions playground, so the 1.104.3 patch serves every decisions provider and SDK shape the launch ships with\n\nProblem this solves:\n\n- stable/1.104.x only has the openai, perplexity, typesafe, openrouter, cloudflare and strands_decider decisions providers\n- It has no hosted_vllm or azure_ai Microsoft-Decision-1 provider, no AgentCore runtime ARN support, no `litellm.systemone`\n- OpenRouter decisions calls are billed from the cost map instead of the provider-reported `usage.cost`\n- TypeSafe and Strands Decider are missing from the Add Model provider list, and Swagger UI does not describe the two decisions routes\n\nHow it solves it:\n\n- Bumps the line to 1.104.3 in its own commit\n- Cherry-picks the 16 main commits listed under Picks with `git cherry-pick -x`, adapted where stable/1.104.x lacks what they build on\n- Regenerates `schema.d.ts` on the line instead of merging the generated file by hand\n- Leaves the decisions playground (#45654, #45732, #45755) out, as asked\n\n## User Flow\n\nBefore: a proxy admin on 1.104.2 cannot route a decisions request to a hosted vLLM or Azure decider\n\n1. They add `hosted_vllm/my-decider` or `azure_ai/Microsoft-Decision-1` to the config and start the proxy\n2. They send POST http://localhost:4000/v1/decisions with that model, an input and yes/no questions\n3. They get HTTP 400 \"Unknown Decisions provider\", and the Add Model page has no TypeSafe or Strands Decider provider\n\nAfter: the same request is answered, and the new providers show up everywhere the old ones did\n\n1. They add the same models to the config and start the proxy\n2. The same POST http://localhost:4000/v1/decisions returns HTTP 200 with one answer per question and a `usage` block, billed at the line's price for that model\n3. http://localhost:4000/ui/?page=models lists TypeSafe and Strands Decider under Add Model, and http://localhost:4000/#/v1/decisions in Swagger UI documents both routes\n4. `litellm.systemone(...)` and `litellm.decisions(...)` work from the SDK with the same shapes as main\n\n## Picks\n\n- [x] 79f62db620 feat(decisions): add the OpenAI Decisions spec types and the System One translation (#45129)\n- [x] 0e09e99146 refactor(decisions): dispatch /v1/decisions through provider configs and the shared HTTP handler (#45130)\n- [x] a7b04a8028 test(decisions): post System One bodies to /v1/systemone in the translation bases (#45327)\n- [x] 6e54dced8c test: realign stale decisions and lens tests with merged behaviour (#45346)\n- [x] 3a3b8cad80 feat(ui): add TypeSafe and Strands Decider to the Add Model provider list (#45335)\n- [x] 0e48048bd5 chore(decisions): remove the System One converters and OpenAI spec types left dead by #45214 (#45442)\n- [x] 61e5f2dd3c feat(decisions): add hosted_vllm provider (#45501)\n- [x] de6a0717b7 feat(azure): add azure_ai/Microsoft-Decision-1 (#45639)\n- [x] 465f20f274 fix(openrouter): bill responses, decisions and pass-through from usage.cost and always allow reasoning params (#45640), decisions and pass-through billing only\n- [x] 2fcc780498 feat(azure_ai): support Microsoft-Decision-1 on the decisions API (#45673)\n- [x] 546402c98c fix(decisions)!: refuse safety_identifier on providers that cannot take it unless drop_params drops it (#44955)\n- [x] 674208bb7d fix(model_prices): drop unverified output price for azure_ai/Microsoft-Decision-1 (#45717)\n- [x] ed9c31cfa8 feat(strands_decider): call a Strands Decider on an AgentCore runtime ARN (#45678)\n- [x] bc2cc42340 docs(proxy): describe /v1/decisions and /v1/systemone in Swagger UI (#45838)\n- [x] 5894968c5d test(decisions): bill the OpenAI-format openrouter case from provider-reported cost (#45853)\n- [x] 25d9b05386 feat(sdk): add litellm.systemone and trim litellm.decisions to the OpenAI shape (#45846)\n\nSkipped on purpose\n\n- #45654, #45732, #45755: the decisions playground and its Add Model sublabel, excluded on this line\n- #45200: Databricks `ai_decide` and the auto-router decider need the Laya and Bespoke classifier work (#43626, #44246, #44928) that is not on the line\n- #45661: hosted_vllm translation cases need the newer `tests/integration/translation` runner\n\nAdaptations on this line\n\n- The shared HTTP handler keeps the line's `_get_httpx_client` name and its `DecisionsIRRequest` flow, with the AgentCore signing from #45678 on top\n- The OpenRouter Responses API half of #45640 is left out because it imports `litellm_core_utils.hidden_params`, which the line does not have; the decisions and pass-through billing from `usage.cost` is in\n- The Databricks tests that #45846 added to `tests/unit/decisions/test_main.py` are dropped with #45200\n- `tests/unit/conftest.py` gets the per-test logging worker flush from main (#44146), without which the new systemone callback test sees callbacks queued by earlier tests\n- `ui/litellm-dashboard/src/lib/http/schema.d.ts` is regenerated with `npm run gen:api`, and the Strands logo is copied from main\n- The lazy-route and Sail tests that only exist on rc/1.105.0 and main are left out of the picked test files, and `tests/integration/management/test_model_health_check.py` is not on this line so its hunk is dropped\n- The picks come from the rc/1.105.0 backport branch, so every commit body still names its main commit, and the line gets its own `bump: version 1.104.3` commit\n\n## Testing\n\n- `tests/unit/decisions`, `tests/unit/systemone`, `tests/unit/proxy/decisions_endpoints`, `tests/unit/proxy/public_endpoints`, the strands_decider, openrouter, azure_ai and hosted_vllm provider tests, `tests/test_litellm/proxy/auth/test_auth_utils.py`, `tests/test_litellm/proxy/common_utils/test_custom_openapi_spec.py` and `tests/unit/test_cost_map_guard.py`: 1131 passed on this branch\n- `provider_info_helpers.test.tsx`: 75 passed, no type errors\n- ruff reports no new findings on the touched Python files against stable/1.104.x\n- The live before and after on a proxy built from this branch is the /ready follow-along video, linked from the Slack READY ping\n\n## Screenshots / Proof of Fix\n\nLive /qa leg at this tip (fd7aec367b) against the merge base (19180f34a2, 1.104.2): two proxies booted from clean worktrees with `--num_workers 2`, their own Postgres and Redis, real TypeSafe, OpenRouter and Azure AI Foundry keys from the shared vault, real spend. Full command and output log in the QA record kept with the run; the flips a user sees:\n\n```\n# [C1] POST /v1/decisions model=typesafe/jev-1.13.0 with safety_identifier\nBEFORE: HTTP 200 (param silently dropped)   x-litellm-response-cost: 1.1886e-05\nAFTER:  HTTP 400 litellm.UnsupportedParamsError: typesafe does not support parameters: ['safety_identifier'] ...\n# [C2] same body on a deployment with drop_params: true\nBEFORE: HTTP 200   AFTER: HTTP 200\n\n# [D] POST /v1/decisions model=openrouter/typesafe/jev-1.13 (billing from usage.cost)\nBEFORE: HTTP 200 (no x-litellm-response-cost header, spend log 0)\nAFTER:  HTTP 200 x-litellm-response-cost: 1.239e-05\n\n# [G1] POST /v1/systemone model=azure_ai/decision-1 (real Microsoft-Decision-1 deployment)\nBEFORE: HTTP 400 Unknown Decisions provider 'azure_ai'. Supported providers: perplexity, typesafe, openrouter, cloudflare, strands_decider, openai\nAFTER:  HTTP 200 {\"model\":\"microsoft-decision-1\",\"answers\":{...}}\n# [G2] same on POST /v1/decisions: BEFORE 400, AFTER 200\n\n# [F] GET /v1/model/info azure_ai/Microsoft-Decision-1\nBEFORE: input_cost_per_token null, mode null\nAFTER:  input_cost_per_token 4.2e-08, output_cost_per_token 0.0, mode evaluation\n\n# [L] GET /openapi.json, POST /v1/decisions\nBEFORE: summary \"Decisions\", no description, no request example\nAFTER:  summary \"Ask questions about an input (OpenAI Decisions format)\", description, example, schema props input/model/questions/safety_identifier\n\n# Admin UI Add Model provider dropdown (Playwright, before :49819 / after :48789 via GET /public/providers/fields)\nBEFORE: no TypeSafe or Strands Decider entries (GET /public/providers/fields: 0 matches)\nAFTER:  \"TypeSafe\" and \"Strands Decider\" entries present with their default model placeholders\n```\n\nTwo picks could not be exercised live and are blocked, not mocked: hosted_vllm (no vLLM server; the route now resolves the provider and fails on connect instead of 400 unknown provider) and the Strands Decider AgentCore call (no AgentCore runtime ARN credential in the shared vault)\n\n## Pre-Submission checklist\n\n**Please complete all items before asking a LiteLLM maintainer to review your PR**\n\n- [x] I have added meaningful tests\n- [x] The handful of test files covering my change pass locally, e.g. `uv run pytest tests/unit/<your_test_file>.py -v`. Leave the suites (`make test-unit-*`, `make test-unit`) to CI: it finishes in ~15 minutes where a laptop takes an hour or more\n- [ ] My PR passes all required CI/CD checks (e.g., lint, schema.d.ts sync check, etc.)\n- [x] My PR's scope is as isolated as possible; it only solves 1 specific problem\n- [ ] I have received a Greptile **Confidence Score of at least 4/5** before requesting a maintainer review (Greptile reviews automatically once the PR is opened; only comment `@greptileai` to re-request a review after pushing changes)\n\n## Type\n\n🆕 New Feature\n\n## Caveats (if any)\n\n### Medium\n\n- No Databricks decisions provider on this line, so `databricks/...` decisions requests still return the unknown provider 400\n- The OpenRouter Responses API still bills from the cost map on this line, only decisions and pass-through use `usage.cost`\n\n### Low\n\n- #44955 is a behavior change: a non-string `safety_identifier` on a provider that cannot take it is now a 400 unless `drop_params` drops it\n\n## Final Attestation\n\n- [x] The tests check the right things, including the edge cases, and regressions in the respective real-world customer use-cases are not possible after this PR",
+   "citation": "u03.jsonl#L2 (assistant, 1383 words, 6 line(s) before the edit at L8)",
+   "valid": true,
+   "full_length": 9936
+  },
+  "happened": {
+   "text": "Production report: after upgrading our proxy to the stable/1.104.3 release, the Admin UI \"Add Guardrail\" wizard shows an empty provider list. The dashboard's call to GET /guardrails/ui/add_guardrail_settings returns HTTP 500 \"Internal server error\" on every call, and the server log shows an ImportError for that request. Nobody can add a guardrail from the dashboard.\n\n  at prepare_call (litellm/decisions/call.py:179)\n  179: raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error\n\nWritten by transcript edit L8 (apply_patch):\n+            model=model,\n+            llm_provider=provider,\n+        )\n+    try:\n+        canonical_model: Final = provider_config.canonical_model(upstream_model)\n+    except ValueError as error:\n+        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error\n+    try:\n+        request_safety_identifier: Final = _request_safety_identifier(safety_identifier, kwargs)\n+        request: Final = fields.validate(request_safety_identifier)\n+    except ValidationError as error:\n+        raise litellm.BadRequestError(\n+            message=f\"Invalid Decisions request: {error}\",",
+   "citation": "error u03 frame litellm/decisions/call.py:179; u03.jsonl#L8",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "litellm/decisions/call.py",
+    "line": 177,
+    "quote": "canonical_model: Final = provider_config.canonical_model(upstream_model)",
+    "reason": "cited line does not exist"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Production report: after upgrading our proxy to the stable/1.104.3 release, the Admin UI \"Add Guardrail\" wizard shows an empty provider list. The dashboard's call to GET /guardrails/ui/add_guardrail_settings returns HTTP 500 \"Internal server error\" on every call, and the server log shows an ImportError for that request. Nobody can add a guardrail from the dashboard.\n",
+  "terms": [
+   "add guardrail",
+   "s call to get /guardrails/ui/add_guardrail_settings returns http 500",
+   "production report",
+   "admin ui",
+   "the dashboard",
+   "internal server error",
+   "importerror for that request",
+   "nobody can add a",
+   "1.104",
+   "3",
+   "500",
+   "add",
+   "guardrail",
+   "settings",
+   "import",
+   "error",
+   "production",
+   "report",
+   "upgrading",
+   "proxy",
+   "stable",
+   "release",
+   "admin",
+   "wizard",
+   "shows",
+   "empty",
+   "provider",
+   "list",
+   "dashboard",
+   "call",
+   "guardrails",
+   "returns",
+   "http",
+   "internal",
+   "server",
+   "request",
+   "nobody"
+  ],
+  "layer1": {
+   "symbols_indexed": 423582,
+   "edited_hunks_indexed": 179,
+   "candidates": [
+    {
+     "file": "litellm/decisions/call.py",
+     "line": 179,
+     "end_line": 348,
+     "text": "        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error",
+     "function": "prepare_call",
+     "score": 18.7439,
+     "matched_terms": [
+      "call",
+      "get",
+      "settings",
+      "http",
+      "error",
+      "request",
+      "import",
+      "proxy",
+      "provider"
+     ],
+     "edit_line": 8,
+     "tool": "apply_patch",
+     "hunk_id": "L8#11",
+     "snippet": "1: from collections.abc import Mapping, Sequence\n2: from dataclasses import dataclass, field, replace\n3: from typing import Final, TypeAlias\n4: \n5: import httpx\n6: from pydantic import ConfigDict, TypeAdapter, ValidationError\n7: from typing_extensions import assert_never\n8: \n9: import litellm\n10: from litellm.litellm_core_utils.core_helpers import RESPONSE_COST_HEADER, normalize_drop_params",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 179,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 178,
+       "text": "    except ValueError as error:"
+      },
+      {
+       "line": 179,
+       "text": "        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error"
+      },
+      {
+       "line": 180,
+       "text": "    try:"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "litellm/router.py",
+     "line": 2057,
+     "end_line": 2059,
+     "text": "        self.asystemone = self.factory_function(asystemone, call_type=\"asystemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable",
+     "function": "_initialize_ocr_search_endpoints",
+     "score": 13.8077,
+     "matched_terms": [
+      "call",
+      "report",
+      "import"
+     ],
+     "edit_line": 33,
+     "tool": "apply_patch",
+     "hunk_id": "L33#60",
+     "snippet": "2055:         from litellm.systemone import asystemone, systemone\n2056: \n2057:         self.asystemone = self.factory_function(asystemone, call_type=\"asystemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable\n2058:         self.systemone = self.factory_function(systemone, call_type=\"systemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable\n2059: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 2057,
+     "hunk_start": 2055,
+     "context_lines": [
+      {
+       "line": 2056,
+       "text": ""
+      },
+      {
+       "line": 2057,
+       "text": "        self.asystemone = self.factory_function(asystemone, call_type=\"asystemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable"
+      },
+      {
+       "line": 2058,
+       "text": "        self.systemone = self.factory_function(systemone, call_type=\"systemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "litellm/llms/custom_httpx/llm_http_handler.py",
+     "line": 1448,
+     "end_line": 1509,
+     "text": "        except httpx.HTTPError as e:",
+     "function": "decisions",
+     "score": 13.3428,
+     "matched_terms": [
+      "call",
+      "get",
+      "http",
+      "error",
+      "request",
+      "provider"
+     ],
+     "edit_line": 16,
+     "tool": "apply_patch",
+     "hunk_id": "L16#29",
+     "snippet": "1384:     def _prepare_decisions_request(\n1385:         self,\n1386:         model: str,\n1387:         logging_obj: LiteLLMLoggingObj | None,\n1388:         provider_config: BaseDecisionsConfig,\n1389:         body: Mapping[str, object],\n1390:         api_base: str,\n1391:         api_key: str | None,\n1392:         headers: Mapping[str, str],\n1393:     ) -> tuple[str, dict[str, str], dict[str, object]]:",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 1448,
+     "hunk_start": 1384,
+     "context_lines": [
+      {
+       "line": 1447,
+       "text": "            )"
+      },
+      {
+       "line": 1448,
+       "text": "        except httpx.HTTPError as e:"
+      },
+      {
+       "line": 1449,
+       "text": "            raise self._handle_error(e=e, provider_config=provider_config)"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "litellm/systemone/main.py",
+     "line": 16,
+     "end_line": 107,
+     "text": "from litellm.utils import client  # pyright: ignore[reportUnknownVariableType]  # client is an untyped decorator",
+     "score": 12.1765,
+     "matched_terms": [
+      "call",
+      "report",
+      "request",
+      "import",
+      "provider"
+     ],
+     "edit_line": 35,
+     "tool": "apply_patch",
+     "hunk_id": "L35#65",
+     "snippet": "1: from collections.abc import Mapping\n2: from typing import Final\n3: \n4: import httpx\n5: \n6: from litellm.decisions.call import (\n7:     DecisionsCall,\n8:     SystemOneQuestions,\n9:     SystemOneRequestFields,\n10:     asend,",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 16,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 15,
+       "text": "from litellm.types.decisions import DecisionsJSON, DecisionsResponse"
+      },
+      {
+       "line": 16,
+       "text": "from litellm.utils import client  # pyright: ignore[reportUnknownVariableType]  # client is an untyped decorator"
+      },
+      {
+       "line": 17,
+       "text": ""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "litellm/types/decisions.py",
+     "line": 275,
+     "end_line": 284,
+     "text": "        Field(description=\"A stable id for your end user. Sent to OpenAI and dropped for other providers\"),",
+     "function": "OpenAIDecisionRequestBody",
+     "score": 12.0803,
+     "matched_terms": [
+      "request",
+      "proxy",
+      "stable",
+      "list"
+     ],
+     "edit_line": 36,
+     "tool": "apply_patch",
+     "hunk_id": "L36#73",
+     "snippet": "259:     input: Annotated[\n260:         OpenAIDecisionInput,\n261:         Field(\n262:             description=\"The text being judged, or user messages whose content mixes input_text and input_image parts\"\n263:         ),\n264:     ]\n265:     questions: Annotated[\n266:         Sequence[OpenAIDecisionQuestion],\n267:         Field(\n268:             min_length=1,",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 275,
+     "hunk_start": 259,
+     "context_lines": [
+      {
+       "line": 274,
+       "text": "        str | None,"
+      },
+      {
+       "line": 275,
+       "text": "        Field(description=\"A stable id for your end user. Sent to OpenAI and dropped for other providers\"),"
+      },
+      {
+       "line": 276,
+       "text": "    ] = None"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "litellm/proxy/common_utils/custom_openapi_spec.py",
+     "line": 464,
+     "end_line": 477,
+     "text": "    Swagger UI resolves ``$ref`` against the whole document, so a schema placed inline in an operation",
+     "function": "inline_request_body",
+     "score": 11.6576,
+     "matched_terms": [
+      "get",
+      "ui",
+      "request",
+      "proxy",
+      "list"
+     ],
+     "edit_line": 28,
+     "tool": "apply_patch",
+     "hunk_id": "L28#44",
+     "snippet": "440: \n441: \n442: _MAX_INLINE_DEPTH: Final = 32\n443: \n444: \n445: def _inlined(node: JsonValue, defs: Mapping[str, JsonValue], depth: int = 0) -> JsonValue:\n446:     if depth >= _MAX_INLINE_DEPTH or not isinstance(node, (list, dict)):\n447:         return node\n448:     if isinstance(node, list):\n449:         return [_inlined(item, defs, depth + 1) for item in node]",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 464,
+     "hunk_start": 440,
+     "context_lines": [
+      {
+       "line": 463,
+       "text": ""
+      },
+      {
+       "line": 464,
+       "text": "    Swagger UI resolves ``$ref`` against the whole document, so a schema placed inline in an operation"
+      },
+      {
+       "line": 465,
+       "text": "    cannot keep Pydantic's ``#/$defs/...`` references. Every reference is expanded in place instead,"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "litellm/llms/strands_decider/decisions/transformation.py",
+     "line": 28,
+     "end_line": 161,
+     "text": "_RUNTIME_ERROR_STATUS: Final = MappingProxyType({\"bad_request\": 400, \"invalid_request\": 400, \"loading\": 503})",
+     "score": 11.3747,
+     "matched_terms": [
+      "get",
+      "error",
+      "request",
+      "import",
+      "proxy",
+      "provider"
+     ],
+     "edit_line": 22,
+     "tool": "apply_patch",
+     "hunk_id": "L22#37",
+     "snippet": "1: import hashlib\n2: import json\n3: import re\n4: from collections.abc import Mapping\n5: from dataclasses import dataclass\n6: from functools import partial\n7: from types import MappingProxyType\n9: from urllib.parse import quote, unquote\n11: import httpx\n12: from pydantic import BaseModel, ConfigDict, ValidationError",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 28,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 27,
+       "text": "_INVOCATIONS_PATH: Final = re.compile(r\"\\A/runtimes/(?P<arn>[^/]+)/invocations\\Z\")"
+      },
+      {
+       "line": 28,
+       "text": "_RUNTIME_ERROR_STATUS: Final = MappingProxyType({\"bad_request\": 400, \"invalid_request\": 400, \"loading\": 503})"
+      },
+      {
+       "line": 29,
+       "text": ""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "ui/litellm-dashboard/src/lib/http/schema.d.ts",
+     "line": 4363,
+     "end_line": 4367,
+     "text": "         *     model list. System One decision models accept this format too, LiteLLM translates the request and the",
+     "score": 10.615,
+     "matched_terms": [
+      "get",
+      "request",
+      "proxy",
+      "provider",
+      "list"
+     ],
+     "edit_line": 80,
+     "tool": "apply_patch",
+     "hunk_id": "L80#174",
+     "snippet": "4356:         /**\n4357:          * Ask questions about an input (OpenAI Decisions format)\n4358:          * @description Judge an `input` against 1 to 128 `questions` and get the answers back in the same order.\n4359:          *\n4360:          *     Question types are `predicate` (yes/no with `probability`), `choice` (one of the `choices`, with\n4361:          *     `probabilities`) and `score` (an index into `levels`, with `probabilities`). Requests that break these\n4362:          *     rules are rejected with a 400 before any provider is called. `model` is any decision model in the proxy\n4363:          *     model list. System One decision models accept this format too, LiteLLM translates the request and the\n4364:          *     answers. Streaming is not supported.\n4365:          *",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 4363,
+     "hunk_start": 4356,
+     "context_lines": [
+      {
+       "line": 4362,
+       "text": "         *     rules are rejected with a 400 before any provider is called. `model` is any decision model in the proxy"
+      },
+      {
+       "line": 4363,
+       "text": "         *     model list. System One decision models accept this format too, LiteLLM translates the request and the"
+      },
+      {
+       "line": 4364,
+       "text": "         *     answers. Streaming is not supported."
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "ui/litellm-dashboard/src/lib/http/schema.d.ts",
+     "line": 18346,
+     "end_line": 18350,
+     "text": "         *     model list. System One decision models accept this format too, LiteLLM translates the request and the",
+     "score": 10.615,
+     "matched_terms": [
+      "get",
+      "request",
+      "proxy",
+      "provider",
+      "list"
+     ],
+     "edit_line": 80,
+     "tool": "apply_patch",
+     "hunk_id": "L80#176",
+     "snippet": "18339:         /**\n18340:          * Ask questions about an input (OpenAI Decisions format)\n18341:          * @description Judge an `input` against 1 to 128 `questions` and get the answers back in the same order.\n18342:          *\n18343:          *     Question types are `predicate` (yes/no with `probability`), `choice` (one of the `choices`, with\n18344:          *     `probabilities`) and `score` (an index into `levels`, with `probabilities`). Requests that break these\n18345:          *     rules are rejected with a 400 before any provider is called. `model` is any decision model in the proxy\n18346:          *     model list. System One decision models accept this format too, LiteLLM translates the request and the\n18347:          *     answers. Streaming is not supported.\n18348:          *",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 18346,
+     "hunk_start": 18339,
+     "context_lines": [
+      {
+       "line": 18345,
+       "text": "         *     rules are rejected with a 400 before any provider is called. `model` is any decision model in the proxy"
+      },
+      {
+       "line": 18346,
+       "text": "         *     model list. System One decision models accept this format too, LiteLLM translates the request and the"
+      },
+      {
+       "line": 18347,
+       "text": "         *     answers. Streaming is not supported."
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "litellm/llms/base_llm/decisions/transformation.py",
+     "line": 388,
+     "end_line": 394,
+     "text": "    def get_error_class(",
+     "function": "get_error_class",
+     "score": 10.5961,
+     "matched_terms": [
+      "get",
+      "error",
+      "request",
+      "provider"
+     ],
+     "edit_line": 14,
+     "tool": "apply_patch",
+     "hunk_id": "L14#22",
+     "snippet": "334:     def validate_environment(self, headers: Mapping[str, str], model: str, api_key: str | None) -> dict[str, str]:\n335:         return {\n336:             **{name: value for name, value in headers.items() if name.lower() not in _RESERVED_HEADERS},\n337:             **({\"Authorization\": f\"Bearer {api_key}\"} if api_key is not None else {}),\n338:             \"Content-Type\": \"application/json\",\n339:         }\n340: \n341:     def get_complete_url(self, api_base: str, model: str) -> str:\n344:     def signs_with_aws(self, api_base: str) -> bool:\n345:         return False",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 388,
+     "hunk_start": 334,
+     "context_lines": [
+      {
+       "line": 387,
+       "text": ""
+      },
+      {
+       "line": 388,
+       "text": "    def get_error_class("
+      },
+      {
+       "line": 389,
+       "text": "        self,"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "litellm/decisions/call.py",
+    "line": 179,
+    "end_line": 348,
+    "text": "        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error",
+    "function": "prepare_call",
+    "score": 18.7439,
+    "matched_terms": [
+     "call",
+     "get",
+     "settings",
+     "http",
+     "error",
+     "request",
+     "import",
+     "proxy",
+     "provider"
+    ],
+    "edit_line": 8,
+    "tool": "apply_patch",
+    "hunk_id": "L8#11",
+    "snippet": "1: from collections.abc import Mapping, Sequence\n2: from dataclasses import dataclass, field, replace\n3: from typing import Final, TypeAlias\n4: \n5: import httpx\n6: from pydantic import ConfigDict, TypeAdapter, ValidationError\n7: from typing_extensions import assert_never\n8: \n9: import litellm\n10: from litellm.litellm_core_utils.core_helpers import RESPONSE_COST_HEADER, normalize_drop_params",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 179,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 178,
+      "text": "    except ValueError as error:"
+     },
+     {
+      "line": 179,
+      "text": "        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error"
+     },
+     {
+      "line": 180,
+      "text": "    try:"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "litellm/router.py",
+    "line": 2057,
+    "end_line": 2059,
+    "text": "        self.asystemone = self.factory_function(asystemone, call_type=\"asystemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable",
+    "function": "_initialize_ocr_search_endpoints",
+    "score": 13.8077,
+    "matched_terms": [
+     "call",
+     "report",
+     "import"
+    ],
+    "edit_line": 33,
+    "tool": "apply_patch",
+    "hunk_id": "L33#60",
+    "snippet": "2055:         from litellm.systemone import asystemone, systemone\n2056: \n2057:         self.asystemone = self.factory_function(asystemone, call_type=\"asystemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable\n2058:         self.systemone = self.factory_function(systemone, call_type=\"systemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable\n2059: ",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 2057,
+    "hunk_start": 2055,
+    "context_lines": [
+     {
+      "line": 2056,
+      "text": ""
+     },
+     {
+      "line": 2057,
+      "text": "        self.asystemone = self.factory_function(asystemone, call_type=\"asystemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable"
+     },
+     {
+      "line": 2058,
+      "text": "        self.systemone = self.factory_function(systemone, call_type=\"systemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "litellm/llms/custom_httpx/llm_http_handler.py",
+    "line": 1448,
+    "end_line": 1509,
+    "text": "        except httpx.HTTPError as e:",
+    "function": "decisions",
+    "score": 13.3428,
+    "matched_terms": [
+     "call",
+     "get",
+     "http",
+     "error",
+     "request",
+     "provider"
+    ],
+    "edit_line": 16,
+    "tool": "apply_patch",
+    "hunk_id": "L16#29",
+    "snippet": "1384:     def _prepare_decisions_request(\n1385:         self,\n1386:         model: str,\n1387:         logging_obj: LiteLLMLoggingObj | None,\n1388:         provider_config: BaseDecisionsConfig,\n1389:         body: Mapping[str, object],\n1390:         api_base: str,\n1391:         api_key: str | None,\n1392:         headers: Mapping[str, str],\n1393:     ) -> tuple[str, dict[str, str], dict[str, object]]:",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 1448,
+    "hunk_start": 1384,
+    "context_lines": [
+     {
+      "line": 1447,
+      "text": "            )"
+     },
+     {
+      "line": 1448,
+      "text": "        except httpx.HTTPError as e:"
+     },
+     {
+      "line": 1449,
+      "text": "            raise self._handle_error(e=e, provider_config=provider_config)"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "litellm/decisions/call.py",
+   "line": 179,
+   "end_line": 348,
+   "text": "        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error",
+   "function": "prepare_call",
+   "score": 18.7439,
+   "matched_terms": [
+    "call",
+    "get",
+    "settings",
+    "http",
+    "error",
+    "request",
+    "import",
+    "proxy",
+    "provider"
+   ],
+   "edit_line": 8,
+   "tool": "apply_patch",
+   "hunk_id": "L8#11",
+   "snippet": "1: from collections.abc import Mapping, Sequence\n2: from dataclasses import dataclass, field, replace\n3: from typing import Final, TypeAlias\n4: \n5: import httpx\n6: from pydantic import ConfigDict, TypeAdapter, ValidationError\n7: from typing_extensions import assert_never\n8: \n9: import litellm\n10: from litellm.litellm_core_utils.core_helpers import RESPONSE_COST_HEADER, normalize_drop_params",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 179,
+   "hunk_start": 1,
+   "context_lines": [
+    {
+     "line": 178,
+     "text": "    except ValueError as error:"
+    },
+    {
+     "line": 179,
+     "text": "        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error"
+    },
+    {
+     "line": 180,
+     "text": "    try:"
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 20569,
+   "truncated": false,
+   "dropped_sections": []
+  },
+  "prompt_user": {
+   "symptom": "Production report: after upgrading our proxy to the stable/1.104.3 release, the Admin UI \"Add Guardrail\" wizard shows an empty provider list. The dashboard's call to GET /guardrails/ui/add_guardrail_settings returns HTTP 500 \"Internal server error\" on every call, and the server log shows an ImportError for that request. Nobody can add a guardrail from the dashboard.",
+   "edit": {
+    "file": "litellm/decisions/call.py",
+    "line": 179,
+    "hunk": "+            model=model,\n+            llm_provider=provider,\n+        )\n+    try:\n+        canonical_model: Final = provider_config.canonical_model(upstream_model)\n+    except ValueError as error:\n+        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error\n+    try:\n+        request_safety_identifier: Final = _request_safety_identifier(safety_identifier, kwargs)\n+        request: Final = fields.validate(request_safety_identifier)\n+    except ValidationError as error:\n+        raise litellm.BadRequestError(\n+            message=f\"Invalid Decisions request: {error}\","
+   },
+   "code_window": "159:     custom_llm_provider: str | None,\n160:     extra_headers: Mapping[str, str] | None,\n161:     kwargs: Mapping[str, object],\n162: ) -> DecisionsCall:\n163:     upstream_model, provider, dynamic_api_key, dynamic_api_base = litellm.get_llm_provider(\n164:         model=model,\n165:         custom_llm_provider=custom_llm_provider,\n166:         api_base=api_base,\n167:         api_key=api_key,\n168:     )\n169:     provider_config: Final = _provider_config(upstream_model, provider)\n170:     if not upstream_model:\n171:         raise litellm.BadRequestError(\n172:             message=\"A model name is required for the Decisions API\",\n173:             model=model,\n174:             llm_provider=provider,\n175:         )\n176:     try:\n177:         canonical_model: Final = provider_config.canonical_model(upstream_model)\n178:     except ValueError as error:\n179:         raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error\n180:     try:\n181:         request_safety_identifier: Final = _request_safety_identifier(safety_identifier, kwargs)\n182:         request: Final = fields.validate(request_safety_identifier)\n183:     except ValidationError as error:\n184:         raise litellm.BadRequestError(\n185:             message=f\"Invalid Decisions request: {error}\",\n186:             model=model,\n187:             llm_provider=provider,\n188:         ) from error\n189: \n190:     resolved_api_base: Final = provider_config.resolve_api_base(dynamic_api_base or api_base)\n191:     if resolved_api_base is None:\n192:         raise litellm.BadRequestError(\n193:             message=provider_config.missing_api_base_message(provider),\n194:             model=model,\n195:             llm_provider=provider,\n196:         )\n197:     resolved_api_key: Final = provider_config.resolve_api_key(dynamic_api_key or api_key)\n198:     if resolved_api_key is None and provider_config.api_key_required:\n199:         raise litellm.AuthenticationError(",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "litellm/decisions/call.py",
+     "line": 179,
+     "function": "prepare_call",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 18.7439,
+     "method": "deterministic_bm25",
+     "text": "174:             llm_provider=provider,\n175:         )\n176:     try:\n177:         canonical_model: Final = provider_config.canonical_model(upstream_model)\n178:     except ValueError as error:\n179:         raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error\n180:     try:\n181:         request_safety_identifier: Final = _request_safety_identifier(safety_identifier, kwargs)\n182:         request: Final = fields.validate(request_safety_identifier)\n183:     except ValidationError as error:\n184:         raise litellm.BadRequestError("
+    },
+    {
+     "label": "candidate 2",
+     "file": "litellm/router.py",
+     "line": 2057,
+     "function": "_initialize_ocr_search_endpoints",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 13.8077,
+     "method": "deterministic_bm25",
+     "text": "2052:         self.adecisions = self.factory_function(adecisions, call_type=\"adecisions\")\n2053:         self.decisions = self.factory_function(decisions, call_type=\"decisions\")\n2054: \n2055:         from litellm.systemone import asystemone, systemone\n2056: \n2057:         self.asystemone = self.factory_function(asystemone, call_type=\"asystemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable\n2058:         self.systemone = self.factory_function(systemone, call_type=\"systemone\")  # pyright: ignore[reportUnknownMemberType]  # factory_function takes a bare Callable\n2059: \n2060:     def _initialize_video_endpoints(self):\n2061:         \"\"\"Initialize video endpoints.\"\"\"\n2062:         from litellm.videos import ("
+    },
+    {
+     "label": "candidate 3",
+     "file": "litellm/llms/custom_httpx/llm_http_handler.py",
+     "line": 1448,
+     "function": "decisions",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 13.3428,
+     "method": "deterministic_bm25",
+     "text": "1443:                 json=data if signed_body is None else None,\n1444:                 headers=dict(signed_headers),\n1445:                 timeout=timeout,\n1446:                 logging_obj=logging_obj,\n1447:             )\n1448:         except httpx.HTTPError as e:\n1449:             raise self._handle_error(e=e, provider_config=provider_config)\n1450:         return provider_config.transform_decisions_response(\n1451:             model=model, custom_llm_provider=custom_llm_provider, raw_response=response, request=request\n1452:         )\n1453: "
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "(PR-derived transcript: the original request is not public.)",
+    "understood": "feat(decisions): backport the decisions and Jev follow-ups to stable/1.104.x and bump to 1.104.3\n\n## TLDR\n\nBackports the decisions and Jev work merged on main since #45190 onto stable/1.104.x, without the decisions playground, so the 1.104.3 patch serves every decisions provider and SDK shape the launch ships with\n\nProblem this solves:\n\n- stable/1.104.x only has the openai, perplexity, typesafe, openrouter, cloudflare and strands_decider decisions providers\n- It has no hosted_vllm or azure_ai Microsoft-Decision-1 provider, no AgentCore runtime ARN support, no `litellm.systemone`\n- OpenRouter decisions calls are billed from the cost map instead of the provider-reported `usage.cost`\n- TypeSafe and Strands Decider are missing from the Add Model provider list, and Swagger UI does not describe the two decisions routes\n\nHow it solves it:\n\n- Bumps the line to 1.104.3 in its own commit\n- Cherry-picks the 16 main commits listed under Picks with `git cherry-pick -x`, adapted where stable/1.104.x lacks what they build on\n- Regenerates `schema.d.ts` on the line instead of merging the generated file by hand\n- Leaves the decisions playground (#45654, #45732, #45755) out, as asked\n\n## User Flow\n\nBefore: a proxy admin on 1.104.2 cannot route a decisions request to a hosted vLLM or Azure decider\n\n1. They add `hosted_vllm/my-decider` or `azure_ai/Microsoft-Decision-1` to the config and start the proxy\n2. They send POST http://localhost:4000/v1/decisions with that model, an input and yes/no questions\n3. They get HTTP 400 \"Unknown Decisions provider\", and the Add Model page has no TypeSafe or Strands Decider provider\n\nAfter: the same request is answered, and the new providers show up everywhere the old ones did\n\n1. They add the same models to the config and start the proxy\n2. The same POST http://localhost:4000/v1/decisions returns HTTP 200 with one answer per question and a `usage` block, billed at the line's price for that model\n3. http://localhost:4000/ui/?page=models lists TypeSafe and Strands Decider under Add Model, and http://localhost:4000/#/v1/decisions in Swagger UI documents both routes\n4. `litellm.systemone(...)` and `litellm.decisions(...)` work from the SDK with the same shapes as main\n\n## Picks\n\n- [x] 79f62db620 feat(decisions): add the OpenAI Decisions spec types and the System One translation (#45129)\n- [x] 0e09e99146 refactor(decisions): dispatch /v1/decisions through provider configs and the shared HTTP handler (#45130)\n- [x] a7b04a8028 test(decisions): pos",
+    "happened": "Production report: after upgrading our proxy to the stable/1.104.3 release, the Admin UI \"Add Guardrail\" wizard shows an empty provider list. The dashboard's call to GET /guardrails/ui/add_guardrail_settings returns HTTP 500 \"Internal server error\" on every call, and the server log shows an ImportError for that request. Nobody can add a guardrail from the dashboard.\n\n  at prepare_call (litellm/decisions/call.py:179)\n  179: raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error\n\nWritten by transcript edit L8 (apply_patch):\n+            model=model,\n+            llm_provider=provider,\n+        )\n+    try:\n+        canonical_model: Final = provider_config.canonical_model(upstream_model)\n+    except ValueError as error:\n+        raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error\n+    try:\n+        request_safety_identifier: Final = _request_safety_identifier(safety_identifier, kwargs)\n+        request: Final = fields.validate(request_safety_identifier)\n+    except ValidationError as error:\n+        raise litellm.BadRequestError(\n+            message=f\"Invalid Decisions request: {error}\","
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L8)",
+     "text": "L5 [tool] TOOL: apply_patch {\"path\":\"litellm/_lazy_imports_registry.py\"}\nL5| CODE_WRITTEN: {\"path\":\"litellm/_lazy_imports_registry.py\"}\nL5| --- a/litellm/_lazy_imports_registry.py\nL5| +++ b/litellm/_lazy_imports_registry.py\nL5| @@ -153,6 +153,14 @@\nL5|      \"JinaAIRerankConfig\",\nL5|      \"DeepinfraRerankConfig\",\nL5|      \"HostedVLLMRerankConfig\",\nL5| +    \"PerplexityDecisionsConfig\",\nL5| +    \"TypeSafeDecisionsConfig\",\nL5| +    \"OpenRouterDecisionsConfig\",\nL5| +    \"CloudflareDecisionsConfig\",\nL5| +    \"StrandsDeciderDecisionsConfig\",\nL5| +    \"HostedVLLMDecisionsConfig\",\nL5| +    \"OpenAIDecisionsConfig\",\nL5| +    \"AzureAIDecisionsConfig\",\nL5|      \"NvidiaNimRerankConfig\",\nL5|      \"NvidiaNimRankingConfig\",\nL5|      \"VertexAIRerankConfig\",\nL5| @@ -695,6 +703,20 @@\nL5|          \".llms.hosted_vllm.rerank.transformation\",\nL5|          \"HostedVLLMRerankConfig\",\nL5|      ),\nL5| +    \"PerplexityDecisionsConfig\": (\".llms.perplexity.decisions.transformation\", \"PerplexityDecisionsConfig\"),\nL5| +    \"TypeSafeDecisionsConfig\": (\".llms.typesafe.decisions.transformation\", \"TypeSafeDecisionsConfig\"),\nL5| +    \"OpenRouterDecisionsConfig\": (\".llms.openrouter.decisions.transformation\", \"OpenRouterDecisionsConfig\"),\nL5| +    \"CloudflareDecisionsConfig\": (\".llms.cloudflare.decisions.transformation\", \"CloudflareDecisionsConfig\"),\nL5| +    \"StrandsDeciderDecisionsConfig\": (\nL5| +        \".llms.strands_decider.decisions.transformation\",\nL5| +        \"StrandsDeciderDecisionsConfig\",\nL5| +    ),\nL5| +    \"HostedVLLMDecisionsConfig\": (\nL5| +        \".llms.hosted_vllm.decisions.transformation\",\nL5| +        \"HostedVLLMDecisionsConfig\",\nL5| +    ),\nL5| +    \"OpenAIDecisionsConfig\": (\".llms.openai.decisions.transformation\", \"\nL6 [tool] TOOL: apply_patch {\"path\":\"litellm/constants.py\"}\nL6| CODE_WRITTEN: {\"path\":\"litellm/constants.py\"}\nL6| --- a/litellm/constants.py\nL6| +++ b/litellm/constants.py\nL6| @@ -253,6 +253,7 @@\nL6|  \nL6|  # Provider-specific API base URLs\nL6|  XAI_API_BASE: Final = \"https://api.x.ai/v1\"\nL6| +PLACEHOLDER_API_KEY=[REDACTED] = \"fake-api-key\"\nL6|  OPEN_SANDBOX_API_BASE_ENV_VAR: Final = \"OPEN_SANDBOX_API_BASE\"\nL6|  OPEN_SANDBOX_API_KEY_ENV_VAR: Final = \"OPEN_SANDBOX_API_KEY\"\nL6|  OPEN_SANDBOX_DEFAULT_TEMPLATE: Final = \"opensandbox/code-interpreter:v1.1.0\"\nL6| \nL7 [tool] TOOL: apply_patch {\"path\":\"litellm/cost_calculator.py\"}\nL7| CODE_WRITTEN: {\"path\":\"litellm/cost_calculator.py\"}\nL7| --- a/litellm/cost_calculator.py\nL7| +++ b/litellm/cost_calculator.py\nL7| @@ -1990,6 +1990,8 @@ def response_cost_calculator(\nL7|          \"asearch\",\nL7|          \"decisions\",\nL7|          \"adecisions\",\nL7| +        \"systemone\",\nL7| +        \"asystemone\",\nL7|      ],\nL7|      optional_params: dict,\nL7|      cache_hit: bool | None = None,\nL7| \nL8 [tool] TOOL: apply_patch {\"path\":\"litellm/decisions/call.py\"}\nL8| CODE_WRITTEN: {\"path\":\"litellm/decisions/call.py\"}\nL8| --- a/litellm/decisions/call.py\nL8| +++ b/litellm/decisions/call.py\nL8| @@ -0,0 +1,347 @@\nL8| +from collections.abc import Mapping, Sequence\nL8| +from dataclasses import dataclass, field, replace\nL8| +from typing import Final, TypeAlias\nL8| +\nL8| +import httpx\nL8| +from pydantic import ConfigDict, TypeAdapter, ValidationError\nL8| +from typing_extensions import assert_never\nL8| +\nL8| +import litellm\nL8| +from litellm.litellm_core_utils.core_helpers import RESPONSE_COST_HEADER, normalize_drop_params\nL8| +from litellm.litellm_core_utils.litellm_logging import Logging as LiteLLMLoggingObj\nL8| +from litellm.llms.base_llm.chat.transformation import BaseLLMException\nL8| +from litellm.llms.base_llm.decisions.transformation import (\nL8| +    BaseDecisionsConfig,\nL8| +    ir_to_systemone_response,\nL8| +    systemone_request_to_ir,\nL8| +)\nL8| +from litellm.llms.custom_httpx.llm_http_handler import BaseLLMHTTPHandler\nL8| +from litellm.llms.openai.decisions.transformation import ir_to_openai_response, openai_request_to_ir\nL8| +from litellm.types.decisions import (\nL8| +    DecisionQuestion,\nL8| +    DecisionsIRRequest,\nL8| +    DecisionsIRResponse,\nL8| +    DecisionsJSON,\nL8| +    DecisionsRequestBody,\nL8| +    DecisionsResponse,\nL8| +    OpenAIDecisionInput,\nL8| +    OpenAIDecisionQuestion,\nL8| +    OpenAIDecisionRequestBody,\nL8| +    OpenAIDecisionResponse,\nL8| +    UnsupportedDecisionsRequest,\nL8| +)\nL8| +from litellm.types.utils import LlmProviders\nL8| +from litellm.utils import ProviderConfigManager\nL8| +\nL8| +SystemOneQuestions: TypeAlias = Mapping[str, DecisionQuestion | Mapping[str, object]]\nL8| +\nL9 [tool] TOOL: apply_patch {\"path\":\"litellm/decisions/main.py\"}\nL9| CODE_WRITTEN: {\"path\":\"litellm/decisions/main.py\"}\nL9| --- a/litellm/decisions/main.py\nL9| +++ b/litellm/decisions/main.py\nL9| @@ -1,373 +1,131 @@\nL9| -from collections.abc import Mapping, Sequence\nL9| -from dataclasses import dataclass, field\nL9| -from types import MappingProxyType\nL9| -from typing import Final, TypeAlias\nL9| +import warnings\nL9| +from collections.abc import Mapping\nL9| +from typing import Final\nL9|  \nL9|  import httpx\nL9| -from pydantic import TypeAdapter, ValidationError\nL9| -from typing_extensions import assert_never\nL9| -\nL9| -import litellm\nL9| -from litellm.litellm_core_utils.litellm_logging import Logging as LiteLLMLoggingObj\nL9| -from litellm.llms.base_llm.decisions.transformation import (\nL9| -    DecisionsProviderConfig,\nL9| -    ir_to_systemone_response,\nL9| -    systemone_request_to_ir,\nL9| -)\nL9| -from litellm.llms.cloudflare.decisions.transformation import CLOUDFLARE_DECISIONS_ENDPOINT\nL9| -from litellm.llms.custom_httpx.http_handler import _get_httpx_client, get_async_httpx_client\nL9| -from litellm.llms.openai.decisions.transformation import (\nL9| -    OPENAI_DECISIONS_ENDPOINT,\nL9| -    ir_to_openai_response,\nL9| -    openai_request_to_ir,\nL9| -)\nL9| -from litellm.llms.openrouter.decisions.transformation import OPENROUTER_DECISIONS_ENDPOINT\nL9| -from litellm.llms.perplexity.decisions.transformation import PERPLEXITY_DECISIONS_ENDPOINT\nL9| -from litellm.llms.strands_decider.decisions.transformation import STRANDS_DECIDER_DECISIONS_ENDPOINT\nL9| -from litellm.llms.typesafe.decisions.transformation import TYPESAFE_DECISIONS_ENDPOINT\nL9| -from litellm.types.decisions import (\nL9| -    DecisionQuest\nL10 [tool] TOOL: apply_patch {\"path\":\"litellm/litellm_core_utils/exception_mapping_utils.py\"}\nL10| CODE_WRITTEN: {\"path\":\"litellm/litellm_core_utils/exception_mapping_utils.py\"}\nL10| --- a/litellm/litellm_core_utils/exception_mapping_utils.py\nL10| +++ b/litellm/litellm_core_utils/exception_mapping_utils.py\nL10| @@ -2146,7 +2146,10 @@ def _map_openrouter_exception(\nL10|      exception_provider: str,\nL10|      extra_information: str,\nL10|  ) -> None:\nL10| -    if hasattr(original_exception, \"status_code\"):\nL10| +    received_status: Final = hasattr(original_exception, \"status_code\") and not getattr(\nL10| +        original_exception, \"status_code_is_synthesized\", False\nL10| +    )\nL10| +    if received_status:\nL10|          if original_exception.status_code == 400:\nL10|              raise BadRequestError(\nL10|                  message=f\"{exception_provider} - {error_str}\",\nL10| \nL11 [tool] TOOL: apply_patch {\"path\":\"litellm/litellm_core_utils/health_check_helpers.py\"}\nL11| CODE_WRITTEN: {\"path\":\"litellm/litellm_core_utils/health_check_helpers.py\"}\nL11| --- a/litellm/litellm_core_utils/health_check_helpers.py\nL11| +++ b/litellm/litellm_core_utils/health_check_helpers.py\nL11| @@ -3,7 +3,7 @@\nL11|  \"\"\"\nL11|  \nL11|  import base64\nL11| -from collections.abc import Awaitable, Callable\nL11| +from collections.abc import Awaitable, Callable, Mapping\nL11|  from typing import TYPE_CHECKING, Final, Literal\nL11|  \nL11|  from litellm.llms.base_llm.ocr.transformation import DocumentType\nL11| @@ -30,6 +30,21 @@ def get_image_file_for_health_check() -> bytes:\nL11|      return base64.b64decode(TEST_IMAGE_BASE64)\nL11|  \nL11|  \nL11| +def _decisions_health_check_questions(model: str, custom_llm_provider: str) -> Mapping[str, Mapping[str, object]]:\nL11| +    import litellm\nL11| +    from litellm.llms.base_llm.decisions.transformation import BaseDecisionsConfig\nL11| +    from litellm.utils import ProviderConfigManager\nL11| +\nL11| +    provider: Final = next((member for member in litellm.LlmProviders if member.value == custom_llm_provider), None)\nL11| +    config: Final = (\nL11| +        None\nL11| +        if provider is None\nL11| +        else ProviderConfigManager.get_provider_decisions_config(model=model, provider=provider)\nL11| +    )\nL11| +    questions: Final = BaseDecisionsConfig.health_check_questions if config is None else config.health_check_questions\nL11| +    return {name: dict(question) for name, question in questions.items()}\nL11| +\nL11| +\nL11|  def _ocr_health_check_document(model: str, custom_llm_provider: str) -> DocumentType:\nL11|      native: Final = NATIVE_OCR_HEALTH_CHECK_DOCUMENT.load()\nL11|      if native is None:\nL11| @@ -26"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that provider_config.canonical_model() would always succeed for any valid model/provider combination, but it raises ValueError when the model is not recognized as a decisions model by that provider's config, and the exception was not caught at the right level for the guardrail settings request path.",
+  "why_it_breaks": "The GET /guardrails/ui/add_guardrail_settings endpoint calls prepare_call() which invokes provider_config.canonical_model(upstream_model). When a model that is not a recognized decisions model (e.g., a default model or a model without a decisions config) is passed, canonical_model() raises a ValueError. The try/except on line 176-179 catches this and raises BadRequestError, but the guardrail settings endpoint does not handle this exception properly, resulting in an ImportError/500 being returned to the UI, which shows an empty provider list because the request fails before providers can be listed.",
+  "confidence": "low",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "litellm/decisions/call.py",
+    "line": 179,
+    "quote": "raise litellm.BadRequestError(message=str(error), model=model, llm_provider=provider) from error",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "litellm/decisions/call.py",
+    "line": 177,
+    "quote": "canonical_model: Final = provider_config.canonical_model(upstream_model)",
+    "verified": false,
+    "reason": "cited line does not exist"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that provider_config.canonical_model(upstream_model) would always succeed for any valid upstream_model/provider pair, without accounting for cases where the provider has no canonical model mapping defined, causing a ValueError that propagates as an unhandled ImportError in the guardrail settings endpoint.",
+  "why_it_breaks": "The new code at line 177 wraps provider_config.canonical_model(upstream_model) in a try/except ValueError that raises litellm.BadRequestError. However, the guardrail settings endpoint (GET /guardrails/ui/add_guardrail_settings) calls prepare_call with provider/model combinations that may not have a canonical_model mapping defined in their provider config. When canonical_model raises ValueError (e.g., for providers like hosted_vllm, azure_ai, or other newly added decision providers without a canonical model mapping), the BadRequestError propagates as an ImportError/500 in the guardrail handler because the exception is not caught at the API layer, causing the empty provider list and HTTP 500 error.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 177,
+    "quote": "canonical_model: Final = provider_config.canonical_model(upstream_model)",
+    "verified": false,
+    "reason": "cited line does not exist"
+   },
+   {
+    "kind": "code",
+    "file": "litellm/decisions/call.py",
+    "line": 177,
+    "quote": "canonical_model: Final = provider_config.canonical_model(upstream_model)",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "litellm/decisions/call.py",
+  "line": 179,
+  "hunk_id": "L8#11"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "low",
+  "capped": "low",
+  "margin": 0.26334967642806456,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": false
+ }
+}

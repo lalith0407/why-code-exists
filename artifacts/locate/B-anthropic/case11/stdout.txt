@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/mcp_servers/portfolio_tools.py:145
+stage: ok
+provider: anthropic
+frame: src/ta/mcp_servers/portfolio_tools.py:314
+status: verified (code quotes 2, transcript quotes 2)
+overlooked_assumption: The agent assumed that stop-loss orders would be classified as hard triggers and bypass the trade gate, but the _trade_reason helper only classifies orders without ensuring they are exempt from minimum trade size or cooldown checks.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case11/report.html

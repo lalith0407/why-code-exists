@@ -1,0 +1,7 @@
+locate: layer2_agentic -> src/components/selected-work.tsx:69
+stage: ok
+provider: anthropic
+frame: src/components/selected-work.tsx:69
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed outcome.detail would be unique across all outcomes in all case studies, but the placeholder data contains duplicate detail values.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-anthropic/case15/report.html

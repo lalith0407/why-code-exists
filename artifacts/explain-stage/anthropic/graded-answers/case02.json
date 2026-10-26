@@ -1,0 +1,31 @@
+{
+ "case": "case02",
+ "overlooked_assumption": "The agent assumed that checking for an existing vote once at the start of the function is sufficient to prevent race conditions when two concurrent requests toggle the same vote.",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "line": 121,
+   "quote": "Then I need toggleVoteAction, which checks for an existing vote by user+feedback and either deletes (un-vote) or creates it"
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 99,
+   "quote": "const existing = await prisma.vote.findUnique({"
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 103,
+   "quote": "if (existing) {"
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 106,
+   "quote": "await prisma.vote.create({ data: { feedbackId, userId: user.id } });"
+  }
+ ],
+ "why_it_breaks": "When a user double-clicks the upvote button, two concurrent requests both execute the findUnique check at line 99-101 before either completes. Both see no existing vote, both enter the else branch at line 105-106, and both attempt to create a vote record. The second create operation violates the unique constraint on (feedbackId, userId), causing the PrismaClientKnownRequestError.",
+ "confidence": "high"
+}

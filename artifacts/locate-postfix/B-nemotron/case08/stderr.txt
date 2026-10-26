@@ -1,0 +1,4 @@
+[llm retry] locate_step:invalid_json_retry: timeout; attempt 1/5 failed, waiting 1627 ms
+[llm retry] locate_step:invalid_json_retry: timeout; attempt 2/5 failed, waiting 3990 ms
+[llm retry] locate_step:invalid_json_retry: timeout; attempt 3/5 failed, waiting 6866 ms
+[llm retry] explain_why:repair: fetch_TypeError; attempt 1/5 failed, waiting 1803 ms

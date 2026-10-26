@@ -1,0 +1,39 @@
+{
+ "overlooked_assumption": "The agent assumed that all selected tickers from the LLM judge have corresponding position-sizing outputs, but size_position may only output results for a subset of tickers (e.g., only MSFT), leaving other tickers without entries in the output.",
+ "why_it_breaks": "The loop constructs claims citing position-sizing results for selected tickers (e.g., AAPL), but size_position may only produce output entries for a subset of those tickers (e.g., only MSFT). When the citation verifier checks these claims against the actual size_position output, it finds no AAPL entry, yet the verifier still keeps the claim because it does not validate that each cited ticker has a corresponding output entry. The claim passes verification erroneously and is shipped in the final report.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 471,
+   "quote": "verified = gateway.call(\n        \"citation_verifier\",\n        \"verify.citations\",\n        {\"claims\": [claim.model_dump(mode=\"json\") for claim in raw_claims]},\n    )",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 476,
+   "quote": "kept = verified.output[\"kept\"]",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 251,
+   "quote": "Weight claims correctly reference the size_position output. Pydantic model mutation is safe since default models are not frozen. A new bug was found: check_caps may receive weights that were already rounded by round_floats inside the tool output.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 456,
+   "quote": "{\"orders\": sized.output.get(\"orders\", [])}",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 1
+}

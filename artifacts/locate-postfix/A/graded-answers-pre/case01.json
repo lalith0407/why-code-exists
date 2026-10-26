@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that any Slack event with text starting \"/pulse feedback\" would be recognized and processed into a feedback item, without accounting for multi-line messages where the text continues on the next line after a line break.",
+ "why_it_breaks": "The Slack message was delivered as \"/pulse feedback Export is slow\\nIt takes 2 minutes for 10k rows\". The code that parses the command likely does a simple string startsWith or regex match against \"/pulse feedback \" expecting the remainder on the same line. When the user message spans two lines, the second line \"It takes 2 minutes for 10k rows\" is not captured as part of the command text, so the parser either sees no feedback text or incomplete text, and no feedback item is created. The agent overlooked the case where Slack delivers the feedback text across multiple lines, so the recognition logic fails to extract the full intended feedback.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 338,
+   "quote": "L338| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL338| +++ b//workspace/components/settings/invite-member-form.tsx",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "app/api/slack/events/[slug]/route.ts",
+   "line": 27,
+   "quote": "* For now we recognize messages of the form `/pulse feedback <text>` and\n* turn them into a feedback post \u2014 enough to wire real slash-command or\n* message-shortcut handling on top of later.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The code assumes that for Modified commands, the original value and current value are always comparable, but it does not account for cases where the index value is store-generated (e.g., serial/identity) and the original value may be null or unavailable, causing the equality check to incorrectly skip edge creation and produce duplicate key violations.",
+ "why_it_breaks": "The agent added logic to skip unique-index edges when the original and current values are equal, assuming this prevents false circular dependencies. However, for store-generated unique indexes (e.g., serial columns), the original value may be null or not comparable via `fromOriginalValues: true`. When a Modified entity has a store-generated key that is unchanged, the equality check passes and the edge is skipped, but the underlying command still inserts a duplicate key value, causing the unique constraint violation reported in the bug.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+   "line": 1267,
+   "quote": "if (command.EntityState == EntityState.Modified)",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+   "line": 1269,
+   "quote": "var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+   "line": 1270,
+   "quote": "if (Equals(originalValue, value))",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 2,
+   "quote": "In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 3,
+ "verified_transcript_quotes": 1
+}

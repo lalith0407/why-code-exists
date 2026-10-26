@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that checking swings_this_quarter >= cap would block new swing trades, but it only blocks when the count has already reached or exceeded the cap, allowing one extra trade to execute before blocking.",
+ "why_it_breaks": "With a cap of 2 and 1 swing exit already used, swings_this_quarter=1. The condition (1 >= 2) is false, so all three swing trades execute, incrementing the count to 4. The guard only activates when swings_this_quarter reaches 2, which happens after the second swing trade completes, allowing a third to slip through before blocking begins.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 108,
+   "quote": "and swings_this_quarter >= caps.swing_trades_per_quarter",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 288,
+   "quote": "                and swings_this_quarter >= caps.swing_trades_per_quarter",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "rules/exit/v1.yaml",
+   "line": 10,
+   "quote": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

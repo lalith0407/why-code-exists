@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/mcp_servers/portfolio_tools.py:314
+stage: ok
+provider: nemotron
+frame: src/ta/mcp_servers/portfolio_tools.py:314
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: The agent assumed that a price of exactly 0.0 would correctly identify a stopped-out position, but overlooked that a price of 0.0 can also occur when market data is simply missing or the ticker has no price quote, causing the function to skip those tickers instead of forcing a stop-loss.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-nemotron/case11/report.html

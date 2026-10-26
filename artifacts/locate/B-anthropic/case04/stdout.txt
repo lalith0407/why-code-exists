@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> README.md:172
+stage: ok
+provider: anthropic
+frame: README.md:184
+status: verified (code quotes 2, transcript quotes 1)
+overlooked_assumption: The agent assumed that mentioning 'a drawdown review' as a hard trigger in the documentation meant the drawdown halt logic was actually implemented in the code, when in fact it only documented the thesis-change gate for existing holdings.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case04/report.html

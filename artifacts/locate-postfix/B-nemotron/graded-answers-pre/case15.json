@@ -1,0 +1,18 @@
+{
+ "overlooked_assumption": "The agent assumed that `caseStudies` array contains unique `slug` values, so using `study.slug` as the React key would guarantee uniqueness. It did not account for the possibility that multiple case studies could share the same slug or that `slug` might be undefined/duplicate.",
+ "why_it_breaks": "React warns when two children share the same key. The `caseStudies.map` callback uses `key={study.slug}`. If two case study objects in the `caseStudies` array have identical `slug` values (or if `slug` is the same string for different studies), React will encounter duplicate keys. The warning message `[Outcome \u2014 what changed.]` suggests the duplicate key originates from the outcome bullets inside `CaseStudyCard`, which likely also map over outcomes and use a non-unique key derived from the same slug or outcome text. The 6 warnings correspond to 6 duplicate key occurrences (likely 3 cards \u00d7 2 outcomes or similar structure).",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 110,
+   "quote": "{caseStudies.map((study, index) => (\n            <li\n              key={study.slug}\n              className=\"fade-up\"\n              style={{ animationDelay: `${index * 80}ms` }}\n            >",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

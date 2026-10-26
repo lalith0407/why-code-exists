@@ -1,0 +1,6 @@
+stage: ok
+provider: nemotron
+frame: src/ta/replay.py:322
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The code assumes `end` is not February 29 of a leap year when computing `start = end.replace(year=end.year - 5)`, so subtracting 5 years from February 29 lands on a non-existent date (e.g., February 29, 2024 minus 5 years → February 29, 2019 is valid, but if the original date was February 29 of a leap year and the subtraction crosses a non-leap-year boundary or the date arithmetic is naive, it can produce an invalid date like February 30 or February 29 in a non-leap year).
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case14/report.html

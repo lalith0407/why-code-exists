@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that altering a column's type would not affect the uniqueness constraint on the email column, but changing `tier` to a wider numeric type likely caused SQLite to treat previously distinct email values as equivalent or removed a partial unique index that depended on the old column type.",
+ "why_it_breaks": "The safe_plan function generates a 2-step plan (deprecate then run) for alter_type actions, gating the execution on signed conditions that check reader subsets and other constraints. However, the agent overlooked that changing a column's type\u2014especially to a wider numeric type\u2014can alter how uniqueness constraints are enforced or how existing data is compared. In SQLite, a column type change from a tighter numeric type to a wider one can cause previously distinct values to be treated as equal due to type affinity rules, or it can invalidate a partial unique index on the email column. The signing logic does not account for this side effect, so the duplicate email rows are accepted because the gate conditions remain satisfied even though the schema change silently creates the duplication.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "blast_radius/reasoner/base.py",
+   "line": 46,
+   "quote": "if action.kind == \"alter_type\":\n        return [deprecate, PlanStep(2, f\"Change the type of {action.target} after the window, only if every \\\" \\\"signed condition still holds\", action.sql, gate)]",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 98,
+   "quote": "if action.kind == \"alter_type\":\n        return [deprecate, PlanStep(2, f\"Change the type of {action.target} after the window, only if every \\\" \\\"signed condition still holds\", action.sql, gate)]",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

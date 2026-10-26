@@ -1,0 +1,33 @@
+{
+ "overlooked_assumption": "The agent assumed that checking for an existing vote with `findUnique` and then conditionally creating or deleting would be sufficient, without accounting for concurrent requests that could both pass the existence check before either operation completes.",
+ "why_it_breaks": "The error \"Unique constraint failed on the fields: (`feedbackId`,`userId`)\" occurs because two concurrent requests (e.g., from a double-click) both pass the `findUnique` check at line 99-101 and find no existing vote, then both attempt to `create` at line 106, violating the database's unique constraint on (feedbackId, userId). The agent's code only guards against the case where a vote already exists and deletes it, but does not handle the race condition where two simultaneous requests both see the absence of a vote and try to create one.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 123,
+   "quote": "L123 [tool] TOOL: search_replace\nL123| CODE_WRITTEN: \nL123| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL123| +++ b//workspace/lib/actions/feedback.ts\nL123| @@ -1,0 +1,128 @@\nL123| +\"use server\";\nL123| +\nL123| +import { revalidatePath } from \"next/cache\";\nL123| +import { notFound } from \"next/navigation\";\nL123| +\nL123| +import { prisma } from \"@/lib/prisma\";\nL123| +import { requireUser } from \"@/lib/workspace\";\nL123| +import { extractFirstUrl, fetchLinkPreview } from \"@/lib/link-preview\";\nL123| +import { sendFeedbackWebhook } from \"@/lib/webhooks\";\nL123| +import { feedbackSchema, commentSchema } from \"@/lib/validations\";\nL123| +import type { ActionState } from \"@/lib/actions/auth\";\nL123| +\nL123| +/** Creates a new feedback post, scraping a link preview and firing the\nL123| + * workspace's outgoing webhook (if configured) once it's saved. */\nL123| +export async function createFeedbackAction(\nL123| +  workspaceSlug: string,\nL123| +  _prevState: ActionState,\nL123| +  formData: FormData\nL123| +): Promise<ActionState> {\nL123| +  const user = await requireUser();\nL123| +\nL123| +  const parsed = feedbackSchema.safeParse({\nL123| +    title: formData.get(\"title\"),\nL123| +    body: formData.get(\"body\"),\nL123| +  });\nL123| +  if (!parsed.success) {\nL123| +    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\nL123| +  }\nL123| +\nL123| +  const workspace = await prisma.workspace.findUnique({ where: { slug: workspaceSlug } });\nL123| +  if (!workspace) notFound();\nL123| +\nL123| +  const membership = await prisma.membership.findUnique({\nL123| +    where: { userId_workspaceId: { userId: user.id, workspaceId: workspace.id } },\nL123| +  });\nL123| +  if (!membership) notFound();\nL123| +\nL123| +  const { title, body } = parsed.d",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 99,
+   "quote": "const existing = await prisma.vote.findUnique({\n    where: { feedbackId_userId: { feedbackId, userId: user.id } },\n  });",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 106,
+   "quote": "await prisma.vote.create({ data: { feedbackId, userId: user.id } });",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

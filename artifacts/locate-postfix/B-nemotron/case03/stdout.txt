@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/sim/metrics.py:43
+stage: ok
+provider: nemotron
+frame: src/ta/sim/metrics.py:43
+status: unverified (code quotes 1, transcript quotes 0)
+overlooked_assumption: _xirr assumes the first cashflow is an investment (negative amount) and the last is a return (positive amount), but the provided cashflows have a negative amount on the start date and a positive amount on the end date with no intermediate investment, causing the Newton-Raphson solver to fail to converge or produce a meaningful rate.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-nemotron/case03/report.html

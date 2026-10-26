@@ -1,0 +1,883 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case03",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "src/ta/sim/metrics.py",
+   "line": 57
+  },
+  "asked": {
+   "text": "Build Phase 0 (and the scaffolding for later phases) of the multi-agent long-term US investing system described in the attached spec (uploads/trading-agent-spec.md, Draft v0.2). Read the whole spec first; it is the source of truth.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 2870
+  },
+  "understood": {
+   "text": "The `sectors` dictionary may be unused. Ruff will catch it.\n\nThe simulation engine will be a shared stepper in `sim/engine.py` with an `AdvanceResult` dataclass. The agent loop and baselines will both call `engine.advance`. A security map helper is also being drafted.\n\nThe security map helpers are now fully implemented. Remaining source files and prompts are being written next. A `run_demo` function is being drafted to wipe any existing database before running a fresh offline simulation.\n\nThe demo runner seeds the store, runs an episode, renders a report, and prints it. It deletes the log directory to reset keys between runs. DuckDB WAL files will also be removed.\n\nThe demo runner will use `shutil.rmtree` to wipe the entire demo directory, including any DuckDB WAL files. The episode loop will return an `EpisodeResult` dataclass defined in `agents/loop.py`. Determinism is being enforced by using a mock LLM, a fixed fixture seed, and avoiding timestamps in tool outputs that could alter order execution.\n\nRatio outputs exclude `retrieved_at` and quality scores depend only on prices. The ratio block uses the provided `as_of` timestamp rather than `datetime.now`. Order notionals are rounded to cents, and numpy's default RNG is stable across platforms for deterministic runs. Next up is writing the simulation engine, the agent loop, and trade recording.\n\nCompliance breaks are counted only when a post-trade weight check finds a filled violation. Guard drops for day trades or minimum hold periods are treated as correct behavior, not breaches. The `weights_after` helper simulates notionals and enforces caps to detect any filled violations.\n\nCompliance is measured against the adjusted target weights returned by the tool. The `caps_ok` flag reflects the original raw proposal, not the final orders. Fills may diverge slightly from those targets due to slippage or open versus close execution, but that does not constitute a cap violation.\n\nCompliance is set to 1 whenever adjusted weights are used and no day-trade guard blocks occur. It drops to 0 only for leakage or blocked round-trip orders. The memo will include a `cap_adjustments` count. A failed audit zeroes reward and skips that decision, but the episode continues.\n\nAudits will be stored on the result object. A chain seal will be appended at the end of the episode.\n\nThe agent loop is being written now, kept under 400 lines. Prompts for the SDK and an MCP server are also being added.\n\nThe MCP server package will use lazy tool loading in `__init__.py` to avoid import cycles. It will expose a `__main__.py` entry point. FastMCP tool names with dots will be converted to underscores.\n\nThe MCP server will run in stdio mode. Data tools will query the TA database and current date from environment variables. Portfolio tools will see an empty order book unless the agent is running in-process.\n\nThe MCP adapter will use a JSON arguments string instead of `**kwargs` so FastMCP can generate proper tool schemas.\n\nThe MCP server will expose each tool with an explicit signature rather than a generic JSON wrapper. FastMCP inspects function signatures to generate schemas, so individual decorators are cleaner than dynamic exec-based generation.\n\nPhase 0 tools will be hand-registered in the MCP server, with a generic `call_registered_tool` fallback for the rest. The SDK wiring will list explicit tools.\n\nIf FastMCP's `add_tool` fails on some versions, the in-process gateway remains functional and tests verify the registry directly.\n\n`agents/sdk.py` will attempt to import the MCP SDK symbols and build an in-process server when available. If the package is missing, it raises a `ConfigError` listing the required extras.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L213 (assistant, 582 words, 6 line(s) before the edit at L219)",
+   "valid": true,
+   "full_length": 3700
+  },
+  "happened": {
+   "text": "The IRR field on a client's performance memo shows \"n/a\" for a 10-calendar-day backtest.\n\nReported numbers for that period: starting equity 100000.00, ending equity 106000.00, no deposits or withdrawals in between. The two cash-flow dates and amounts for the period, as shown on the memo's backup page, are:\n2024-01-02: -100000\n2024-01-12: 106000\n\n  at ? (src/ta/sim/metrics.py:57)\n  57: if abs(slope) < 1e-12:\n\nWritten by transcript edit L219 (search_replace):\n+        )\n+\n+    rate = 0.1\n+    for _ in range(60):\n+        value = npv(rate)\n+        slope = dnpv(rate)\n+        if abs(slope) < 1e-12:\n+            break\n+        nxt = rate - value / slope\n+        nxt = min(max(nxt, -0.9), 5.0)\n+        if abs(nxt - rate) < 1e-10:\n+            rate = nxt\n+            break",
+   "citation": "error case03 frame src/ta/sim/metrics.py:57; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L219",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "The IRR field on a client's performance memo shows \"n/a\" for a 10-calendar-day backtest.\n\nReported numbers for that period: starting equity 100000.00, ending equity 106000.00, no deposits or withdrawals in between. The two cash-flow dates and amounts for the period, as shown on the memo's backup page, are:\n2024-01-02: -100000\n2024-01-12: 106000\n\nEvery other number on the memo (TWR, drawdown, Sharpe) rendered normally; only the IRR cell is blank.\n",
+  "terms": [
+   "s performance memo shows",
+   "the irr field on",
+   "reported numbers for that",
+   "the two cash",
+   "every other number on",
+   "irr cell is blank",
+   "10",
+   "100000.00",
+   "106000.00",
+   "2024",
+   "01",
+   "02",
+   "100000",
+   "12",
+   "106000",
+   "field",
+   "client",
+   "performance",
+   "memo",
+   "shows",
+   "calendar",
+   "backtest",
+   "reported",
+   "numbers",
+   "period",
+   "starting",
+   "equity",
+   "ending",
+   "deposits",
+   "withdrawals",
+   "cash",
+   "flow",
+   "dates",
+   "amounts",
+   "shown",
+   "backup",
+   "page",
+   "number",
+   "drawdown",
+   "sharpe",
+   "rendered",
+   "normally",
+   "cell",
+   "blank"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "src/ta/sim/metrics.py",
+     "line": 43,
+     "end_line": 175,
+     "text": "    amounts = [amount for _day, amount in cashflows]",
+     "function": "_xirr",
+     "score": 36.6437,
+     "matched_terms": [
+      "performance",
+      "irr",
+      "10",
+      "12",
+      "equity",
+      "dates",
+      "amounts",
+      "drawdown",
+      "sharpe"
+     ],
+     "edit_line": 219,
+     "tool": "search_replace",
+     "hunk_id": "L219#75",
+     "snippet": "1: \"\"\"Performance and the multi-objective reward. The scalar is never the only output.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import math\n6: from datetime import date\n7: \n8: from ta.config import RewardWeights\n9: from ta.models import PerformanceReport, RewardVector\n10: from ta.sim.portfolio import Portfolio",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 43,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 42,
+       "text": "    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]"
+      },
+      {
+       "line": 43,
+       "text": "    amounts = [amount for _day, amount in cashflows]"
+      },
+      {
+       "line": 44,
+       "text": ""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "dashboard/src/app/simulator/page.tsx",
+     "line": 22,
+     "end_line": 110,
+     "text": "  series: { agent: { as_of: string; equity: number }[]; spy: { as_of: string; equity: number }[] };",
+     "score": 24.9826,
+     "matched_terms": [
+      "numbers",
+      "number",
+      "client",
+      "equity",
+      "ending",
+      "page",
+      "drawdown",
+      "sharpe"
+     ],
+     "edit_line": 1374,
+     "tool": "search_replace",
+     "hunk_id": "L1374#259",
+     "snippet": "1: \"use client\";\n2: \n3: import { useEffect, useState } from \"react\";\n4: \n5: import { EquityChart } from \"@/components/chart\";\n6: import { Figure, Term } from \"@/components/cite\";\n7: import { Panel, Status } from \"@/components/shell\";\n8: import { Cite, loadJson } from \"@/lib/utils\";\n9: \n10: type Book = {",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 22,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 21,
+       "text": "  books: Book[];"
+      },
+      {
+       "line": 22,
+       "text": "  series: { agent: { as_of: string; equity: number }[]; spy: { as_of: string; equity: number }[] };"
+      },
+      {
+       "line": 23,
+       "text": "  reward?: {"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/memo/render.py",
+     "line": 185,
+     "end_line": 139,
+     "text": "        \"| Book | Final equity | TWR | IRR | Max drawdown | Sharpe | Friction |\",",
+     "function": "_cost_lines",
+     "score": 24.2827,
+     "matched_terms": [
+      "performance",
+      "memo",
+      "irr",
+      "reported",
+      "numbers",
+      "equity",
+      "shown",
+      "drawdown",
+      "sharpe"
+     ],
+     "edit_line": 264,
+     "tool": "search_replace",
+     "hunk_id": "L264#92",
+     "snippet": "1: \"\"\"Render an episode. Resolved numbers are labelled as simulator output, not as alpha.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from ta.config import Settings\n6: from ta.models import PerformanceReport\n7: \n8: \n9: def _pct(value: float | None) -> str:\n10:     if value is None:",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 67,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 66,
+       "text": "        \"\","
+      },
+      {
+       "line": 67,
+       "text": "        \"| Book | Final equity | TWR | IRR | Max drawdown | Sharpe | Friction |\","
+      },
+      {
+       "line": 68,
+       "text": "        \"| --- | --- | --- | --- | --- | --- | --- |\","
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/sim/records.py",
+     "line": 31,
+     "end_line": 44,
+     "text": "        store.insert_account_snapshot(as_of, \"agent\", agent.cash, agent.equity(prices))",
+     "function": "record_books",
+     "score": 23.4569,
+     "matched_terms": [
+      "performance",
+      "cash",
+      "equity",
+      "drawdown",
+      "sharpe"
+     ],
+     "edit_line": 1236,
+     "tool": "search_replace",
+     "hunk_id": "L1236#224",
+     "snippet": "1: \"\"\"Persist books the dashboard reads. The dashboard itself never writes.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from datetime import date\n6: \n7: from ta.data.store import Store\n8: from ta.sim.metrics import performance\n9: from ta.sim.portfolio import Portfolio\n10: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 30,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 29,
+       "text": "            store.insert_snapshot(as_of, \"sim\", security.security_id, agent.positions[ticker].qty, agent.positions[ticker].cost, agent.positions[ticker].qty * px)"
+      },
+      {
+       "line": 30,
+       "text": "        store.insert_account_snapshot(as_of, \"agent\", agent.cash, agent.equity(prices))"
+      },
+      {
+       "line": 31,
+       "text": "    for name, portfolio in books.items():"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/data/store.py",
+     "line": 612,
+     "end_line": 529,
+     "text": "                id, book, final_equity, net_contributions, twr, max_drawdown, sharpe, friction, created_at",
+     "score": 22.1063,
+     "matched_terms": [
+      "cash",
+      "equity",
+      "drawdown",
+      "sharpe"
+     ],
+     "edit_line": 1215,
+     "tool": "search_replace",
+     "hunk_id": "L1215#215",
+     "snippet": "486:     def replace_equity_curve(self, book: str, points: list[tuple[date, float]]) -> None:\n487:         self.con.execute(\"DELETE FROM equity_marks WHERE book = ?\", [book])\n488:         for day, equity in points:\n489:             mark_id = new_id()\n490:             self.con.execute(\n491:                 \"\"\"\n492:                 INSERT INTO equity_marks (id, book, as_of, equity, created_at)\n493:                 VALUES (?, ?, ?, ?, ?)\n494:                 \"\"\",\n495:                 [mark_id, book, day, float(equity), _now()],",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 514,
+     "hunk_start": 486,
+     "context_lines": [
+      {
+       "line": 513,
+       "text": "            INSERT INTO book_results ("
+      },
+      {
+       "line": 514,
+       "text": "                id, book, final_equity, net_contributions, twr, max_drawdown, sharpe, friction, created_at"
+      },
+      {
+       "line": 515,
+       "text": "            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/sim/baselines.py",
+     "line": 0,
+     "end_line": 102,
+     "text": "def _run(store: Store, settings: Settings, dates: list, policy: Policy) -> PerformanceReport:",
+     "score": 19.3172,
+     "matched_terms": [
+      "performance",
+      "cash",
+      "calendar",
+      "dates"
+     ],
+     "edit_line": 232,
+     "tool": "search_replace",
+     "hunk_id": "L232#82",
+     "snippet": "1: \"\"\"Mandatory baselines. They share the agent's costs, calendar, and contributions.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections.abc import Callable\n6: \n7: from ta.config import Settings\n8: from ta.data.store import Store\n9: from ta.harness.context import ToolContext\n10: from ta.mcp_servers.fund import compute_ratio_block",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 20,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 19,
+       "text": ""
+      },
+      {
+       "line": 20,
+       "text": "def _run(store: Store, settings: Settings, dates: list, policy: Policy) -> PerformanceReport:"
+      },
+      {
+       "line": 21,
+       "text": "    book = fresh_book(settings.sim.initial_capital, dates[0])"
+      }
+     ],
+     "anchor": "unanchored"
+    },
+    {
+     "file": "src/ta/data/migrations/003_dashboard.sql",
+     "line": 28,
+     "end_line": 33,
+     "text": "    sharpe DOUBLE,",
+     "score": 18.3329,
+     "matched_terms": [
+      "cash",
+      "equity",
+      "drawdown",
+      "sharpe"
+     ],
+     "edit_line": 1210,
+     "tool": "search_replace",
+     "hunk_id": "L1210#214",
+     "snippet": "1: -- Read models for the local dashboard. The simulator writes these.\n2: -- The dashboard opens the database read-only and never inserts.\n3: \n4: CREATE TABLE equity_marks (\n5:     id VARCHAR PRIMARY KEY,\n6:     book VARCHAR NOT NULL,\n7:     as_of DATE NOT NULL,\n8:     equity DOUBLE NOT NULL,\n9:     created_at VARCHAR NOT NULL\n10: );",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 28,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 27,
+       "text": "    max_drawdown DOUBLE,"
+      },
+      {
+       "line": 28,
+       "text": "    sharpe DOUBLE,"
+      },
+      {
+       "line": 29,
+       "text": "    friction DOUBLE NOT NULL,"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/ml/eval.py",
+     "line": 235,
+     "end_line": 242,
+     "text": "    # The calendar crosses the Chronos-2 release so both sides of the leakage cut are reported.",
+     "function": "run_eval",
+     "score": 16.2302,
+     "matched_terms": [
+      "reported",
+      "calendar"
+     ],
+     "edit_line": 4109,
+     "tool": "search_replace",
+     "hunk_id": "L4109#600",
+     "snippet": "241:     # The calendar crosses the Chronos-2 release so both sides of the leakage cut are reported.\n242:     days = business_days(date(2025, 1, 2), len(returns))",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 241,
+     "hunk_start": 241,
+     "context_lines": [
+      {
+       "line": 241,
+       "text": "    # The calendar crosses the Chronos-2 release so both sides of the leakage cut are reported."
+      },
+      {
+       "line": 242,
+       "text": "    days = business_days(date(2025, 1, 2), len(returns))"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/sim/baselines.py",
+     "line": 55,
+     "end_line": 59,
+     "text": "        store, settings, dates, lambda book, _as_of, incoming, _i: _buy_cash(book, incoming, {\"SPY\": 1.0})",
+     "function": "spy_buy_hold",
+     "score": 16.1472,
+     "matched_terms": [
+      "performance",
+      "cash",
+      "dates"
+     ],
+     "edit_line": 1219,
+     "tool": "search_replace",
+     "hunk_id": "L1219#218",
+     "snippet": "48: def spy_buy_hold(\n49:     store: Store,\n50:     settings: Settings,\n51:     dates: list,\n52:     books: dict[str, Portfolio] | None = None,\n53: ) -> PerformanceReport:\n54:     report, book = _run(\n55:         store, settings, dates, lambda book, _as_of, incoming, _i: _buy_cash(book, incoming, {\"SPY\": 1.0})\n56:     )\n57:     if books is not None:",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 55,
+     "hunk_start": 48,
+     "context_lines": [
+      {
+       "line": 54,
+       "text": "    report, book = _run("
+      },
+      {
+       "line": 55,
+       "text": "        store, settings, dates, lambda book, _as_of, incoming, _i: _buy_cash(book, incoming, {\"SPY\": 1.0})"
+      },
+      {
+       "line": 56,
+       "text": "    )"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/agents/loop.py",
+     "line": 569,
+     "end_line": 378,
+     "text": "        raise ValueError(\"an episode needs at least two sessions\")",
+     "function": "_keep_after_reopen",
+     "score": 13.9209,
+     "matched_terms": [
+      "performance",
+      "memo",
+      "field",
+      "two",
+      "cash",
+      "dates"
+     ],
+     "edit_line": 250,
+     "tool": "search_replace",
+     "hunk_id": "L250#90",
+     "snippet": "1: \"\"\"One research decision, and the episode that steps the simulator around it.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date, timedelta\n7: \n8: from ta.actionlog.writer import ActionLog\n9: from ta.agents.mock_llm import MockLLM\n10: from ta.agents.orchestrator import build_plan",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 256,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 255,
+       "text": "    if len(dates) < 2:"
+      },
+      {
+       "line": 256,
+       "text": "        raise ValueError(\"an episode needs at least two sessions\")"
+      },
+      {
+       "line": 257,
+       "text": "    pre = log.verify()"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "src/ta/sim/metrics.py",
+    "line": 57,
+    "end_line": 175,
+    "text": "        if abs(slope) < 1e-12:",
+    "score": 0,
+    "matched_terms": [],
+    "edit_line": 219,
+    "tool": "search_replace",
+    "hunk_id": "L219#75",
+    "snippet": "57:         if abs(slope) < 1e-12:",
+    "method": "agentic_model",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 57,
+    "hunk_start": 1,
+    "anchor": "exact",
+    "context_lines": [
+     {
+      "line": 56,
+      "text": "        slope = dnpv(rate)"
+     },
+     {
+      "line": 57,
+      "text": "        if abs(slope) < 1e-12:"
+     },
+     {
+      "line": 58,
+      "text": "            break"
+     }
+    ]
+   },
+   {
+    "file": "dashboard/src/app/simulator/page.tsx",
+    "line": 22,
+    "end_line": 110,
+    "text": "  series: { agent: { as_of: string; equity: number }[]; spy: { as_of: string; equity: number }[] };",
+    "score": 24.9826,
+    "matched_terms": [
+     "numbers",
+     "number",
+     "client",
+     "equity",
+     "ending",
+     "page",
+     "drawdown",
+     "sharpe"
+    ],
+    "edit_line": 1374,
+    "tool": "search_replace",
+    "hunk_id": "L1374#259",
+    "snippet": "1: \"use client\";\n2: \n3: import { useEffect, useState } from \"react\";\n4: \n5: import { EquityChart } from \"@/components/chart\";\n6: import { Figure, Term } from \"@/components/cite\";\n7: import { Panel, Status } from \"@/components/shell\";\n8: import { Cite, loadJson } from \"@/lib/utils\";\n9: \n10: type Book = {",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 22,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 21,
+      "text": "  books: Book[];"
+     },
+     {
+      "line": 22,
+      "text": "  series: { agent: { as_of: string; equity: number }[]; spy: { as_of: string; equity: number }[] };"
+     },
+     {
+      "line": 23,
+      "text": "  reward?: {"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/ta/memo/render.py",
+    "line": 185,
+    "end_line": 139,
+    "text": "        \"| Book | Final equity | TWR | IRR | Max drawdown | Sharpe | Friction |\",",
+    "function": "_cost_lines",
+    "score": 24.2827,
+    "matched_terms": [
+     "performance",
+     "memo",
+     "irr",
+     "reported",
+     "numbers",
+     "equity",
+     "shown",
+     "drawdown",
+     "sharpe"
+    ],
+    "edit_line": 264,
+    "tool": "search_replace",
+    "hunk_id": "L264#92",
+    "snippet": "1: \"\"\"Render an episode. Resolved numbers are labelled as simulator output, not as alpha.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from ta.config import Settings\n6: from ta.models import PerformanceReport\n7: \n8: \n9: def _pct(value: float | None) -> str:\n10:     if value is None:",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 67,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 66,
+      "text": "        \"\","
+     },
+     {
+      "line": 67,
+      "text": "        \"| Book | Final equity | TWR | IRR | Max drawdown | Sharpe | Friction |\","
+     },
+     {
+      "line": 68,
+      "text": "        \"| --- | --- | --- | --- | --- | --- | --- |\","
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "src/ta/sim/metrics.py",
+   "line": 57,
+   "end_line": 175,
+   "text": "        if abs(slope) < 1e-12:",
+   "score": 0,
+   "matched_terms": [],
+   "edit_line": 219,
+   "tool": "search_replace",
+   "hunk_id": "L219#75",
+   "snippet": "57:         if abs(slope) < 1e-12:",
+   "method": "agentic_model",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 57,
+   "hunk_start": 1,
+   "anchor": "exact",
+   "context_lines": [
+    {
+     "line": 56,
+     "text": "        slope = dnpv(rate)"
+    },
+    {
+     "line": 57,
+     "text": "        if abs(slope) < 1e-12:"
+    },
+    {
+     "line": 58,
+     "text": "            break"
+    }
+   ]
+  },
+  "method": "layer2_agentic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "IRR|irr"
+     },
+     "result": "src/ta/models.py:134: irr: float | None\nsrc/ta/sim/metrics.py:38: def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\nsrc/ta/sim/metrics.py:119: irr=_xirr(flows),\nsrc/ta/memo/render.py:28: f\"| {name} | {_money(report.final_equity)} | {_pct(report.twr)} | {_pct(report.irr)} | \"\nsrc/ta/memo/render.py:185: \"| Book | Final equity | TWR | IRR | Max drawdown | Sharpe | Friction |\",\nsrc/ta/evolve/guides.py:185: \"\"\"User approval path. Writes the next version and mirrors it into DuckDB.\"\"\""
+    },
+    {
+     "step": 2,
+     "action": "read",
+     "args": {
+      "file": "src/ta/sim/metrics.py",
+      "start": 38,
+      "end": 80
+     },
+     "result": "38: def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n39:     if len(cashflows) < 2:\n40:         return None\n41:     start = cashflows[0][0]\n42:     times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n43:     amounts = [amount for _day, amount in cashflows]\n44: \n45:     def npv(rate: float) -> float:\n46:         return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n47: \n48:     def dnpv(rate: float) -> float:\n49:         return sum(\n50:             -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n51:         )\n52: \n53:     rate = 0.1\n54:     for _ in range(60):\n55:         value = npv(rate)\n56:         slope = dnpv(rate)\n57:         if abs(slope) < 1e-12:\n58:             break\n59:         nxt = rate - value / slope\n60:         nxt = min(max(nxt, -0.9), 5.0)\n61:         if abs(nxt - rate) < 1e-10:\n62:             rate = nxt\n63:             break\n64:         rate = nxt\n65:     if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n66:         return None\n67:     return rate\n68: \n69: \n70: def performance(portfolio: Portfolio, initial_capital: float) -> PerformanceReport:\n71:     curve = portfolio.equity_curve\n72:     dates = [day for day, _equity in curve]\n73:     equity = [value for _day, value in curve]\n74:     contributions = {day: amount for day, amount in portfolio.contributions}\n75:     index = _growth_index(dates, equity, contributions) if equity else [1.0]\n76:     rets = [index[i] / index[i - 1] - 1 for i in range(1, len(index)) if index[i - 1] > 0]\n77:     twr = index[-1] - 1 if index else 0.0\n78:     sessions = max(len(index) - 1, 0)\n79:     years = sessions / 252 if sessions else 0\n80:     cagr = None"
+    },
+    {
+     "step": 3,
+     "action": "read",
+     "args": {
+      "file": "src/ta/sim/metrics.py",
+      "start": 80,
+      "end": 130
+     },
+     "result": "80:     cagr = None\n81:     if years > 0 and index[-1] > 0:\n82:         cagr = index[-1] ** (1 / years) - 1\n83:     drawdown = _max_drawdown(index)\n84:     sharpe = None\n85:     sortino = None\n86:     if len(rets) >= 2:\n87:         mean = sum(rets) / len(rets)\n88:         var = sum((value - mean) ** 2 for value in rets) / (len(rets) - 1)\n89:         std = math.sqrt(var)\n90:         if std > 1e-12:\n91:             sharpe = mean / std * math.sqrt(252)\n92:         downside = math.sqrt(sum(min(value, 0.0) ** 2 for value in rets) / len(rets))\n93:         if downside > 1e-12:\n94:             sortino = mean / downside * math.sqrt(252)\n95:     calmar = None\n96:     if cagr is not None and drawdown < 0:\n97:         calmar = cagr / abs(drawdown)\n98:     flows: list[tuple[date, float]] = []\n99:     if dates:\n100:         flows.append((dates[0], -initial_capital))\n101:         for day, amount in portfolio.contributions:\n102:             flows.append((day, -amount))\n103:         flows.append((dates[-1], equity[-1]))\n104:     hit = None\n105:     if portfolio.closed_pnls:\n106:         hit = sum(1 for pnl in portfolio.closed_pnls if pnl > 0) / len(portfolio.closed_pnls)\n107:     avg_equity = sum(equity) / len(equity) if equity else 0.0\n108:     traded = sum(fill.notional for fill in portfolio.trades)\n109:     turnover = (0.5 * traded / avg_equity) if avg_equity else 0.0\n110:     trips = _round_trips(portfolio.trades)\n111:     holding = None\n112:     if portfolio.holding_samples:\n113:         holding = sum(portfolio.holding_samples) / len(portfolio.holding_samples)\n114:     return PerformanceReport(\n115:         final_equity=round(equity[-1] if equity else initial_capital, 4),\n116:         net_contributions=round(initial_capital + sum(contributions.values()), 4),\n117:         twr=twr,\n118:         cagr=cagr,\n119:         irr=_xirr(flows),\n120:         sharpe=sharpe,\n121:         sortino=sortino,\n122:         max_drawdown=drawdown,\n123:         calmar=calmar,\n124:         hit_rate=hit,\n125:         turnover=turnover,\n126:         round_trips=trips,\n127:         avg_holding_sessions=holding,\n128:         swing_trades=len(portfolio.swing_exits),\n129:         friction=round(portfolio.friction, 6),\n130:     )"
+    },
+    {
+     "step": 4,
+     "action": "read",
+     "args": {
+      "file": "src/ta/sim/metrics.py",
+      "start": 38,
+      "end": 67
+     },
+     "result": "38: def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n39:     if len(cashflows) < 2:\n40:         return None\n41:     start = cashflows[0][0]\n42:     times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n43:     amounts = [amount for _day, amount in cashflows]\n44: \n45:     def npv(rate: float) -> float:\n46:         return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n47: \n48:     def dnpv(rate: float) -> float:\n49:         return sum(\n50:             -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n51:         )\n52: \n53:     rate = 0.1\n54:     for _ in range(60):\n55:         value = npv(rate)\n56:         slope = dnpv(rate)\n57:         if abs(slope) < 1e-12:\n58:             break\n59:         nxt = rate - value / slope\n60:         nxt = min(max(nxt, -0.9), 5.0)\n61:         if abs(nxt - rate) < 1e-10:\n62:             rate = nxt\n63:             break\n64:         rate = nxt\n65:     if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n66:         return None\n67:     return rate"
+    },
+    {
+     "step": 5,
+     "action": "answer",
+     "args": {
+      "file": "src/ta/sim/metrics.py",
+      "line": 57,
+      "reason": "The slope threshold check abs(slope) < 1e-12 is too strict for short time periods (10 days). With times of 0.0 and 0.0274 years, the derivative dnpv becomes very small, causing premature exit from Newton-Raphson iteration before convergence, leading to IRR returning None instead of the correct annualized rate."
+     },
+     "result": "confirmed: the line exists and was written by an agent edit"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step:invalid_json_retry",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ],
+   "candidate": {
+    "file": "src/ta/sim/metrics.py",
+    "line": 57,
+    "end_line": 175,
+    "text": "        if abs(slope) < 1e-12:",
+    "score": 0,
+    "matched_terms": [],
+    "edit_line": 219,
+    "tool": "search_replace",
+    "hunk_id": "L219#75",
+    "snippet": "57:         if abs(slope) < 1e-12:",
+    "method": "agentic_model",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 57,
+    "hunk_start": 1,
+    "anchor": "exact",
+    "context_lines": [
+     {
+      "line": 56,
+      "text": "        slope = dnpv(rate)"
+     },
+     {
+      "line": 57,
+      "text": "        if abs(slope) < 1e-12:"
+     },
+     {
+      "line": 58,
+      "text": "            break"
+     }
+    ]
+   }
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 16066,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:src/ta/sim/metrics.py (over budget)",
+    "transcript_window:reasoning mentioning \"range\" (L760) (over budget)",
+    "transcript_window:reasoning mentioning \"range\" (L686) (over budget)",
+    "transcript_window:reasoning mentioning \"range\" (L15) (over budget)",
+    "transcript_window:reasoning mentioning \"range\" (L20) (over budget)",
+    "transcript_window:reasoning mentioning \"range\" (L102) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "The IRR field on a client's performance memo shows \"n/a\" for a 10-calendar-day backtest.\n\nReported numbers for that period: starting equity 100000.00, ending equity 106000.00, no deposits or withdrawals in between. The two cash-flow dates and amounts for the period, as shown on the memo's backup page, are:\n2024-01-02: -100000\n2024-01-12: 106000\n\nEvery other number on the memo (TWR, drawdown, Sharpe) rendered normally; only the IRR cell is blank.",
+   "edit": {
+    "file": "ta/sim/metrics.py",
+    "line": 57,
+    "hunk": "+        )\n+\n+    rate = 0.1\n+    for _ in range(60):\n+        value = npv(rate)\n+        slope = dnpv(rate)\n+        if abs(slope) < 1e-12:\n+            break\n+        nxt = rate - value / slope\n+        nxt = min(max(nxt, -0.9), 5.0)\n+        if abs(nxt - rate) < 1e-10:\n+            rate = nxt\n+            break"
+   },
+   "code_window": "37: \n38: def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n39:     if len(cashflows) < 2:\n40:         return None\n41:     start = cashflows[0][0]\n42:     times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n43:     amounts = [amount for _day, amount in cashflows]\n44: \n45:     def npv(rate: float) -> float:\n46:         return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n47: \n48:     def dnpv(rate: float) -> float:\n49:         return sum(\n50:             -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n51:         )\n52: \n53:     rate = 0.1\n54:     for _ in range(60):\n55:         value = npv(rate)\n56:         slope = dnpv(rate)\n57:         if abs(slope) < 1e-12:\n58:             break\n59:         nxt = rate - value / slope\n60:         nxt = min(max(nxt, -0.9), 5.0)\n61:         if abs(nxt - rate) < 1e-10:\n62:             rate = nxt\n63:             break\n64:         rate = nxt\n65:     if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n66:         return None\n67:     return rate\n68: \n69: \n70: def performance(portfolio: Portfolio, initial_capital: float) -> PerformanceReport:\n71:     curve = portfolio.equity_curve\n72:     dates = [day for day, _equity in curve]\n73:     equity = [value for _day, value in curve]\n74:     contributions = {day: amount for day, amount in portfolio.contributions}\n75:     index = _growth_index(dates, equity, contributions) if equity else [1.0]\n76:     rets = [index[i] / index[i - 1] - 1 for i in range(1, len(index)) if index[i - 1] > 0]\n77:     twr = index[-1] - 1 if index else 0.0",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "ta/sim/metrics.py",
+     "line": 57,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 0,
+     "method": "agentic_model",
+     "text": "52: \n53:     rate = 0.1\n54:     for _ in range(60):\n55:         value = npv(rate)\n56:         slope = dnpv(rate)\n57:         if abs(slope) < 1e-12:\n58:             break\n59:         nxt = rate - value / slope\n60:         nxt = min(max(nxt, -0.9), 5.0)\n61:         if abs(nxt - rate) < 1e-10:\n62:             rate = nxt"
+    },
+    {
+     "label": "candidate 2",
+     "file": "dashboard/src/app/simulator/page.tsx",
+     "line": 22,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 24.9826,
+     "method": "deterministic_bm25",
+     "text": "17:   friction: Cite;\n18: };\n19: type Page = {\n20:   ready: boolean;\n21:   books: Book[];\n22:   series: { agent: { as_of: string; equity: number }[]; spy: { as_of: string; equity: number }[] };\n23:   reward?: {\n24:     citation_accuracy?: number;\n25:     rule_compliance?: number;\n26:     leakage_incidents?: number;\n27:     scalar?: number;"
+    },
+    {
+     "label": "candidate 3",
+     "file": "ta/memo/render.py",
+     "line": 185,
+     "function": "_cost_lines",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 24.2827,
+     "method": "deterministic_bm25",
+     "text": "180:         \"## Performance\",\n181:         \"\",\n182:         \"Time-weighted return removes the effect of contributions. \"\n183:         \"Final equity includes contributions, so it is not a return.\",\n184:         \"\",\n185:         \"| Book | Final equity | TWR | IRR | Max drawdown | Sharpe | Friction |\",\n186:         \"| --- | --- | --- | --- | --- | --- | --- |\",\n187:         _row(agent_label, result.agent),\n188:     ]\n189:     for name, report in result.baselines.items():\n190:         lines.append(_row(name, report))"
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "Build Phase 0 (and the scaffolding for later phases) of the multi-agent long-term US investing system described in the attached spec (uploads/trading-agent-spec.md, Draft v0.2). Read the whole spec first; it is the source of truth.",
+    "understood": "The `sectors` dictionary may be unused. Ruff will catch it.\n\nThe simulation engine will be a shared stepper in `sim/engine.py` with an `AdvanceResult` dataclass. The agent loop and baselines will both call `engine.advance`. A security map helper is also being drafted.\n\nThe security map helpers are now fully implemented. Remaining source files and prompts are being written next. A `run_demo` function is being drafted to wipe any existing database before running a fresh offline simulation.\n\nThe demo runner seeds the store, runs an episode, renders a report, and prints it. It deletes the log directory to reset keys between runs. DuckDB WAL files will also be removed.\n\nThe demo runner will use `shutil.rmtree` to wipe the entire demo directory, including any DuckDB WAL files. The episode loop will return an `EpisodeResult` dataclass defined in `agents/loop.py`. Determinism is being enforced by using a mock LLM, a fixed fixture seed, and avoiding timestamps in tool outputs that could alter order execution.\n\nRatio outputs exclude `retrieved_at` and quality scores depend only on prices. The ratio block uses the provided `as_of` timestamp rather than `datetime.now`. Order notionals are rounded to cents, and numpy's default RNG is stable across platforms for deterministic runs. Next up is writing the simulation engine, the agent loop, and trade recording.\n\nCompliance breaks are counted only when a post-trade weight check finds a filled violation. Guard drops for day trades or minimum hold periods are treated as correct behavior, not breaches. The `weights_after` helper simulates notionals and enforces caps to detect any filled violations.\n\nCompliance is measured against the adjusted target weights returned by the tool. The `caps_ok` flag reflects the original raw proposal, not the final orders. Fills may diverge slightly from those targets due to slippage or open versus close execution, but that does not constitute a cap violation.\n\nCompliance is set to 1 whenever adjusted weights are used and no day-trade guard blocks occur. It drops to 0 only for leakage or blocked round-trip orders. The memo will include a `cap_adjustments` count. A failed audit zeroes reward and skips that decision, but the episode continues.\n\nAudits will be stored on the result object. A chain seal will be appended at the end of the episode.\n\nThe agent loop is being written now, kept under 400 lines. Prompts for the SDK and an MCP server are also being added.\n\nThe MCP server package will use la",
+    "happened": "The IRR field on a client's performance memo shows \"n/a\" for a 10-calendar-day backtest.\n\nReported numbers for that period: starting equity 100000.00, ending equity 106000.00, no deposits or withdrawals in between. The two cash-flow dates and amounts for the period, as shown on the memo's backup page, are:\n2024-01-02: -100000\n2024-01-12: 106000\n\n  at ? (src/ta/sim/metrics.py:57)\n  57: if abs(slope) < 1e-12:\n\nWritten by transcript edit L219 (search_replace):\n+        )\n+\n+    rate = 0.1\n+    for _ in range(60):\n+        value = npv(rate)\n+        slope = dnpv(rate)\n+        if abs(slope) < 1e-12:\n+            break\n+        nxt = rate - value / slope\n+        nxt = min(max(nxt, -0.9), 5.0)\n+        if abs(nxt - rate) < 1e-10:\n+            rate = nxt\n+            break"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L219)",
+     "text": "L216 [assistant] (empty message)\nL217 [tool] TOOL: search_replace\nL217| CODE_WRITTEN: \nL217| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL217| +++ b//workspace/src/ta/evolve/guides.py\nL217| @@ -1,0 +1,210 @@\nL217| +\"\"\"Versioned guides and proposal records.\nL217| +\nL217| +The evolver may insert a proposal. It cannot change an active guide file.\nL217| +``apply_approved`` is the user path that writes the next version.\nL217| +\"\"\"\nL217| +\nL217| +from __future__ import annotations\nL217| +\nL217| +from pathlib import Path\nL217| +\nL217| +from ta.errors import ImmutableSurfaceError\nL217| +from ta.ids import new_id, sha256_text\nL217| +from ta.models import GuideProposalRecord, SplitWindow\nL217| +\nL217| +SECTIONS: dict[str, str] = {\nL217| +    \"read_task\": \"1. Read task\",\nL217| +    \"choose_tools\": \"2. Choose tools/sources\",\nL217| +    \"write_procedure\": \"3. Write procedure\",\nL217| +    \"check\": \"4. Check\",\nL217| +    \"locate_fault\": \"5. Locate fault\",\nL217| +    \"repair_once\": \"6. Repair once\",\nL217| +}\nL217| +\nL217| +IMMUTABLE_PREFIXES = (\nL217| +    \"config/risk.yaml\",\nL217| +    \"config/reward.yaml\",\nL217| +    \"src/ta/harness/\",\nL217| +    \"src/ta/actionlog/\",\nL217| +    \"src/ta/sim/\",\nL217| +    \"src/ta/verify/\",\nL217| +    \"src/ta/audit/\",\nL217| +    \"rules/\",\nL217| +)\nL217| +\nL217| +\nL217| +def assert_evolvable(relative_path: str) -> None:\nL217| +    normalised = relative_path.replace(\"\\\\\\\\\", \"/\")\nL217| +    if any(normalised.startswith(prefix) or normalised == prefix.rstrip(\"/\") for prefix in IMMUTABLE_PREFIXES):\nL217| +        raise ImmutableSurfaceError(f\"{relative_path} is outside the evolvable surface\")\nL217| +    if not (normalised.startswith(\"guides/\") and normalised.endswith(\".md\")):\nL217| +        raise ImmutableSurfaceError(\"guide edits must be a markdown file under guid\nL218 [assistant] (empty message)\nL219 [tool] TOOL: search_replace\nL219| CODE_WRITTEN: \nL219| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL219| +++ b//workspace/src/ta/sim/metrics.py\nL219| @@ -1,0 +1,175 @@\nL219| +\"\"\"Performance and the multi-objective reward. The scalar is never the only output.\"\"\"\nL219| +\nL219| +from __future__ import annotations\nL219| +\nL219| +import math\nL219| +from datetime import date\nL219| +\nL219| +from ta.config import RewardWeights\nL219| +from ta.models import PerformanceReport, RewardVector\nL219| +from ta.sim.portfolio import Portfolio\nL219| +\nL219| +\nL219| +def _growth_index(\nL219| +    dates: list[date],\nL219| +    equity: list[float],\nL219| +    contributions: dict[date, float],\nL219| +) -> list[float]:\nL219| +    level = 1.0\nL219| +    index = [1.0]\nL219| +    for i in range(1, len(equity)):\nL219| +        base = equity[i - 1] + contributions.get(dates[i], 0.0)\nL219| +        if base > 0 and equity[i] > 0:\nL219| +            level *= equity[i] / base\nL219| +        index.append(level)\nL219| +    return index\nL219| +\nL219| +\nL219| +def _max_drawdown(index: list[float]) -> float:\nL219| +    peak = index[0] if index else 1.0\nL219| +    worst = 0.0\nL219| +    for value in index:\nL219| +        peak = max(peak, value)\nL219| +        if peak > 0:\nL219| +            worst = min(worst, value / peak - 1)\nL219| +    return worst\nL219| +\nL219| +\nL219| +def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\nL219| +    if len(cashflows) < 2:\nL219| +        return None\nL219| +    start = cashflows[0][0]\nL219| +    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\nL219| +    amounts = [amount for _day, amount in cashflows]\nL219| +\nL219| +    def npv(rate: float) -> float:\nL219| +        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, \nL220 [assistant] (empty message)\nL221 [tool] TOOL: search_replace\nL221| CODE_WRITTEN: \nL221| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL221| +++ b//workspace/src/ta/sim/splits.py\nL221| @@ -1,0 +1,62 @@\nL221| +\"\"\"Walk-forward windows and the held-out sector list.\nL221| +\nL221| +Held-out sectors stay in the evaluation universe. They are refused by the\nL221| +guide proposer. This module only builds the windows; it does not run agents.\nL221| +\"\"\"\nL221| +\nL221| +from __future__ import annotations\nL221| +\nL221| +from datetime import date\nL221| +\nL221| +from ta.config import WalkForwardConfig\nL221| +from ta.models import SplitWindow\nL221| +\nL221| +\nL221| +def walk_forward(\nL221| +    dates: list[date],\nL221| +    config: WalkForwardConfig,\nL221| +    *,\nL221| +    held_out_sectors: list[str],\nL221| +) -> list[SplitWindow]:\nL221| +    \"\"\"Expanding train, then a validation window, then a test window, rolled by the test length.\"\"\"\nL221| +    splits: list[SplitWindow] = []\nL221| +    cursor = config.min_train_sessions\nL221| +    index = 1\nL221| +    while cursor + config.validation_sessions + config.test_sessions <= len(dates):\nL221| +        val_end_index = cursor + config.validation_sessions - 1\nL221| +        test_end_index = val_end_index + config.test_sessions\nL221| +        splits.append(\nL221| +            SplitWindow(\nL221| +                name=f\"wf-{index}\",\nL221| +                role=\"test\",\nL221| +                start=dates[0],\nL221| +                end=dates[test_end_index],\nL221| +                train_end=dates[cursor - 1],\nL221| +                validation_end=dates[val_end_index],\nL221| +                held_out_sectors=list(held_out_sectors),\nL221| +            )\nL221| +        )\nL221| +        # Also expose the validation slice as its own window so cal\nL222 [assistant] THINKING: The held-out check in the propose function feels awkward.\nL222| \nL222| Confirmed the held-out sector check in propose raises ImmutableSurfaceError before the split check. Next up are the engine, baselines, agents, memo, CLI, and MCP modules. Config will switch to read_active_guides so guide tool resolution stays consistent.\nL222| \nL222| Verified no circular imports between config and evolve.guides. Only guide version resolution will switch to read_active_guides; rules remain unchanged."
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that a near-zero derivative (slope) indicates convergence, but for a very short time period the derivative can be legitimately small even when NPV is far from zero, causing premature exit before finding the root.",
+  "why_it_breaks": "For a 10-day period, times are ~0.027 years, making the derivative dnpv extremely small (proportional to time) even at the correct rate. The slope check at line 57 exits early with rate=0.1, which gives npv≈0.027 (far above the 1e-3 threshold at line 65), so the function returns None and IRR displays as n/a.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 219,
+    "quote": "+    def npv(rate: float) -> float:\n+        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts,",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/sim/metrics.py",
+    "line": 42,
+    "quote": "    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/sim/metrics.py",
+    "line": 57,
+    "quote": "        if abs(slope) < 1e-12:",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/sim/metrics.py",
+    "line": 65,
+    "quote": "    if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 3,
+  "verified_transcript_quotes": 1
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "src/ta/sim/metrics.py",
+  "line": 57,
+  "hunk_id": "L219#75"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "high",
+  "capped": "high",
+  "margin": 0.3182293272786318,
+  "layer2_confirmed": true,
+  "anchor": "exact",
+  "quotes_verified": true
+ }
+}

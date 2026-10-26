@@ -1,0 +1,45 @@
+{
+ "overlooked_assumption": "The agent assumed that switching the test target from \"orders\" to \"customers\" would avoid the readers_migrated gating condition, not realizing that readers_subset still blocks execution because live query_log evidence from post-signup activity registers as new readers during recheck.",
+ "why_it_breaks": "The agent switched the test from \"orders\" to \"customers\" to eliminate scheduler/BI dependents that block readers_migrated, but readers_subset still rechecks live query_log evidence after approve(). Since the signup that created the duplicate email (ana@example.com) occurs after the propose() call but before execution, it generates new query_log entries for \"customers\". During the recheck before execution, readers_subset sees these post-signup entries as \"new\" readers since signed_at, and rejects the truncate as unsafe. The agent overlooked that readers_subset\u2014not readers_migrated\u2014is the blocking condition for this scenario.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 221,
+   "quote": "The real issue is timing: readers_subset checks evidence since signed_at, but readers_migrated checks scheduler/bi sources without any time filtering, so I need to recheck how the condition logic actually handles this.",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 221,
+   "quote": "So since signed_at is set right after seeding, all that noise data is strictly older than signed_at, meaning the recheck's \"since=signed_at\" filter yields an empty current-activity set and the drift check passes trivially unless something genuinely new happens post-signing",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 221,
+   "quote": "So I should switch my two failing tests to target \"customers\" instead of \"orders\" to dodge the baked-in scheduler/bi dependents, while still exercising propose\u2192evidence\u2192plan\u2192sign\u2192execute. But I also want the test to show dependents actually get discovered and that the gating logic is meaningful, not just trivially passing \u2014 using \"customers\" with zero deps would only exercise the readers_subset condition in a trivial way.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_guarded_kinds.py",
+   "line": 115,
+   "quote": "direct = guard.execute(truncate_customers)",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_guarded_kinds.py",
+   "line": 116,
+   "quote": "assert direct[\"status\"] == \"rejected\"",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 3
+}

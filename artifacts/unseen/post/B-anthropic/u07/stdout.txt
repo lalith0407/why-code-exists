@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:32
+stage: ok
+provider: anthropic
+frame: src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:32
+status: verified (code quotes 2, transcript quotes 3)
+overlooked_assumption: The agent assumed that adding FrameworkPattern to ComputeReferenceStaticWebAssetItems would automatically apply framework asset materialization at P2P boundaries, but did not implement the actual pattern matching and materialization logic in that task's Execute method.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/B-anthropic/u07/report.html

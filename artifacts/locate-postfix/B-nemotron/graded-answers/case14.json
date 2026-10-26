@@ -1,0 +1,24 @@
+{
+ "overlooked_assumption": "The agent assumed that `end.replace(year=end.year - 5)` would always produce a valid date, overlooking that when `end` is February 29 of a leap year, subtracting 5 years lands on a non-leap year where February 29 does not exist.",
+ "why_it_breaks": "When `end` is February 29 of a leap year (e.g., 2024), calling `.replace(year=2019)` attempts to create February 29, 2019, which does not exist because 2019 is not a leap year. Python raises `ValueError: day is out of range for month`. The agent did not account for calendar validity when shifting the year backward by a fixed amount.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 3567,
+   "quote": "start = end.replace(year=end.year - 5)",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/replay.py",
+   "line": 322,
+   "quote": "start = end.replace(year=end.year - 5)",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

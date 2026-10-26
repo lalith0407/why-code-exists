@@ -1,0 +1,20 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case12",
+  "complete": false,
+  "notes": [
+   "no stack frame points at a file the agent edited in this transcript"
+  ]
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [],
+ "stage": "no_frame",
+ "reason": "no stack frame points at a file the agent edited in this transcript"
+}

@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> rules/exit/v1.yaml:10
+stage: ok
+provider: nemotron
+frame: rules/exit/v1.yaml:10
+status: unverified (code quotes 0, transcript quotes 1)
+overlooked_assumption: The agent assumed that adding valuation_target and time_stop to discretionary_exits would allow the guard to distinguish them from swing-trade exits, but the guard checks the swing-trade cap before evaluating exit type, so all three exits bypass the cap.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case12/report.html

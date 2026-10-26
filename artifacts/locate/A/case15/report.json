@@ -1,0 +1,426 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case15",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "src/app/work/[slug]/page.tsx",
+   "line": 47,
+   "function": "CaseStudyPage"
+  },
+  "asked": {
+   "text": "## Site structure (required sections)\n1. **Nav** — name/mark, links: Work, About, Contact (or Hire). Optional Resume link as `#` placeholder.\n2. **Hero** — headline for founding AI eng, 1–2 sentence pitch, primary CTA (Get in touch / Hire me), secondary (View work). Placeholder name: Lalith Vardhan. Placeholder role line: Founding AI Engineer · open to founding / early-stage roles. Include a small proof-chip row (e.g. YC W24, Founding AI Eng, [Metric], [Domain]) as clearly marked placeholders.\n3. **Selected work** — exactly **3 case study cards**. Each card: title, one-line problem, 2–3 outcome bullets with `[metric]` placeholders, role tag, “Read case study” (can be anchor or expand). Placeholder titles like “Case study 01 — [Product / system]”.\n4. **Proof / credibility strip** — chips or compact stats: years, YC, domains, stack highlights — all placeholders.\n5. **About** — short founding-builder narrative (2–3 paragraphs of placeholder/lorem that sounds like a founding AI eng, not generic “passionate developer”).\n6. **Hire / contact CTA** — email placeholder `hello@example.com`, optional LinkedIn/GitHub `#` links, clear open-to-roles line.\n7. **Footer** — minimal.",
+   "citation": "bc-cfc1fe44-a598-5ad2-9c23-b2ad05242a85.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 3213
+  },
+  "understood": {
+   "text": "Next steps cover the remaining structural pieces: layout, pages, icons, not-found handling, case study page, README, and package.json.\n\nExtracting highlightTokens to avoid duplication. Fixing an unused `xs:inline` class in hero.tsx. Writing the remaining app files.",
+   "citation": "bc-cfc1fe44-a598-5ad2-9c23-b2ad05242a85.jsonl#L117 (assistant, 35 words, 10 line(s) before the edit at L127)",
+   "valid": true,
+   "full_length": 265
+  },
+  "happened": {
+   "text": "Browser dev-build console, while loading the homepage's \"Selected work\" section, logs 6 React warnings:\n\nEncountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.\n\nQA noticed this while reviewing the homepage in a local dev build; the page still renders, but the warning repeats 6 times in a row.\n\n  at CaseStudyPage (src/app/work/[slug]/page.tsx:47)\n  47: href=\"/#work\"\n\nWritten by transcript edit L127 (search_replace):\n+  }\n+\n+  return (\n+    <main id=\"main\" className=\"py-12 sm:py-16\">\n+      <Container className=\"max-w-[760px]\">\n+        <Link\n+          href=\"/#work\"\n+          className=\"inline-flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground transition-colors hover:text-sage\"\n+        >\n+          <ArrowLeft className=\"size-3.5\" />\n+          Selected work\n+        </Link>\n+",
+   "citation": "error case15 frame src/app/work/[slug]/page.tsx:47; bc-cfc1fe44-a598-5ad2-9c23-b2ad05242a85.jsonl#L127",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 127,
+    "quote": "export function generateStaticParams() {\n  return caseStudies.map((study) => ({ slug: study.slug }));\n}",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Browser dev-build console, while loading the homepage's \"Selected work\" section, logs 6 React warnings:\n\nEncountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.\n\nQA noticed this while reviewing the homepage in a local dev build; the page still renders, but the warning repeats 6 times in a row.\n",
+  "terms": [
+   "s",
+   "section, logs 6 react warnings:\n\nencountered two children with the same key,",
+   "browser dev",
+   "selected work",
+   "react warnings",
+   "encountered two children with",
+   "keys should be unique",
+   "qa noticed this while",
+   "6",
+   "browser",
+   "build",
+   "console",
+   "loading",
+   "homepage",
+   "selected",
+   "work",
+   "section",
+   "logs",
+   "react",
+   "warnings",
+   "encountered",
+   "children",
+   "same",
+   "outcome",
+   "changed",
+   "keys",
+   "unique",
+   "components",
+   "maintain",
+   "identity",
+   "across",
+   "updates",
+   "cause",
+   "duplicated",
+   "omitted",
+   "behavior",
+   "unsupported",
+   "change",
+   "future",
+   "version",
+   "noticed",
+   "reviewing",
+   "local",
+   "page",
+   "renders",
+   "warning",
+   "repeats",
+   "times"
+  ],
+  "layer1": {
+   "symbols_indexed": 534,
+   "edited_hunks_indexed": 145,
+   "candidates": [
+    {
+     "file": "src/app/work/[slug]/page.tsx",
+     "line": 47,
+     "end_line": 141,
+     "text": "          Selected work",
+     "function": "CaseStudyPage",
+     "score": 15.5178,
+     "matched_terms": [
+      "section",
+      "react",
+      "key",
+      "selected",
+      "work",
+      "outcome",
+      "changed",
+      "components",
+      "page",
+      "selected work"
+     ],
+     "edit_line": 127,
+     "tool": "search_replace",
+     "hunk_id": "L127#17",
+     "snippet": "1: import Link from \"next/link\";\n2: import { notFound } from \"next/navigation\";\n3: import { ArrowLeft, ArrowUpRight } from \"lucide-react\";\n4: import { Container } from \"@/components/container\";\n5: import { PlaceholderLabel, Token } from \"@/components/placeholder\";\n6: import { Badge } from \"@/components/ui/badge\";\n7: import { buttonVariants } from \"@/components/ui/button\";\n8: import { caseStudies, getCaseStudy } from \"@/lib/site\";\n9: import { cn } from \"@/lib/utils\";\n10: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/components/selected-work.tsx",
+     "line": 12,
+     "end_line": 114,
+     "text": "        <SectionLabel index=\"/ 03\">Selected work</SectionLabel>",
+     "function": "SelectedWork",
+     "score": 14.5333,
+     "matched_terms": [
+      "section",
+      "react",
+      "key",
+      "selected",
+      "work",
+      "outcome",
+      "components",
+      "selected work"
+     ],
+     "edit_line": 110,
+     "tool": "search_replace",
+     "hunk_id": "L110#9",
+     "snippet": "1: import Link from \"next/link\";\n2: import { ArrowUpRight } from \"lucide-react\";\n3: import { Container, SectionLabel } from \"@/components/container\";\n4: import { PlaceholderLabel, Token } from \"@/components/placeholder\";\n5: import { Badge } from \"@/components/ui/badge\";\n6: import { caseStudies, type CaseStudy } from \"@/lib/site\";\n7: \n8: export function SelectedWork() {\n9:   return (\n10:     <section id=\"work\" className=\"scroll-mt-20 py-8 sm:py-12\">",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/app/page.tsx",
+     "line": 5,
+     "end_line": 15,
+     "text": "import { SelectedWork } from \"@/components/selected-work\";",
+     "function": "Home",
+     "score": 13.4953,
+     "matched_terms": [
+      "selected",
+      "work",
+      "components"
+     ],
+     "edit_line": 121,
+     "tool": "search_replace",
+     "hunk_id": "L121#14",
+     "snippet": "1: import { About } from \"@/components/about\";\n2: import { Hero } from \"@/components/hero\";\n3: import { HireCta } from \"@/components/hire-cta\";\n4: import { ProofStrip } from \"@/components/proof-strip\";\n5: import { SelectedWork } from \"@/components/selected-work\";\n9:     <main id=\"main\">\n10:       <Hero />\n11:       <SelectedWork />\n12:       <ProofStrip />\n13:       <About />",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/components/container.tsx",
+     "line": 7,
+     "end_line": 34,
+     "text": "  children: React.ReactNode;",
+     "function": "Container",
+     "score": 13.0348,
+     "matched_terms": [
+      "section",
+      "react",
+      "children"
+     ],
+     "edit_line": 98,
+     "tool": "search_replace",
+     "hunk_id": "L98#4",
+     "snippet": "1: import { cn } from \"@/lib/utils\";\n2: \n3: export function Container({\n4:   children,\n5:   className,\n6: }: {\n7:   children: React.ReactNode;\n8:   className?: string;\n9: }) {\n10:   return (",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/lib/site.ts",
+     "line": 80,
+     "end_line": 94,
+     "text": "      { metric: \"[Metric]\", detail: \"[Outcome — what changed.]\" },",
+     "function": "caseStudyStub",
+     "score": 11.0163,
+     "matched_terms": [
+      "outcome",
+      "changed"
+     ],
+     "edit_line": 1015,
+     "tool": "search_replace",
+     "hunk_id": "L1015#133",
+     "snippet": "66:   placeholder: boolean;\n69: function caseStudyStub(number: \"01\" | \"02\" | \"03\"): CaseStudy {\n70:   return {\n71:     slug: `case-${number}`,\n72:     number,\n73:     title: `Case study ${number} — [Title]`,\n74:     product: \"[Product]\",\n75:     problem: \"[Problem — what was broken and why it mattered.]\",\n76:     role: \"[Role]\",\n77:     dates: \"[Dates]\",",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/components/placeholder.tsx",
+     "line": 7,
+     "end_line": 24,
+     "text": "  children: React.ReactNode;",
+     "function": "Token",
+     "score": 10.2056,
+     "matched_terms": [
+      "react",
+      "children"
+     ],
+     "edit_line": 96,
+     "tool": "search_replace",
+     "hunk_id": "L96#3",
+     "snippet": "1: import { cn } from \"@/lib/utils\";\n2: \n3: export function Token({\n4:   children,\n5:   className,\n6: }: {\n7:   children: React.ReactNode;\n8:   className?: string;\n9: }) {\n10:   return <span className={cn(\"token\", className)}>{children}</span>;",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/components/case-studies.tsx",
+     "line": 69,
+     "end_line": 101,
+     "text": "                key={outcome.detail}",
+     "function": "CaseStudyCard",
+     "score": 8.5756,
+     "matched_terms": [
+      "section",
+      "react",
+      "key",
+      "work",
+      "outcome",
+      "components"
+     ],
+     "edit_line": 475,
+     "tool": "search_replace",
+     "hunk_id": "L475#74",
+     "snippet": "1: import Link from \"next/link\";\n2: import { ArrowUpRight } from \"lucide-react\";\n3: import { Container, SectionLabel } from \"@/components/container\";\n4: import { Token } from \"@/components/placeholder\";\n5: import { Badge } from \"@/components/ui/badge\";\n6: import { caseStudies, site, type CaseStudy } from \"@/lib/site\";\n7: \n8: export function CaseStudies() {\n9:   return (\n10:     <section id=\"work\" className=\"scroll-mt-24 py-10 sm:py-14\">",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "public/iu-logo.svg",
+     "line": 2,
+     "end_line": 5,
+     "text": "<!-- Indiana University trident. Source: IU visual identity (Wikimedia Commons: Indiana Hoosiers logo.svg). Unaltered mark, IU Crimson #990000. -->",
+     "score": 7.9189,
+     "matched_terms": [
+      "identity",
+      "version"
+     ],
+     "edit_line": 829,
+     "tool": "search_replace",
+     "hunk_id": "L829#117",
+     "snippet": "1: <?xml version=\"1.0\" encoding=\"utf-8\"?>\n2: <!-- Indiana University trident. Source: IU visual identity (Wikimedia Commons: Indiana Hoosiers logo.svg). Unaltered mark, IU Crimson #990000. -->\n3: <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 270 341\" width=\"270\" height=\"341\" role=\"img\" aria-label=\"Indiana University Bloomington\">\n4:   <path fill=\"#990000\" d=\"M88.2,0 v25.6 h19.9 v188h-37.9v-142.6h17.8v-25.7h-88v25.7h19.9v165.2l32.3,33h55.9v38.1h-19.9v33h93.4v-33h-19.9v-38.1h55.9l32.3,-33v-165.2h19.9v-25.7h-88v25.7h17.8v142.6h-37.9v-188h19.9v-25.6z\"/>\n5: </svg>",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/components/case-studies.tsx",
+     "line": 74,
+     "end_line": 106,
+     "text": "                key={`${study.slug}-outcome-${outcomeIndex}`}",
+     "function": "CaseStudyCard",
+     "score": 7.7525,
+     "matched_terms": [
+      "key",
+      "outcome"
+     ],
+     "edit_line": 1018,
+     "tool": "search_replace",
+     "hunk_id": "L1018#137",
+     "snippet": "56:               {field(study, study.role)}\n59:               {field(study, study.dates)}\n61:             {study.placeholder ? <PlaceholderLabel /> : null}\n65:             {field(study, study.title)}\n68:             {field(study, study.problem)}\n72:             {study.outcomes.map((outcome, outcomeIndex) => (\n74:                 key={`${study.slug}-outcome-${outcomeIndex}`}\n77:                 {study.placeholder ? (\n78:                   <span className=\"shrink-0 text-[13px]\">\n79:                     {withTokens(outcome.metric)}",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "README.md",
+     "line": 21,
+     "end_line": 40,
+     "text": "npm run dev",
+     "score": 7.7096,
+     "matched_terms": [
+      "dev",
+      "work",
+      "build"
+     ],
+     "edit_line": 129,
+     "tool": "search_replace",
+     "hunk_id": "L129#18",
+     "snippet": "1: # Lalith Vardhan — portfolio shell\n2: \n3: Personal site shell for **Lalith Vardhan**, aimed at recruiters and hiring managers for founding / early-stage AI engineer roles.\n4: \n5: **All copy is placeholder.** Bracketed tokens like `[Company]`, `[metric]`, and `[domain]` are intentional blanks. Nothing here should be read as a real claim.\n6: \n7: ## Design\n8: \n9: Dark ink aesthetic (near-black `#0A0A0F`–`#0f1115`, paper text, mono labels, glass cards) with metric-first, plain placeholder copy. Structure: hero pitch → three case studies → proof chips → about → hire CTA.\n10: ",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "src/app/work/[slug]/page.tsx",
+   "line": 47,
+   "end_line": 141,
+   "text": "          Selected work",
+   "function": "CaseStudyPage",
+   "score": 15.5178,
+   "matched_terms": [
+    "section",
+    "react",
+    "key",
+    "selected",
+    "work",
+    "outcome",
+    "changed",
+    "components",
+    "page",
+    "selected work"
+   ],
+   "edit_line": 127,
+   "tool": "search_replace",
+   "hunk_id": "L127#17",
+   "snippet": "1: import Link from \"next/link\";\n2: import { notFound } from \"next/navigation\";\n3: import { ArrowLeft, ArrowUpRight } from \"lucide-react\";\n4: import { Container } from \"@/components/container\";\n5: import { PlaceholderLabel, Token } from \"@/components/placeholder\";\n6: import { Badge } from \"@/components/ui/badge\";\n7: import { buttonVariants } from \"@/components/ui/button\";\n8: import { caseStudies, getCaseStudy } from \"@/lib/site\";\n9: import { cn } from \"@/lib/utils\";\n10: ",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 13168,
+   "truncated": false,
+   "dropped_sections": []
+  },
+  "prompt_user": {
+   "symptom": "Browser dev-build console, while loading the homepage's \"Selected work\" section, logs 6 React warnings:\n\nEncountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.\n\nQA noticed this while reviewing the homepage in a local dev build; the page still renders, but the warning repeats 6 times in a row.",
+   "edit": {
+    "file": "app/work/[slug]/page.tsx",
+    "line": 47,
+    "hunk": "+  }\n+\n+  return (\n+    <main id=\"main\" className=\"py-12 sm:py-16\">\n+      <Container className=\"max-w-[760px]\">\n+        <Link\n+          href=\"/#work\"\n+          className=\"inline-flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground transition-colors hover:text-sage\"\n+        >\n+          <ArrowLeft className=\"size-3.5\" />\n+          Selected work\n+        </Link>\n+"
+   },
+   "code_window": "27: \n28: function field(study: CaseStudy, text: string) {\n29:   return study.placeholder ? withTokens(text) : text;\n30: }\n31: \n32: export default async function CaseStudyPage({\n33:   params,\n34: }: {\n35:   params: Promise<{ slug: string }>;\n36: }) {\n37:   const { slug } = await params;\n38:   const study = getCaseStudy(slug);\n39:   if (!study) {\n40:     notFound();\n41:   }\n42: \n43:   return (\n44:     <main id=\"main\" className=\"py-12 sm:py-16\">\n45:       <Container className=\"max-w-[760px]\">\n46:         <Link\n47:           href=\"/#work\"\n48:           className=\"inline-flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground transition-colors hover:text-sage\"\n49:         >\n50:           <ArrowLeft className=\"size-3.5\" />\n51:           Case studies\n52:         </Link>\n53: \n54:         <div className=\"mt-8 flex flex-wrap items-center gap-2\">\n55:           <Badge\n56:             variant=\"outline\"\n57:             className=\"h-6 rounded-full px-2.5 font-mono text-[10px] font-normal tracking-wide\"\n58:           >\n59:             {field(study, study.role)}\n60:           </Badge>\n61:           <span className=\"font-mono text-[11px] text-muted-foreground\">\n62:             {field(study, study.dates)} · {study.number} / 03\n63:           </span>\n64:           {study.placeholder ? <PlaceholderLabel /> : null}\n65:         </div>\n66: \n67:         <h1 className=\"mt-4 text-3xl font-medium tracking-tight sm:text-4xl\">",
+   "related_files": [
+    {
+     "path": "src/app/work/[slug]/page.tsx",
+     "relation": "called_by",
+     "text": "20:   const { slug } = await params;\n21:   const study = getCaseStudy(slug);\n22:   if (!study) {\n23:     return { title: \"Case study\" };\n24:   }\n25:   return { title: study.title };\n26: }\n27: \n28: function field(study: CaseStudy, text: string) {\n29:   return study.placeholder ? withTokens(text) : text;\n30: }\n31: \n32: export default async function CaseStudyPage({\n33:   params,\n34: }: {\n35:   params: Promise<{ slug: string }>;\n36: }) {\n37:   const { slug } = await params;\n38:   const study = getCaseStudy(slug);\n39:   if (!study) {\n40:     notFound();\n41:   }\n42: \n43:   return (\n44:     <main id=\"main\" className=\"py-12 sm:py-16\">"
+    }
+   ],
+   "three_piece": {
+    "asked": "## Site structure (required sections)\n1. **Nav** — name/mark, links: Work, About, Contact (or Hire). Optional Resume link as `#` placeholder.\n2. **Hero** — headline for founding AI eng, 1–2 sentence pitch, primary CTA (Get in touch / Hire me), secondary (View work). Placeholder name: Lalith Vardhan. Placeholder role line: Founding AI Engineer · open to founding / early-stage roles. Include a small proof-chip row (e.g. YC W24, Founding AI Eng, [Metric], [Domain]) as clearly marked placeholders.\n3. **Selected work** — exactly **3 case study cards**. Each card: title, one-line problem, 2–3 outcome bullets with `[metric]` placeholders, role tag, “Read case study” (can be anchor or expand). Placeholder titles like “Case study 01 — [Product / system]”.\n4. **Proof / credibility strip** — chips or compact stats: years, YC, domains, stack highlights — all placeholders.\n5. **About** — short founding-builder narrative (2–3 paragraphs of placeholder/lorem that sounds like a founding AI eng, not generic “passionate developer”).\n6. **Hire / contact CTA** — email placeholder `hello@example.com`, optional LinkedIn/GitHub `#` links, clear open-to-roles line.\n7. **Footer** — minimal.",
+    "understood": "Next steps cover the remaining structural pieces: layout, pages, icons, not-found handling, case study page, README, and package.json.\n\nExtracting highlightTokens to avoid duplication. Fixing an unused `xs:inline` class in hero.tsx. Writing the remaining app files.",
+    "happened": "Browser dev-build console, while loading the homepage's \"Selected work\" section, logs 6 React warnings:\n\nEncountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.\n\nQA noticed this while reviewing the homepage in a local dev build; the page still renders, but the warning repeats 6 times in a row.\n\n  at CaseStudyPage (src/app/work/[slug]/page.tsx:47)\n  47: href=\"/#work\"\n\nWritten by transcript edit L127 (search_replace):\n+  }\n+\n+  return (\n+    <main id=\"main\" className=\"py-12 sm:py-16\">\n+      <Container className=\"max-w-[760px]\">\n+        <Link\n+          href=\"/#work\"\n+          className=\"inline-flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground transition-colors hover:text-sage\"\n+        >\n+          <ArrowLeft className=\"size-3.5\" />\n+          Selected work\n+        </Link>\n+"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L127)",
+     "text": "L124 [assistant] (empty message)\nL125 [tool] TOOL: search_replace\nL125| CODE_WRITTEN: \nL125| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL125| +++ b//workspace/src/app/not-found.tsx\nL125| @@ -1,0 +1,34 @@\nL125| +import Link from \"next/link\";\nL125| +import { Container } from \"@/components/container\";\nL125| +import { buttonVariants } from \"@/components/ui/button\";\nL125| +import { cn } from \"@/lib/utils\";\nL125| +\nL125| +export default function NotFound() {\nL125| +  return (\nL125| +    <main id=\"main\" className=\"flex flex-1 items-center py-24\">\nL125| +      <Container>\nL125| +        <p className=\"font-mono text-[12px] tracking-[0.18em] text-sage uppercase\">\nL125| +          404\nL125| +        </p>\nL125| +        <h1 className=\"mt-3 text-3xl font-medium tracking-tight\">\nL125| +          That page is not here.\nL125| +        </h1>\nL125| +        <p className=\"mt-3 max-w-md text-muted-foreground\">\nL125| +          The shell is small on purpose. Head back to the work, or skip to\nL125| +          hire.\nL125| +        </p>\nL125| +        <div className=\"mt-8 flex gap-3\">\nL125| +          <Link href=\"/\" className={cn(buttonVariants(), \"h-10 px-4\")}>\nL125| +            Home\nL125| +          </Link>\nL125| +          <Link\nL125| +            href=\"/#hire\"\nL125| +            className={cn(buttonVariants({ variant: \"outline\" }), \"h-10 px-4\")}\nL125| +          >\nL125| +            Hire\nL125| +          </Link>\nL125| +        </div>\nL125| +      </Container>\nL125| +    </main>\nL125| +  );\nL125| +}\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":34}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL126 [assistant] (empty message)\nL127 [tool] TOOL: search_replace\nL127| CODE_WRITTEN: \nL127| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL127| +++ b//workspace/src/app/work/[slug]/page.tsx\nL127| @@ -1,0 +1,141 @@\nL127| +import Link from \"next/link\";\nL127| +import { notFound } from \"next/navigation\";\nL127| +import { ArrowLeft, ArrowUpRight } from \"lucide-react\";\nL127| +import { Container } from \"@/components/container\";\nL127| +import { PlaceholderLabel, Token } from \"@/components/placeholder\";\nL127| +import { Badge } from \"@/components/ui/badge\";\nL127| +import { buttonVariants } from \"@/components/ui/button\";\nL127| +import { caseStudies, getCaseStudy } from \"@/lib/site\";\nL127| +import { cn } from \"@/lib/utils\";\nL127| +\nL127| +export function generateStaticParams() {\nL127| +  return caseStudies.map((study) => ({ slug: study.slug }));\nL127| +}\nL127| +\nL127| +export async function generateMetadata({\nL127| +  params,\nL127| +}: {\nL127| +  params: Promise<{ slug: string }>;\nL127| +}) {\nL127| +  const { slug } = await params;\nL127| +  const study = getCaseStudy(slug);\nL127| +  if (!study) {\nL127| +    return { title: \"Case study\" };\nL127| +  }\nL127| +  return { title: study.title };\nL127| +}\nL127| +\nL127| +export default async function CaseStudyPage({\nL127| +  params,\nL127| +}: {\nL127| +  params: Promise<{ slug: string }>;\nL127| +}) {\nL127| +  const { slug } = await params;\nL127| +  const study = getCaseStudy(slug);\nL127| +  if (!study) {\nL127| +    notFound();\nL127| +  }\nL127| +\nL127| +  return (\nL127| +    <main id=\"main\" className=\"py-12 sm:py-16\">\nL127| +      <Container className=\"max-w-[760px]\">\nL127| +        <Link\nL127| +          href=\"/#work\"\nL127| +          className=\"inline-flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground transition-colors hover:text-sage\"\nL127| +        >\nL127| +\nL128 [assistant] (empty message)\nL129 [tool] TOOL: search_replace\nL129| CODE_WRITTEN: \nL129| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL129| +++ b//workspace/README.md\nL129| @@ -1,0 +1,40 @@\nL129| +# Lalith Vardhan — portfolio shell\nL129| +\nL129| +Personal site shell for **Lalith Vardhan**, aimed at recruiters and hiring managers for founding / early-stage AI engineer roles.\nL129| +\nL129| +**All copy is placeholder.** Bracketed tokens like `[Company]`, `[metric]`, and `[domain]` are intentional blanks. Nothing here should be read as a real claim.\nL129| +\nL129| +## Design\nL129| +\nL129| +Dark ink aesthetic (near-black `#0A0A0F`–`#0f1115`, paper text, mono labels, glass cards) with metric-first, plain placeholder copy. Structure: hero pitch → three case studies → proof chips → about → hire CTA.\nL129| +\nL129| +## Stack\nL129| +\nL129| +- Next.js (App Router) + TypeScript\nL129| +- Tailwind CSS v4\nL129| +- shadcn/ui primitives\nL129| +\nL129| +## Run locally\nL129| +\nL129| +```bash\nL129| +npm install\nL129| +npm run dev\nL129| +```\nL129| +\nL129| +Dev server: [http://127.0.0.1:43123](http://127.0.0.1:43123)\nL129| +\nL129| +```bash\nL129| +npm run build\nL129| +npm start\nL129| +```\nL129| +\nL129| +## Where to drop real content\nL129| +\nL129| +Edit `src/lib/site.ts`:\nL129| +\nL129| +- Name, role line, headline, pitch, email, socials\nL129| +- Hero chips and “why hire me” terminal lines\nL129| +- The three case studies (including placeholder body copy on `/work/[slug]`)\nL129| +- Proof strip and about paragraphs\nL129| +\nL129| +Resume / LinkedIn / GitHub currently point to `#`.\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":40}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL130 [assistant] (empty message)"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that the three case studies would always have distinct outcome bullet texts, so it did not add unique keys to the mapped outcome elements.",
+  "why_it_breaks": "The `field` function renders `study.role` and `study.dates` inside a `<Badge>` and `<span>` respectively. When the three case studies share identical placeholder values (e.g., the same `[Outcome — what changed.]` text), React assigns the same default key to each child, triggering the \"two children with the same key\" warning six times. The agent overlooked that mapped children need explicit `key` props when the rendered text can be non-unique across iterations.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 127,
+    "quote": "export function generateStaticParams() {\n  return caseStudies.map((study) => ({ slug: study.slug }));\n}",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "src/app/work/[slug]/page.tsx",
+    "line": 62,
+    "quote": "{field(study, study.dates)} · {study.number} / 03\n",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "src/app/work/[slug]/page.tsx",
+    "line": 59,
+    "quote": "{field(study, study.role)}\n",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that caseStudies array contains unique study objects, but the warning indicates two studies share the same outcome text `[Outcome — what changed.]`, causing duplicate keys in the JSX.",
+  "why_it_breaks": "The `generateStaticParams` function iterates over `caseStudies` to create slugs. If two case studies have identical `slug` values, Next.js will render multiple `CaseStudyPage` components with the same key on the homepage. Inside the page, the `field` function and badge/span elements render text based on study properties. When two studies share the same outcome text `[Outcome — what changed.]`, React sees two children with that exact key, triggering the duplicate-key warning six times (once per matching study pair across the six rendered instances).",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 127,
+    "quote": "export function generateStaticParams() {\n  return caseStudies.map((study) => ({ slug: study.slug }));\n}",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "src/app/work/[slug]/page.tsx",
+    "line": 59,
+    "quote": "{field(study, study.role)}",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ }
+}

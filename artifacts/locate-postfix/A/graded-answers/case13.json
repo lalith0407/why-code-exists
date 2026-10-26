@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that raw_claims contains claims referencing all selected tickers including AAPL, but _keep_after_reopen filters claims based on the proposal which only contains tickers with actual position-sizing output entries, so AAPL claims are excluded before verification even begins.",
+ "why_it_breaks": "The _claims_for function builds claims from sized.output which only contains entries for tickers that have position-sizing results (e.g., MSFT). When AAPL is selected but has no sizing output entry, the proposal contains no AAPL claim. Then _keep_after_reopen filters raw_claims against this proposal, removing any AAPL-related claims before they reach the citation verifier. The verifier then only sees MSFT claims and approves the single claim that exists, even though it incorrectly cites AAPL position-sizing output that doesn't contain an AAPL entry.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 251,
+   "quote": "A potential audit failure was noted: JSON key order differences could cause Python dict equality checks to fail when comparing tool outputs.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 470,
+   "quote": "raw_claims = _keep_after_reopen(gateway, proposed)",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 459,
+   "quote": "proposed = _claims_for(judgement, {\n462:             **sized.output,\n463:             \"output_id\": sized.output_id,\n464:             \"log_entry_id\": sized.log_entry_id,\n465:         },\n467:     )",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

@@ -1,0 +1,5 @@
+stage: no_frame (no stack frame points at a file the agent edited in this transcript)
+provider: nemotron
+frame: -
+
+report: /workspace/open-agent/why-code-exists/artifacts/explain-stage/nemotron/case12/report.html

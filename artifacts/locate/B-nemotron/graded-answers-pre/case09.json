@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that \"alter table orders drop column fax_number\" targets the default/schema-less table \"orders\" (production), without considering that the request explicitly specified an archive schema or that the system should route to a different schema when one is mentioned.",
+ "why_it_breaks": "The agent's test and request used the bare identifier \"orders\" without a schema prefix, and the guard's SQL execution logic defaulted to the production \"orders\" table. When the user later requested dropping a column on \"archive.orders\", the same routing logic sent the ALTER TABLE command to the production \"orders\" table instead, leaving the archive table untouched. The agent overlooked the case where a schema-qualified name (archive.orders) or a different routing path should be used, assuming that \"orders\" always refers to the production table.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 215,
+   "quote": "L215 [tool] TOOL: search_replace\nL215| CODE_WRITTEN: \nL215| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL215| +++ b//workspace/tests/test_guarded_kinds.py\nL215| @@ -1,0 +1,178 @@\nL215| +\"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\nL215| +closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\nL215| +import pytest\nL215| +from world.db import DB\nL215| +from blast_radius.models import parse_action\nL215| +\nL215| +\nL215| +# ---- (a) parser classification: bypass vectors must never be misread as \"read\" or auto-allowed\nL215| +\nL215| +@pytest.mark.parametrize(\"sql,kind\", [\nL215| +    (\"ALTER TABLE orders RENAME COLUMN legacy_discount TO discount\", \"rename_column\"),\nL215| +    (\"ALTER TABLE orders ALTER COLUMN legacy_discount TYPE TEXT\", \"alter_type\"),\nL215| +    (\"TRUNCATE TABLE orders\", \"truncate\"),\nL215| +    (\"DELETE FROM orders\", \"delete_unbounded\"),\nL215| +    (\"UPDATE orders SET total_cents = 0\", \"update_unbounded\"),\nL215| +    (\"DELETE FROM orders WHERE id = 1\", \"other\"),               # bounded: safe but over-blocked\nL215| +    (\"UPDATE orders SET total_cents = 0 WHERE id = 1\", \"other\"),  # bounded: safe but over-blocked\nL215| +    (\"COPY orders TO PROGRAM 'rm -rf /'\", \"other\"),\nL215| +    (\"GRANT ALL ON orders TO foo\", \"other\"),\nL215| +    (\"REVOKE ALL ON orders FROM foo\", \"other\"),\nL215| +    (\"CALL my_proc()\", \"other\"),\nL215| +    (\"DO $$ BEGIN EXECUTE 'DROP TABLE orders'; END $$;\", \"other\"),\nL215| +    (\"VACUUM orders\", \"other\"),\nL215| +    (\"MERGE INTO orders USING x ON (1=1) WHEN MATCHED THEN DELETE\", \"other\"),\nL215| +    (\"BEGIN; ALTER TABLE orders DROP COLUMN x;\nL216 [assistant] THINKING: I notice that no-op replace call in the rename_column test assertion is pointless since it just equals the original SQL, so I should simplify that line. Then I should actually run the tests to confirm my assumptions hold.\nL216| \nL216| \nL217 [assistant] (empty message)\nL218 [tool] TOOL: search_replace\nL218| CODE_WRITTEN: \nL218| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/tests/test_guarded_kinds.py\nL218| +++ b//workspace//workspace/tests/test_guarded_kinds.py\nL218| @@ -66,7 +66,7 @@\nL218|      assert d.verdict == \"safer_plan\"\nL218|      assert d.action.kind == \"rename_column\" and d.action.new_name == new_name\nL218|      assert {e.reader for e in d.evidence if e.source != \"repo_grep\"} >= {\"finance_dashboard\", \"nightly_revenue_job\"}\nL218| -    assert len(d.plan) == 2 and d.plan[-1].sql == sql.replace(\"ALTER TABLE orders ALTER\", \"ALTER TABLE orders ALTER\")\nL218| +    assert len(d.plan) == 2 and d.plan[-1].sql == sql\nL218|  \nL218|  \nL218|  def test_rename_column_signed_and_executed_after_conditions_hold(guard, world):\"}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false,\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_guarded_kinds.py",
+   "line": 176,
+   "quote": "r = guard.agent_call(\"alter table orders drop column fax_number\")\n",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

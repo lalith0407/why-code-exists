@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that a price <= 0 check is sufficient to skip invalid prices, but did not account for the case where the price is positive yet still above the average cost (i.e., the position has not hit the stop-loss), which means the function silently skips valid stop-loss checks for tickers with positive prices that are not below the stop.",
+ "why_it_breaks": "The `_forced_stops` function skips any ticker where `price <= 0` (line 319). However, the bug report describes a stop-loss that should have triggered at 30% below average cost but was rejected internally. If the price is positive (e.g., the market price is available but the position is down 30%), the function proceeds to compute the average and check the stop condition. The actual error is that the function correctly computes the stop condition on line 322, but the order management system rejects the stop-loss internally before submission. The overlooked assumption is that the function's internal check (`price <= average * (1.0 - stop_pct)`) is the only gate; the agent likely assumed that if the price is positive and the math passes, the order would flow. In reality, the order was rejected internally (status \"rejected\") before reaching the market, suggesting a separate rejection gate outside this function\u2014possibly the cooldown or thesis gate mentioned in the task description. The agent missed the case where a positive price that is below the stop should still be flagged, and the function's early `continue` on `price <= 0` may have been intended to guard against missing data, but if the price is positive and the stop condition is met, the ticker is correctly added to `forced`. The real issue is that the agent did not consider that the `forced` set is used later to block or label orders, and if the order logic elsewhere does not respect `forced` stops, or if the price data is stale/missing causing `price <= 0` to be false but the stop math to fail silently, the stop-loss would not execute. Given the transcript, the agent assumed `_forced_stops` would integrate with the order gate, but the edit only added the function without wiring it into the decision gate properly.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5790,
+   "quote": "A `_forced_stops` helper is being added to identify positions that have hit their stop-loss threshold. It calculates each lot\u2019s average cost and flags tickers whose current price falls at or below the configured percentage below that average.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 319,
+   "quote": "if price <= 0 or lot.qty <= 0:\n            continue",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 1
+}

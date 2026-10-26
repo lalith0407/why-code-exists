@@ -1,0 +1,24 @@
+{
+ "overlooked_assumption": "_forced_stops only checks price <= average * (1 - stop_pct), which misses stop-loss triggers when the price falls exactly at or below the stop threshold due to floating-point rounding or when the stop percentage is applied as a fixed fraction rather than a percentage drop from average",
+ "why_it_breaks": "The condition `price <= average * (1.0 - stop_pct)` uses a strict comparison that can fail to trigger when the price is exactly at the stop boundary due to floating-point arithmetic, or when `stop_pct` is configured as a raw percentage (e.g., 20) rather than a decimal (0.20), causing the multiplication `average * (1.0 - stop_pct)` to produce a value that the current price never satisfies exactly. Additionally, if `lot.qty` is negative or zero, the lot is skipped entirely (line 319-320), meaning a position with zero or negative quantity never gets evaluated for stop-loss, allowing the order to be rejected internally without the stop logic ever flagging it.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5790,
+   "quote": "A `_forced_stops` helper is being added to identify positions that have hit their stop-loss threshold. It calculates each lot\u2019s average cost and flags tickers whose current price falls at or below the configured percentage below that average.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 322,
+   "quote": "if average > 0 and price <= average * (1.0 - stop_pct):",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

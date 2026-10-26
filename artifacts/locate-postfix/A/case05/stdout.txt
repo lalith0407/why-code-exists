@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> prisma/schema.prisma:50
+stage: ok
+provider: nemotron
+frame: prisma/schema.prisma:50
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that adding webhookUrl and webhookSecret to the Workspace model would automatically trigger an async HTTP POST when feedback is created, without implementing the actual webhook-sending logic or ensuring it runs non-blockingly.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case05/report.html

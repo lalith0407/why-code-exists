@@ -1,0 +1,690 @@
+{
+  "version": "gen-v18-patch-revision",
+  "error": {
+    "id": "ta-irr-missing",
+    "timestamp": "2026-10-25T02:59:44.042Z",
+    "severity": "warning",
+    "service": "trading-agent-system",
+    "message": "Memo renders IRR as n/a: PerformanceReport.irr is None for a 10-calendar-day backtest (start equity 100000.00, end equity 106000.00, no contributions). Cash flows passed to the IRR solver: [[\"2024-01-02\",-100000],[\"2024-01-12\",106000]].",
+    "frames": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 38,
+        "function": "_xirr"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 70,
+        "function": "performance"
+      },
+      {
+        "file": "src/ta/memo/render.py",
+        "line": 26,
+        "function": "_row"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout-xirr-short/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "repo"
+    }
+  },
+  "frame": {
+    "file": "src/ta/sim/metrics.py",
+    "line": 38,
+    "function": "_xirr"
+  },
+  "language": "python",
+  "provenance": {
+    "file": "src/ta/sim/metrics.py",
+    "function": "_xirr",
+    "frame_line": 38,
+    "later_edits": [],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 219,
+      "tool": "search_replace",
+      "fn_range": [
+        38,
+        67
+      ],
+      "frame_line_in_range": true,
+      "hunk_excerpt": "+\n+\n+def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n+    if len(cashflows) < 2:\n+        return None\n+    start = cashflows[0][0]\n+    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n+    amounts = [amount for _day, amount in cashflows]\n+\n+    def npv(rate: float) -> float:\n+        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n+\n+    def dnpv(rate: float) -> float:\n+        return sum(\n+            -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n+        )",
+      "fn_text": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n    if len(cashflows) < 2:\n        return None\n    start = cashflows[0][0]\n    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n    amounts = [amount for _day, amount in cashflows]\n\n    def npv(rate: float) -> float:\n        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n\n    def dnpv(rate: float) -> float:\n        return sum(\n            -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n        )\n\n    rate = 0.1\n    for _ in range(60):\n        value = npv(rate)\n        slope = dnpv(rate)\n        if abs(slope) < 1e-12:\n            break\n        nxt = rate - value / slope\n        nxt = min(max(nxt, -0.9), 5.0)\n        if abs(nxt - rate) < 1e-10:\n            rate = nxt\n            break\n        rate = nxt\n    if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n        return None\n    return rate"
+    },
+    "reasoning_before": {
+      "line": 213,
+      "words": 582,
+      "silent": false,
+      "excerpt": "The `sectors` dictionary may be unused. Ruff will catch it.\n\nThe simulation engine will be a shared stepper in `sim/engine.py` with an `AdvanceResult` dataclass. The agent loop and baselines will both call `engine.advance`. A security map h"
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The _xirr function uses a fixed iteration count (60) and absolute convergence tolerance without accounting for short backtest durations, causing premature failure or non-finite rates when cash flows are close in time. [fix: Modify the convergence loop to check the total time span of cash flows and adjust the maximum iterations or relative tolerance based on the backtest length, or add a fallback that returns the simple rate (e.g., total return / days) when the solver fails on short intervals.]",
+          "The code returns None when the solver produces a non-finite rate, but for short backtests this is the expected behavior given the solver's limitations; the claim treats this as a bug, but the root cause is the solver's inability to converge, not the None return itself. [fix: Change the return value from None to a simple periodic rate calculation (e.g., (final/initial)^(1/years) - 1) or return the last computed rate before failure, with a flag indicating solver fallback.]"
+        ]
+      },
+      {
+        "causes": [
+          "The code assumes the Newton-Raphson solver will always converge for any set of cash flows, but short backtests with closely spaced payments can produce ill-conditioned Jacobians or non-convergent sequences that the fixed 60-iteration loop cannot resolve. [fix: Insert a guard at the start of _xirr that checks if the total duration of the cash-flow period is below a minimum threshold (e.g., less than 30 days). If the condition is met, return None or use a simple linear approximation instead of running the full solver loop.]",
+          "The fixed 60-iteration limit and the convergence check `abs(npv(rate)) > 1e-3` are too permissive for short backtests; the solver may terminate early with a non-finite rate or fail to satisfy the tolerance, yet the code still returns None as a symptom of the underlying insufficient safeguard. [fix: Replace the `for _ in range(60):` loop with a while loop that has a dynamic upper bound based on the cash-flow spread, lower the tolerance to 1e-8, and add a post-loop check that falls back to a bracketing method if the rate is not finite or the NPV is not within tolerance.]",
+          "The single return path `if not math.isfinite(rate) or abs(npv(rate)) > 1e-3: return None` conflates two distinct failure modes: (1) the solver ran and produced a non-finite rate due to bad inputs, and (2) the solver failed to converge within the iteration limit. Both produce None, but they require different fixes (input validation vs. algorithmic parameters). [fix: Split the post-loop condition into two branches: one that checks `not math.isfinite(rate)` and returns a specific sentinel or logs a warning about non-physical cash flows, and another that checks `abs(npv(rate)) > 1e-3` and either retries with a different initial guess or returns None with a different error code.]"
+        ]
+      },
+      {
+        "causes": [
+          "The code assumes convergence will occur within a fixed 60 iterations; if the solver does not converge within these iterations, it returns None, but the assumption that 60 iterations is sufficient for all cash flow timings is the root cause. [fix: Increase the maximum iteration count (e.g., to 1000) or add a dynamic convergence check based on the change in rate between iterations to handle cases where 60 iterations are insufficient.]",
+          "The condition `if not math.isfinite(rate) or abs(npv(rate)) > 1e-3: return None` treats non-finite rates as failures, but for short backtests, the solver might produce a rate that is numerically large but still valid; the strict finiteness check is too rigid. [fix: Replace the `math.isfinite(rate)` check with a range check (e.g., `rate > -1e6 and rate < 1e6`) or adjust the tolerance to allow larger but valid rates.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "repo",
+    "root": "/workspace/trading-agent-system"
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "repair_harness:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch_revision:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T20:34:50.107Z",
+  "workspace": {
+    "root": "/workspace/trading-agent-system",
+    "origin": "repo",
+    "notes": [
+      "python: repo virtualenv /workspace/trading-agent-system/.venv/bin/python"
+    ],
+    "framework_shims": [],
+    "database": null,
+    "python": "/workspace/trading-agent-system/.venv/bin/python"
+  },
+  "code_under_test": {
+    "source": "repo:src/ta/sim/metrics.py:L38-67",
+    "text": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n    if len(cashflows) < 2:\n        return None\n    start = cashflows[0][0]\n    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n    amounts = [amount for _day, amount in cashflows]\n\n    def npv(rate: float) -> float:\n        return sum(amount / (1 + rate) ** time for amount, time in zip(amounts, times, strict=True))\n\n    def dnpv(rate: float) -> float:\n        return sum(\n            -time * amount / (1 + rate) ** (time + 1) for amount, time in zip(amounts, times, strict=True)\n        )\n\n    rate = 0.1\n    for _ in range(60):\n        value = npv(rate)\n        slope = dnpv(rate)\n        if abs(slope) < 1e-12:\n            break\n        nxt = rate - value / slope\n        nxt = min(max(nxt, -0.9), 5.0)\n        if abs(nxt - rate) < 1e-10:\n            rate = nxt\n            break\n        rate = nxt\n    if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n        return None\n    return rate"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that the IRR calculation (_xirr) would always converge and produce a finite rate for short backtests, so the code returns None when the solver fails to converge or returns a non-finite rate, causing IRR to be None for a 10-calendar-day backtest.",
+        "evidence_line": "if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n    return None",
+        "explains_error": true
+      }
+    ],
+    "chosen_cause": "The agent assumed that the IRR calculation (_xirr) would always converge and produce a finite rate for short backtests, so the code returns None when the solver fails to converge or returns a non-finite rate, causing IRR to be None for a 10-calendar-day backtest.",
+    "claim": "The agent assumed the IRR solver would always converge to a finite rate for any cash flow timing, so the code returns None (n/a) when the Newton-Raphson iteration fails to converge or produces a non-finite rate for short backtests.",
+    "mechanism": "The _xirr function implements a fixed 60-iteration Newton-Raphson loop with convergence checks and returns None if the rate is not finite or the net present value at the computed rate exceeds a tolerance, as shown in the lines:\n\n    for _ in range(60):\n        ...\n    if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n        return None\n\nThis loop and condition embody the belief that the solver will converge, but it does not handle short backtests where cash flows are close in time and the solver fails to find a valid IRR.",
+    "belief_quote": "if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n    return None",
+    "belief_quote_source": "code",
+    "concept": "numerical-method-convergence-assumption",
+    "language_framework": "Python",
+    "correct_rule": "The IRR calculation must handle cases where the Newton-Raphson solver fails to converge or returns non-finite values, especially for short backtests with closely spaced cash flows, by providing fallback logic or alternative metrics instead of returning None silently.",
+    "cited_lines": [
+      "    for _ in range(60):",
+      "        value = npv(rate)",
+      "        slope = dnpv(rate)",
+      "        if abs(slope) < 1e-12:"
+    ],
+    "rejected_alternatives": [],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 54,
+        "text": "for _ in range(60):"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 55,
+        "text": "value = npv(rate)"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 56,
+        "text": "slope = dnpv(rate)"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 57,
+        "text": "if abs(slope) < 1e-12:"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "numerical-method-convergence-assumption",
+    "hits": []
+  },
+  "tests": {
+    "setup": "m = app(\"src/ta/sim/metrics.py\")\nfrom datetime import date\n\n# No stubs needed as the function uses only standard library and app code",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: _xirr returns None for short backtest with close cash flows",
+        "role": "reproduction",
+        "asserts": "The _xirr function returns None when the Newton-Raphson solver fails to converge or produces a non-finite rate for short backtests with closely spaced cash flows.",
+        "body": "arranged()\nout = None\ntry:\n    out = await m._xirr([(date(2024, 1, 2), -100000), (date(2024, 1, 12), 106000)])\nexcept Exception as e:\n    record(\"error\", str(e))\nrecord(\"xirr\", out)\nharm_observed(out is None, \"_xirr returned None for short backtest\")"
+      },
+      {
+        "name": "decoy: _xirr returns a finite rate for longer backtest with spaced cash flows",
+        "role": "decoy",
+        "asserts": "The _xirr function returns a finite float rate for cash flows spaced sufficiently apart in time.",
+        "body": "arranged()\nout = m._xirr([(date(2024, 1, 1), -100000), (date(2024, 12, 31), 110000)])\nrecord(\"xirr\", out)\ncheck(out is not None and isinstance(out, float), \"_xirr returns a finite float rate for valid cash flows with two dates\")"
+      },
+      {
+        "name": "decoy: _xirr returns None when given fewer than two cash flows",
+        "role": "decoy",
+        "asserts": "The _xirr function returns None when the input cashflows list has fewer than two entries.",
+        "body": "arranged()\nout = m._xirr([(date(2024, 1, 1), -100000), (date(2025, 1, 1), 110000)])\nrecord(\"xirr\", out)\ncheck(out is not None and isinstance(out, float), \"_xirr returns a finite float rate for valid cash flows with two dates\")"
+      }
+    ],
+    "trace": {
+      "file": "src/ta/sim/metrics.py",
+      "function": "_xirr"
+    },
+    "tests_sha256": "2d528939b1f72d4610c788ac596f980be8fb4a1dbab322b2471a51669dc4effc",
+    "frozen_at": "2026-10-25T20:35:19.474Z",
+    "harness_sha256": "5c58d90d4b3f959af974a8cbec617c02f193fb99233d0e5827798930489c6045",
+    "harness_repairs": [
+      {
+        "setup_changed": true,
+        "stubs": [],
+        "failure": "harness rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      }
+    ],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": []
+    },
+    "reproduction_sha256": "591c364ee4569a09def3d003bb818ab3e2c6d5625a3870ae32f4841d9f31b0cd",
+    "setup_probe": [
+      {
+        "ok": false,
+        "error": "rejected before running: setup: in Python app(...) is synchronous and returns the module; write `m = app(\"path.py\")`, not `await app(...)`"
+      },
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"xirr\",\"value\":null}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [
+      {
+        "name": "decoy: _xirr returns a finite rate for longer backtest with spaced cash flows",
+        "failed_with": "TypeError: object float can't be used in 'await' expression | File \"/workspace/trading-agent-system/.wce/1701494-mvoaefta-u7f3nu/t1.py\", line 35, in _wce_main     out = await m._xirr([(date(2023, 1, 1), -100000), (date(2024, 1, 1), 110000)])           ^^^^^^^^^^",
+        "replaced": true
+      },
+      {
+        "name": "decoy: _xirr returns None when given fewer than two cash flows",
+        "failed_with": "TypeError: object NoneType can't be used in 'await' expression | File \"/workspace/trading-agent-system/.wce/1701494-mvoaefta-u7f3nu/t2.py\", line 35, in _wce_main     out = await m._xirr([(date(2024, 1, 1), -100000)])           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "replaced": true
+      }
+    ],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "    rate = 0.1\n    for _ in range(60):\n        value = npv(rate)\n        slope = dnpv(rate)\n        if abs(slope) < 1e-12:\n            break\n        nxt = rate - value / slope\n        nxt = min(max(nxt, -0.9), 5.0)\n        if abs(nxt - rate) < 1e-10:\n            rate = nxt\n            break\n        rate = nxt\n    # If solver fails or rate is not finite, fallback to TWR-based approximation\n    if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n        # fallback: simple annualized return\n        total_days = (cashflows[-1][0] - cashflows[0][0]).days\n        if total_days <= 0:\n            return None\n        total_return = sum(amount for _day, amount in cashflows) / abs(cashflows[0][1]) - 1\n        annualized = (1 + total_return) ** (365 / total_days) - 1\n        return annualized\n    return rate",
+    "file": "src/ta/sim/metrics.py",
+    "changed_lines": 7,
+    "diff": "             break\n         rate = nxt\n+    # If solver fails or rate is not finite, fallback to TWR-based approximation\n     if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\n+        # fallback: simple annualized return\n+        total_days = (cashflows[-1][0] - cashflows[0][0]).days\n+        if total_days <= 0:\n         return None\n+        total_return = sum(amount for _day, amount in cashflows) / abs(cashflows[0][1]) - 1\n+        annualized = (1 + total_return) ** (365 / total_days) - 1\n+        return annualized\n     return rate",
+    "rationale": "The original _xirr function returns None if the Newton-Raphson solver fails to converge or produces a non-finite rate, which happens for short backtests with closely spaced cash flows. This causes the IRR to be None and the memo to render 'n/a'. The fix is to add fallback logic that computes a simple annualized return based on total return and elapsed days when the solver fails, ensuring a meaningful IRR estimate is returned instead of None.",
+    "attempts": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "changed_lines": 7
+      }
+    ],
+    "revision": {
+      "applied": false,
+      "rejected_for": "revision does not change the claim's cited lines"
+    }
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: _xirr returns None for short backtest with close cash flows",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "error",
+              "value": "object NoneType can't be used in 'await' expression"
+            },
+            {
+              "name": "xirr",
+              "value": null
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _xirr returns a finite rate for longer backtest with spaced cash flows",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr",
+              "value": 0.09999999999999984
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _xirr returns None when given fewer than two cash flows",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr",
+              "value": 0.09971358593414129
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 619,
+      "tree": "/workspace/trading-agent-system"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: _xirr returns None for short backtest with close cash flows",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "error",
+              "value": "object float can't be used in 'await' expression"
+            },
+            {
+              "name": "xirr",
+              "value": null
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _xirr returns a finite rate for longer backtest with spaced cash flows",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr",
+              "value": 0.09999999999999984
+            }
+          ],
+          "target_ran": true
+        },
+        {
+          "name": "decoy: _xirr returns None when given fewer than two cash flows",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "xirr",
+              "value": 0.09971358593414129
+            }
+          ],
+          "target_ran": true
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 638,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m12-v18b/heldout-xirr-short/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "consistent",
+    "elements": [
+      {
+        "element": "Newton-Raphson loop with 60 iterations",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "for _ in range(60):",
+        "quote_verified": true
+      },
+      {
+        "element": "Convergence break on near-zero slope",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if abs(slope) < 1e-12:\\n            break",
+        "quote_verified": true
+      },
+      {
+        "element": "Rate update with bounds clamping",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "nxt = min(max(nxt, -0.9), 5.0)",
+        "quote_verified": true
+      },
+      {
+        "element": "Finite rate check and NPV tolerance after loop",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "if not math.isfinite(rate) or abs(npv(rate)) > 1e-3:\\n        return None",
+        "quote_verified": true
+      },
+      {
+        "element": "Early return None when conditions not met",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "return None",
+        "quote_verified": true
+      }
+    ],
+    "reason": "5 element(s) match the written-at code",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 54,
+        "text": "for _ in range(60):"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 55,
+        "text": "value = npv(rate)"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 56,
+        "text": "slope = dnpv(rate)"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 57,
+        "text": "if abs(slope) < 1e-12:"
+      }
+    ],
+    "patch_file": "src/ta/sim/metrics.py",
+    "patch_touched_lines": [
+      64,
+      65,
+      66,
+      67
+    ],
+    "overlap": [],
+    "cause_gate": {
+      "harm_condition": "out is None",
+      "alternative_defect": "The function returns a non-finite rate (e.g., inf or nan) instead of None when the solver fails to converge on short backtests, because the post-loop check `if not math.isfinite(rate)` is bypassed or incorrectly ordered.",
+      "alternative_also_satisfies_harm": false,
+      "harm_requires_cited_lines": true,
+      "claim_specific": true,
+      "harm_matches_error": true,
+      "reason": "The test asserts that _xirr returns None for short backtests with closely spaced cash flows. The cited lines implement the exact post-loop guard that returns None when the rate is non-finite or NPV exceeds tolerance. The production error confirms the function returns None for this scenario, matching the test's required outcome. The claim is specific to this convergence guard, not a generic 'something failed' error."
+    },
+    "rival": {
+      "status": "ran",
+      "proposal": {
+        "rival_cause": "The _xirr function does not validate that cash flows contain at least one positive and one negative amount before constructing the solver, so a backtest with only contributions (all positive amounts) and no withdrawals causes the Newton-Raphson loop to diverge or produce a non-finite rate, triggering the None return.",
+        "rival_rule": "Before constructing the times and amounts lists, the function should verify that the cash flow signs are not all identical; if they are, return None immediately since IRR is undefined without both inflows and outflows.",
+        "rival_location": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n    if len(cashflows) < 2:\n        return None\n    start = cashflows[0][0]\n    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n    amounts = [amount for _day, amount in cashflows]\n    if all(a >= 0 for a in amounts) or all(a <= 0 for a in amounts):\n        return None"
+      },
+      "patch": {
+        "file": "src/ta/sim/metrics.py",
+        "diff": "     if len(cashflows) < 2:\n         return None\n+    amounts = [amount for _day, amount in cashflows]\n+    if all(a >= 0 for a in amounts) or all(a <= 0 for a in amounts):\n+        return None\n     start = cashflows[0][0]\n     times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n-    amounts = [amount for _day, amount in cashflows]\n \n     def npv(rate: float) -> float:",
+        "touched": [
+          40,
+          41,
+          43
+        ],
+        "rationale": "The _xirr function must check that cash flows contain both positive and negative amounts before attempting to compute IRR. Without this, the Newton-Raphson solver can diverge or produce non-finite results, causing the function to return None incorrectly. The fix adds a check right after verifying the length of cashflows to return None if all amounts are non-negative or all non-positive, ensuring IRR is only computed when valid."
+      },
+      "reproduction_passes": true,
+      "decoys_pass": true,
+      "attempts": []
+    },
+    "claim_causes": [
+      "The code assumes convergence will occur within a fixed 60 iterations; if the solver does not converge within these iterations, it returns None, but the assumption that 60 iterations is sufficient for all cash flow timings is the root cause. [fix: Increase the maximum iteration count (e.g., to 1000) or add a dynamic convergence check based on the change in rate between iterations to handle cases where 60 iterations are insufficient.]",
+      "The condition `if not math.isfinite(rate) or abs(npv(rate)) > 1e-3: return None` treats non-finite rates as failures, but for short backtests, the solver might produce a rate that is numerically large but still valid; the strict finiteness check is too rigid. [fix: Replace the `math.isfinite(rate)` check with a range check (e.g., `rate > -1e6 and rate < 1e6`) or adjust the tolerance to allow larger but valid rates.]"
+    ]
+  },
+  "verdict": "patch_ineffective",
+  "reasons": [
+    "reproduction test passes on the original code (bug reproduced on the real code)",
+    "reproduction test still passes on the patch: the corrected belief does not remove the bug",
+    "both decoys pass on original and patch",
+    "reproduction executed the attributed function src/ta/sim/metrics.py:_xirr",
+    "patch changes src/ta/sim/metrics.py lines 64,65,66,67 but the claim cites src/ta/sim/metrics.py:54, src/ta/sim/metrics.py:55, src/ta/sim/metrics.py:56, src/ta/sim/metrics.py:57: the fix is not at the claimed cause",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the harm condition depends on the cited lines",
+    "claim names 2 distinct causes (The code assumes convergence will occur within a fixed 60 iterations; if the solver does not converge within these iterations, it returns None, but the assumption that 60 iterations is sufficient for all cash flow timings is the root cause. [fix: Increase the maximum iteration count (e.g., to 1000) ): a proof can only certify one",
+    "rival-cause counterfactual: the rival fix leaves the harm in place (the reproduction discriminates the claimed cause)",
+    "mechanism gate (nemotron): consistent (5 element(s) match the written-at code)"
+  ],
+  "finished_at": "2026-10-25T20:35:52.825Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "",
+    "sha256": "",
+    "frozen_at": "2026-10-25T20:35:52.825Z",
+    "rationale": "",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 3,
+        "sample": [
+          {
+            "error_id": "ta-irr-missing",
+            "ts": "2026-10-25T02:59:44.042Z",
+            "severity": "warning",
+            "service": "trading-agent-system",
+            "message": "Memo renders IRR as n/a: PerformanceReport.irr is None for a 10-calendar-day backtest (start equity 100000.00, end equity 106000.00, no contributions). Cash flows passed to the IRR solver: [[\"2024-01-02\",-100000],[\"2024-01-12\",106000]].",
+            "frame_index": 0,
+            "frame_file": "src/ta/sim/metrics.py",
+            "frame_line": 38,
+            "frame_function": "_xirr",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout-xirr-short/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          },
+          {
+            "error_id": "ta-irr-missing",
+            "ts": "2026-10-25T02:59:44.042Z",
+            "severity": "warning",
+            "service": "trading-agent-system",
+            "message": "Memo renders IRR as n/a: PerformanceReport.irr is None for a 10-calendar-day backtest (start equity 100000.00, end equity 106000.00, no contributions). Cash flows passed to the IRR solver: [[\"2024-01-02\",-100000],[\"2024-01-12\",106000]].",
+            "frame_index": 1,
+            "frame_file": "src/ta/sim/metrics.py",
+            "frame_line": 70,
+            "frame_function": "performance",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout-xirr-short/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "repo",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 3773,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 4,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "uploads/trading-agent-spec_9b38.md",
+            "edit_line": 5,
+            "tool": "read_file",
+            "at": "2026-10-12T00:23:38.996Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript + git log"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "run": null,
+            "__empty": 1
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "verdict": "no_data_trace",
+    "note": "the real application code wrote no database rows on either the original or the patched run, so the independent sources (error log, edit history, app DB) hold no patch-dependent trace of this bug; Zetaris cannot add evidence here"
+  }
+}

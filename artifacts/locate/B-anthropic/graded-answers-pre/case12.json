@@ -1,0 +1,38 @@
+{
+ "overlooked_assumption": "The agent assumed that stop-loss orders would automatically bypass swing-trade counting, but did not verify that the compliance guard actually exempts stop-triggered exits from the quarterly swing-trade cap.",
+ "why_it_breaks": "The test verifies that stop-loss orders bypass cooldown and minimum-size checks, but the compliance guard that enforces the quarterly swing-trade cap was not updated to exempt stop-triggered exits. When three positions were sold via stop-loss (all held under the minimum period), they were correctly marked with reason='stop' and bypassed churn rules, but were still counted as swing trades, causing the breach of the documented cap of 2.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5941,
+   "quote": "Hard drawdown rules bypass minimum-hold checks.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_churn.py",
+   "line": 289,
+   "quote": "assert sells and sells[0][\"reason\"] == \"stop\"",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "tests/test_churn.py",
+   "line": 287,
+   "quote": "planned = plan_orders(_ctx(store, settings, book, 10, days[0]), [\"AAPL\"])",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5941,
+   "quote": "Stop tests assert the reason is stop.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 2
+}

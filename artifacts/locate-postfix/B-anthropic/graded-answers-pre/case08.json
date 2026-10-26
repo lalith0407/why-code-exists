@@ -1,0 +1,31 @@
+{
+ "overlooked_assumption": "The agent assumed that ALTER TYPE operations could be safely executed after a deprecation window by gating them on signed conditions, without considering that the schema change itself (widening a column type) can immediately break database constraints like unique indexes.",
+ "why_it_breaks": "When ALTER TYPE widens a column (e.g., tier from smaller to larger numeric type), PostgreSQL may rebuild the underlying index, and during this rebuild unique constraints can be temporarily dropped or invalidated. The agent's 2-step plan executes the ALTER TYPE directly without recognizing that this DDL operation has immediate side effects on constraint enforcement, allowing duplicate emails to be inserted before the unique index is fully rebuilt.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 98,
+   "quote": "2-step plan: announce/deprecate, then run the action itself gated on the same conditions.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "blast_radius/reasoner/base.py",
+   "line": 46,
+   "quote": "return [deprecate, PlanStep(2, f\"Change the type of {action.target} after the window, only if every \"",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 96,
+   "quote": "Now updating `reasoner/base.py`'s `safe_plan`, `signing.py`/`scout.py`'s risk classification, and `world/db.py`'s sqlite compat shim.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 2
+}

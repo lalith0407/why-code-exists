@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/agents/loop.py:214
+stage: ok
+provider: anthropic
+frame: src/ta/agents/loop.py:476
+status: verified (code quotes 4, transcript quotes 2)
+overlooked_assumption: The agent assumed that claims generated for position-sizing results would only reference tickers that actually appear in the sized output, but it created claims for all tickers in the filtered selection list without verifying they survived the sizing step.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case13/report.html

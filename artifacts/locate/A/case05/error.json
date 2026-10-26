@@ -1,0 +1,8 @@
+{
+ "id": "case05",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "User complaint: clicking \"Submit feedback\" makes the button spin for several seconds before the page updates, whenever the workspace's configured notification endpoint is slow to respond.\n\nOps measured one such submission end-to-end: 5036 ms from click to response, with the response body {\"success\":true}. At the time, the configured endpoint was deliberately made to take 8 seconds to answer, to reproduce the complaint. The feedback post itself was created immediately; the delay was entirely in how long the button stayed in a loading state.\n",
+ "frames": []
+}

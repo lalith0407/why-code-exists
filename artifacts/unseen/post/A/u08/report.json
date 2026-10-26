@@ -1,0 +1,49 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "u08",
+  "complete": false,
+  "notes": [
+   "no stack frame points at a file the agent edited in this transcript"
+  ]
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Bug report: after the latest change to the catalog screen, the catalog content no longer renders: the list area is empty. The docked tab bar is also still not pinned to the bottom of the screen.\n",
+  "terms": [
+   "bug report",
+   "the docked tab bar",
+   "report",
+   "latest",
+   "change",
+   "catalog",
+   "screen",
+   "content",
+   "longer",
+   "renders",
+   "list",
+   "area",
+   "empty",
+   "docked",
+   "pinned",
+   "bottom"
+  ],
+  "layer1": {
+   "symbols_indexed": 1766,
+   "edited_hunks_indexed": 6,
+   "candidates": []
+  },
+  "shortlist": [],
+  "method": "none"
+ },
+ "stage": "no_frame",
+ "reason": "no stack frame in the report; the LOCATE stage (deterministic symbol search) found no candidate either"
+}

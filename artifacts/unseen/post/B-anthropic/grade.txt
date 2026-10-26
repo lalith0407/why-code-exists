@@ -1,0 +1,11 @@
+case      grounded  quotes_ok  transcript  code  proximity errors
+case_u01  False     False      True        True  False     
+case_u02  False     False      True        True  False     
+case_u03  False     True       True        True  False     
+case_u04  False     True       True        True  False     
+case_u05  True      True       True        True  True      
+case_u06  True      True       True        True  True      
+case_u07  False     True       True        True  False     
+case_u08  False     False      False       False False     missing answer file: artifacts/unseen/post/B-anthropic/graded-answers/case_u08.json
+
+Grounded (mechanical): 2/8

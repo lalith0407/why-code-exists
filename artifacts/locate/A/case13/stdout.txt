@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/agents/loop.py:214
+stage: ok
+provider: nemotron
+frame: src/ta/agents/loop.py:476
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that raw_claims contains claims with correct fact_refs pointing to ratio outputs for all selected tickers, but _claims_for may produce claims with fact_refs that reference output_ids not present in the actual sized output, causing the citation verifier to incorrectly keep claims that have no matching data.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case13/report.html

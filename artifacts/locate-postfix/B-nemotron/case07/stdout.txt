@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> blast_radius/reasoner/base.py:26
+stage: ok
+provider: nemotron
+frame: blast_radius/reasoner/base.py:26
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that the `action.target` value used for the deprecation step and the `action.sql` step are identical and safe to use directly in SQL without sanitization, failing to account for quote characters in table names that bypass the gate check.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-nemotron/case07/report.html

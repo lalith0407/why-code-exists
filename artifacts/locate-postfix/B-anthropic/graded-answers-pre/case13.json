@@ -1,0 +1,39 @@
+{
+ "overlooked_assumption": "The agent assumed that the citation verifier would validate that fact references point to outputs containing the specific ticker mentioned in each claim, but the verifier only checks that the output_id exists without validating the JSON path resolves to actual data.",
+ "why_it_breaks": "The citation verifier checks only that the output_id exists in the store, not that the JSON path (e.g., weights.AAPL) actually resolves to data in that output. When a claim cites AAPL via weights.AAPL but the size_position output contains only MSFT, the verifier still marks it as kept because the output_id is valid, allowing a false claim to pass through to the final report.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 248,
+   "quote": "Fact claims require `log_entry_id` and `fact_refs`; the validator checks that ratio output IDs are known at verification time.",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 251,
+   "quote": "Weight claims reference the size tool's log entry ID, matching the audit check against that output's entry. Multiple claims sharing one log_entry_id for different JSON paths are valid and handled per-reference.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/verify_tools.py",
+   "line": 41,
+   "quote": "    row = ctx.store.get_tool_output(output_id)",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 474,
+   "quote": "        {\"claims\": [claim.model_dump(mode=\"json\") for claim in raw_claims]},",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 2
+}

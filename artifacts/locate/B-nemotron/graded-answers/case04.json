@@ -1,0 +1,24 @@
+{
+ "overlooked_assumption": "The agent assumed that a drawdown halt (-20% threshold) would block all new trades, but the code only blocks trades that would *drop a holding* below the minimum hold; new buys of names not currently held are permitted if they pass quality screening, regardless of drawdown level.",
+ "why_it_breaks": "The symptom describes a drawdown of -30% (past the -20% halt threshold) yet a new buy of FALN was placed and filled. The agent's quoted text (both transcript L7051 and README line 184) states the system trades only on a hard trigger including 'a drawdown review', but the specific gate logic only requires that a trade dropping a holding cite a new fact. There is no explicit condition preventing *new* buys when drawdown exceeds the halt threshold, so the system allowed the order through quality-screening alone. The agent overlooked that the drawdown halt gate applies to existing holdings, not to new entries that pass the quality screen.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 7051,
+   "quote": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "README.md",
+   "line": 184,
+   "quote": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

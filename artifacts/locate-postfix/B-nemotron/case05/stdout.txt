@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> prisma/schema.prisma:50
+stage: ok
+provider: nemotron
+frame: prisma/schema.prisma:50
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed the outgoing webhook would be fire-and-forget, but the code that triggers it likely awaits the HTTP response or runs synchronously, blocking the feedback submission response until the slow endpoint replies.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-nemotron/case05/report.html

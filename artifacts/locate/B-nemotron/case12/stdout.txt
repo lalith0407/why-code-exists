@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> tests/test_churn.py:269
+stage: ok
+provider: nemotron
+frame: tests/test_churn.py:276
+status: verified (code quotes 2, transcript quotes 1)
+overlooked_assumption: The agent assumed that setting last_trade_session to a past session (10) combined with a recent entry_session (0) would properly trigger the cooldown and minimum-size guards, but overlooked that the cooldown check depends on the most recent trade direction and that the minimum-size guard only blocks sells below the notional threshold, not buys.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-nemotron/case12/report.html

@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> blast_radius/reasoner/base.py:26
+stage: ok
+provider: nemotron
+frame: blast_radius/reasoner/base.py:26
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that table names in action.target would never contain quote characters, so it used them directly in SQL strings without escaping or parameterization, allowing the quoted table name to terminate the SQL command early and execute arbitrary DROP TABLE on the live customers table.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case07/report.html

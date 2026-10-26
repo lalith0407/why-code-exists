@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "_xirr assumes the first cashflow is an investment (negative amount) and the last is a return (positive amount), but the caller passes a negative start amount and a positive ending amount without recognizing that the function requires at least one intermediate positive cashflow to compute a meaningful IRR, or that the sign convention must include both an outflow and inflow beyond the endpoints.",
+ "why_it_breaks": "The _xirr function computes IRR via Newton-Raphson on NPV and dNPV. With only two cashflows (-100000 on 2024-01-02 and +106000 on 2024-01-12), the NPV function becomes linear in rate: NPV(rate) = -100000/(1+rate)^0 + 106000/(1+rate)^(10/365). The derivative dNPV also has a fixed sign for all positive rates, so Newton never converges to a root and the loop exits without setting a rate, leaving the IRR as None (rendered as n/a). The agent overlooked that _xirr requires at least three cashflow points (an initial outflow, an intermediate inflow/outflow, and a final amount) for the nonlinearity needed for convergence, or that the sign convention must ensure the derivative changes sign.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 219,
+   "quote": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n    if len(cashflows) < 2:\n        return None\n    start = cashflows[0][0]\n    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n    amounts = [amount for _day, amount in cashflows]",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 43,
+   "quote": "amounts = [amount for _day, amount in cashflows]",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,24 @@
+{
+ "overlooked_assumption": "The agent assumed that raw_claims contains claims with correct fact_refs pointing to ratio outputs for all selected tickers, but _claims_for may produce claims with fact_refs that reference output_ids not present in the actual sized output, causing the citation verifier to incorrectly keep claims that have no matching data.",
+ "why_it_breaks": "The _claims_for function builds claims with fact_refs referencing ratio output_ids from a merged dictionary that includes sized.output_id, but the actual sized output may only contain results for some tickers (e.g., MSFT). The citation verifier then keeps claims whose fact_refs point to output_ids not present in the real output, producing a false positive audit pass. The agent overlooked that _claims_for's assumption about the sized output structure does not guarantee that all referenced fact_refs correspond to actual data in sized.output.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 251,
+   "quote": "A bug was found in `_claims_for`: it expects `sized[\"output_id\"]` but receives a merged dictionary containing `output_id`.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/agents/loop.py",
+   "line": 462,
+   "quote": "**sized.output,",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

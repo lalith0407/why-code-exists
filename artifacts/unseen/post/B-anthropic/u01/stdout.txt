@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16
+stage: ok
+provider: anthropic
+frame: litellm/types/proxy/discovery_endpoints/ui_discovery_endpoints.py:16
+status: verified (code quotes 2, transcript quotes 1)
+overlooked_assumption: The agent assumed that wrapping mutable defaults in Field(default=...) would be sufficient for deferred schema builds, but overlooked that concurrent first-use schema builds can race when validating nested models that reference each other.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/B-anthropic/u01/report.html

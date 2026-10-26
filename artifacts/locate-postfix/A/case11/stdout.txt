@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/mcp_servers/portfolio_tools.py:314
+stage: ok
+provider: nemotron
+frame: src/ta/mcp_servers/portfolio_tools.py:314
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that a price below the stop-loss threshold (average * (1 - stop_pct)) would always trigger a forced stop, without considering that the stop-loss condition could be evaluated with the wrong price source or that the price check fails silently when price is zero or negative, allowing the position to bypass the stop logic entirely.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case11/report.html

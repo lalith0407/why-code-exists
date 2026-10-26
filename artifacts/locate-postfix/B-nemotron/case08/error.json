@@ -1,0 +1,8 @@
+{
+ "id": "case08",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "Data-quality alert: the `customers` table now has two rows with the same email address, ana@example.com, even though new signups with an already-registered email are supposed to be rejected.\n\nThe timing lines up with a signed schema change that had just been approved and run against this table (changing the `tier` column's type to a wider numeric type). No application code was deployed between the schema change and the duplicate signup being accepted. Before that schema change, a duplicate signup with the same email had always been rejected in testing.\n",
+ "frames": []
+}

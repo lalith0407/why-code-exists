@@ -1,0 +1,782 @@
+{
+  "version": "gen-v17-harness-robust",
+  "error": {
+    "id": "pulseboard-webhook-url-case",
+    "timestamp": "2026-10-25T03:37:42.571Z",
+    "severity": "error",
+    "service": "pulseboard",
+    "message": "Zapier says our webhook hits 404 'hook not found'. Admin saved the outgoing webhook URL https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/ in workspace settings, but the stored URL that deliveries go to is https://hooks.zapier.com/hooks/catch/1234567/abcdefg/.",
+    "frames": [
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 12,
+        "function": "updateWorkspaceSettingsAction"
+      }
+    ],
+    "context": {
+      "captured_by": "src/bin/capture-error.ts --scenario cases/heldout2-webhook-case/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+      "tree": "transcript_replay"
+    }
+  },
+  "frame": {
+    "file": "lib/actions/workspace-settings.ts",
+    "line": 12,
+    "function": "updateWorkspaceSettingsAction"
+  },
+  "language": "ts",
+  "provenance": {
+    "file": "lib/actions/workspace-settings.ts",
+    "function": "updateWorkspaceSettingsAction",
+    "frame_line": 12,
+    "later_edits": [
+      {
+        "edit_line": 246,
+        "tool": "search_replace",
+        "kind": "modified",
+        "hunk_excerpt": " \n   revalidatePath(`/w/${slug}/settings`);\n-  return {};\n+  return { success: true };\n }\n \n export async function regenerateWebhookSecretAction(slug: string) {"
+      }
+    ],
+    "method": "diff_scan",
+    "attribution": "introduced_by_edit",
+    "written_at": {
+      "edit_line": 126,
+      "tool": "search_replace",
+      "fn_range": [
+        12,
+        50
+      ],
+      "frame_line_in_range": true,
+      "hunk_excerpt": "+import type { ActionState } from \"@/lib/actions/auth\";\n+\n+export async function updateWorkspaceSettingsAction(\n+  currentSlug: string,\n+  _prevState: ActionState,\n+  formData: FormData\n+): Promise<ActionState> {\n+  const { workspace } = await requireWorkspaceAdmin(currentSlug);\n+\n+  const parsed = workspaceSettingsSchema.safeParse({\n+    name: formData.get(\"name\"),\n+    slug: formData.get(\"slug\"),\n+    webhookUrl: formData.get(\"webhookUrl\") ?? \"\",\n+    slackSigningSecret: formData.get(\"slackSigningSecret\") ?? \"\",\n+  });\n+",
+      "fn_text": "export async function updateWorkspaceSettingsAction(\n  currentSlug: string,\n  _prevState: ActionState,\n  formData: FormData\n): Promise<ActionState> {\n  const { workspace } = await requireWorkspaceAdmin(currentSlug);\n\n  const parsed = workspaceSettingsSchema.safeParse({\n    name: formData.get(\"name\"),\n    slug: formData.get(\"slug\"),\n    webhookUrl: formData.get(\"webhookUrl\") ?? \"\",\n    slackSigningSecret: formData.get(\"slackSigningSecret\") ?? \"\",\n  });\n\n  if (!parsed.success) {\n    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\n  }\n\n  const { name, slug, webhookUrl, slackSigningSecret } = parsed.data;\n\n  if (slug !== workspace.slug) {\n    const slugTaken = await prisma.workspace.findUnique({ where: { slug } });\n    if (slugTaken) {\n      return { error: \"That slug is already taken\" };\n    }\n  }\n\n  await prisma.workspace.update({\n    where: { id: workspace.id },\n    data: { name, slug, webhookUrl: webhookUrl ?? null, slackSigningSecret: slackSigningSecret ?? null },\n  });\n\n  if (slug !== workspace.slug) {\n    redirect(`/w/${slug}/settings?saved=1`);\n  }\n\n  revalidatePath(`/w/${slug}/settings`);\n  return {};\n}"
+    },
+    "reasoning_before": {
+      "line": 124,
+      "words": 23,
+      "silent": false,
+      "excerpt": "I'm moving on to workspace settings actions, planning admin-only updates and webhook secret regeneration, then invite actions for creating, accepting, and revoking invites."
+    },
+    "claim_atoms": [
+      {
+        "causes": [
+          "The updateWorkspaceSettingsAction function assigns webhookUrl directly from parsed.data without normalizing to lowercase, while the schema applies .toLowerCase() during validation. This mismatch allows case differences to persist in the database. [fix: Add .toLowerCase() normalization to webhookUrl assignment in updateWorkspaceSettingsAction, or apply the same normalization before database storage.]"
+        ]
+      }
+    ]
+  },
+  "tree": {
+    "origin": "transcript_replay",
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app",
+    "files": 76,
+    "applied_edits": 81,
+    "failed_edits": [
+      {
+        "file": "package.json",
+        "line": 61,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "next.config.ts",
+        "line": 375,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": ".gitignore",
+        "line": 458,
+        "reason": "edit to a file not created in the transcript"
+      },
+      {
+        "file": "README.md",
+        "line": 483,
+        "reason": "edit to a file not created in the transcript"
+      }
+    ]
+  },
+  "calls": [
+    {
+      "label": "claim:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "claim_atoms:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "probe_setup:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "draft_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "review_tests:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "redraft_decoy:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_cause:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "rival_patch:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    },
+    {
+      "label": "mechanism_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "cause_gate:nemotron",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "ok": true
+    },
+    {
+      "label": "zetaris_sql:openai",
+      "model": "gpt-4.1-mini",
+      "ok": true
+    }
+  ],
+  "started_at": "2026-10-25T18:52:25.683Z",
+  "workspace": {
+    "root": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app",
+    "origin": "transcript_replay",
+    "notes": [
+      "npm deps from the app's package.json (cache /home/box/.cache/wce/deps/cc39abd72f073c52/node_modules)",
+      "no tsconfig \"paths\" in tree: \"@/x\" resolved to <app root>/x (inferred alias: the base under which the tree's own \"@/\" imports resolve)",
+      "real PostgreSQL database from /workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app/prisma/schema.prisma (template wce_tpl_b2c91af4)",
+      "framework boundary shims (engine-built from real exports): next/headers[headers,cookies,draftMode]; next/cache[revalidatePath,revalidateTag,updateTag,refresh,unstable_noStore,cacheLife,cacheTag,unstable_cacheLife,unstable_cacheTag,unstable_cache]; next/server[after,connection]; next-auth[default]"
+    ],
+    "framework_shims": [
+      {
+        "module": "next/headers",
+        "version": "next@16.4.2",
+        "replaced": [
+          "headers",
+          "cookies",
+          "draftMode"
+        ],
+        "why": "Next.js request APIs read the live request store (AsyncLocalStorage) that only exists inside a running Next server; the test supplies the request with set_request()",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next/cache",
+        "version": "next@16.4.2",
+        "replaced": [
+          "revalidatePath",
+          "revalidateTag",
+          "updateTag",
+          "refresh",
+          "unstable_noStore",
+          "cacheLife",
+          "cacheTag",
+          "unstable_cacheLife",
+          "unstable_cacheTag",
+          "unstable_cache"
+        ],
+        "why": "Next.js cache invalidation needs the render/work store of a running Next server; calls are recorded (framework_calls) instead",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next/server",
+        "version": "next@16.4.2",
+        "replaced": [
+          "after",
+          "connection"
+        ],
+        "why": "after()/connection() need the request store of a running Next server; after() callbacks run immediately and are awaited by the harness",
+        "label": "stand-in at framework request boundary (engine-built)"
+      },
+      {
+        "module": "next-auth",
+        "version": "next-auth@5.0.0-beta.32",
+        "replaced": [
+          "default"
+        ],
+        "why": "Auth.js reads the signed-in user from the encrypted session cookie of the live request; auth() returns the session given with set_session() (everything else in the package stays real)",
+        "label": "stand-in at framework request boundary (engine-built)"
+      }
+    ],
+    "database": {
+      "kind": "postgresql",
+      "schema": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app/prisma/schema.prisma"
+    }
+  },
+  "code_under_test": {
+    "source": "transcript_replay:lib/actions/workspace-settings.ts:L12-50",
+    "text": "export async function updateWorkspaceSettingsAction(\n  currentSlug: string,\n  _prevState: ActionState,\n  formData: FormData\n): Promise<ActionState> {\n  const { workspace } = await requireWorkspaceAdmin(currentSlug);\n\n  const parsed = workspaceSettingsSchema.safeParse({\n    name: formData.get(\"name\"),\n    slug: formData.get(\"slug\"),\n    webhookUrl: formData.get(\"webhookUrl\") ?? \"\",\n    slackSigningSecret: formData.get(\"slackSigningSecret\") ?? \"\",\n  });\n\n  if (!parsed.success) {\n    return { error: parsed.error.issues[0]?.message ?? \"Invalid input\" };\n  }\n\n  const { name, slug, webhookUrl, slackSigningSecret } = parsed.data;\n\n  if (slug !== workspace.slug) {\n    const slugTaken = await prisma.workspace.findUnique({ where: { slug } });\n    if (slugTaken) {\n      return { error: \"That slug is already taken\" };\n    }\n  }\n\n  await prisma.workspace.update({\n    where: { id: workspace.id },\n    data: { name, slug, webhookUrl: webhookUrl ?? null, slackSigningSecret: slackSigningSecret ?? null },\n  });\n\n  if (slug !== workspace.slug) {\n    redirect(`/w/${slug}/settings?saved=1`);\n  }\n\n  revalidatePath(`/w/${slug}/settings`);\n  return { success: true };\n}"
+  },
+  "claim": {
+    "candidate_causes": [
+      {
+        "cause": "The agent assumed that the webhookUrl stored in the database would preserve the case exactly as entered, so the code does not normalize the webhookUrl to lowercase before saving it, leading to case mismatches in URLs.",
+        "evidence_line": "webhookUrl: z\n    .string()\n    .trim()\n    .toLowerCase()\n    .refine((v) => v === \"\" || z.string().url().safeParse(v).success, \"Enter a valid URL\")\n    .transform((v) => (v === \"\" ? null : v))\n    .nullable()\n    .optional(),",
+        "explains_error": true
+      }
+    ],
+    "chosen_cause": "The agent assumed that the webhookUrl stored in the database would preserve the case exactly as entered, so the code does not normalize the webhookUrl to lowercase before saving it, leading to case mismatches in URLs.",
+    "claim": "The agent assumed the webhookUrl would be stored preserving the original case, so the code does not enforce lowercase storage, causing mismatched webhook URLs due to case differences.",
+    "mechanism": "The workspaceSettingsSchema applies .toLowerCase() during validation, but the updateWorkspaceSettingsAction function assigns webhookUrl directly from parsed.data without further normalization, and the database update uses webhookUrl as is, allowing case differences to persist.",
+    "belief_quote": "webhookUrl: z\n    .string()\n    .trim()\n    .toLowerCase()",
+    "belief_quote_source": "helper:lib/validations.ts",
+    "concept": "case-sensitivity-mismatch",
+    "language_framework": "TypeScript with Next.js and Prisma",
+    "correct_rule": "Normalize and consistently store URLs in a canonical form (e.g., lowercase) to avoid case sensitivity issues in URL matching.",
+    "cited_lines": [
+      "  webhookUrl: formData.get(\"webhookUrl\") ?? \"\",",
+      "  const parsed = workspaceSettingsSchema.safeParse({",
+      "    name: formData.get(\"name\"),",
+      "    slug: formData.get(\"slug\"),"
+    ],
+    "rejected_alternatives": [
+      {
+        "cause": "The agent assumed the slug would not change case, but the slug is validated and transformed to lowercase in the schema, so slug case mismatch is unlikely.",
+        "why_rejected": "The slug is explicitly lowercased in the validation schema, so slug case mismatch is not the cause."
+      },
+      {
+        "cause": "The agent assumed the webhook URL would be validated as a URL but did not check for trailing slashes or exact string matching, causing mismatch.",
+        "why_rejected": "The error specifically shows case mismatch in the URL path segment, not trailing slash or other formatting issues."
+      }
+    ],
+    "belief_quote_verified": true,
+    "cited_located": [
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 22,
+        "text": "webhookUrl: formData.get(\"webhookUrl\") ?? \"\","
+      },
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 19,
+        "text": "const parsed = workspaceSettingsSchema.safeParse({"
+      },
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 20,
+        "text": "name: formData.get(\"name\"),"
+      },
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 21,
+        "text": "slug: formData.get(\"slug\"),"
+      }
+    ]
+  },
+  "meterless": {
+    "ok": true,
+    "dir": "/workspace/open-agent/why-code-exists/data/meterless",
+    "query_concept": "case-sensitivity-mismatch",
+    "hits": []
+  },
+  "tests": {
+    "setup": "const { prisma } = await app(\"lib/prisma.ts\");\nconst { updateWorkspaceSettingsAction } = await app(\"lib/actions/workspace-settings.ts\");\nconst { requireWorkspaceAdmin } = await app(\"lib/workspace.ts\");\n\n// Create a user\nconst user = await prisma.user.create({ data: { email: \"admin@example.com\", name: \"Admin User\", passwordHash: \"hashedpassword\" } });\n\n// Create a workspace with uppercase letters in webhookUrl to simulate the issue\nconst workspace = await prisma.workspace.create({\n  data: {\n    name: \"Test Workspace\",\n    slug: \"test-workspace\",\n    webhookUrl: \"https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/\",\n    webhookSecret: \"somesecret\",\n    slackSigningSecret: null,\n  },\n});\n\n// Add membership with ADMIN role\nawait prisma.membership.create({ data: { userId: user.id, workspaceId: workspace.id, role: \"ADMIN\" } });\n\n// Set session as the user\nset_session({ user: { id: user.id, email: user.email } });\n\n// Prepare a FormData helper function\nfunction createFormData(data: Record<string, string | null | undefined>) {\n  const fd = new Map();\n  for (const [k, v] of Object.entries(data)) {\n    fd.set(k, v ?? null);\n  }\n  return {\n    get(key) {\n      return fd.get(key);\n    },\n  };\n}\n",
+    "stubs": [],
+    "tests": [
+      {
+        "name": "reproduction: webhookUrl case mismatch causes stored URL to differ in case",
+        "role": "reproduction",
+        "asserts": "harm_observed(storedWebhookUrl !== originalWebhookUrl && storedWebhookUrl.toLowerCase() === originalWebhookUrl.toLowerCase(), \"webhookUrl stored with different case causing mismatch\")",
+        "body": "arranged();\n\nconst originalWebhookUrl = \"https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/\";\nconst formData = createFormData({\n  name: \"Test Workspace Updated\",\n  slug: \"test-workspace\",\n  webhookUrl: originalWebhookUrl,\n  slackSigningSecret: \"\",\n});\n\nlet result;\ntry {\n  result = await updateWorkspaceSettingsAction(\"test-workspace\", {}, formData);\n} catch (e) {\n  result = e;\n}\nrecord(\"result\", result);\n\nconst updatedWorkspace = await prisma.workspace.findUnique({ where: { slug: \"test-workspace\" } });\nconst storedWebhookUrl = updatedWorkspace?.webhookUrl ?? \"\";\n\n// The stored webhookUrl differs in case from the original input, causing mismatch\nharm_observed(storedWebhookUrl !== originalWebhookUrl && storedWebhookUrl.toLowerCase() === originalWebhookUrl.toLowerCase(), \"webhookUrl stored with different case causing mismatch\")"
+      },
+      {
+        "name": "decoy: updating workspace name and slug without changing webhookUrl works correctly",
+        "role": "decoy",
+        "asserts": "check(result.success === true, \"update succeeds\") && check(updatedWorkspace.name === \"New Workspace Name\", \"name updated\") && check(updatedWorkspace.slug === \"new-slug\", \"slug updated\") && check(updatedWorkspace.webhookUrl === originalWebhookUrl, \"webhookUrl unchanged\")",
+        "body": "arranged();\n\nconst originalWebhookUrl = workspace.webhookUrl;\nconst formData = createFormData({\n  name: \"New Workspace Name\",\n  slug: \"new-slug\",\n  webhookUrl: originalWebhookUrl,\n  slackSigningSecret: \"\",\n});\n\nconst result = await updateWorkspaceSettingsAction(\"test-workspace\", {}, formData);\nrecord(\"result\", result);\n\nconst updatedWorkspace = await prisma.workspace.findUnique({ where: { slug: \"new-slug\" } });\n\ncheck(result.success === true, \"update succeeds\");\ncheck(updatedWorkspace.name === \"New Workspace Name\", \"name updated\");\ncheck(updatedWorkspace.slug === \"new-slug\", \"slug updated\");\ncheck(updatedWorkspace.webhookUrl === originalWebhookUrl, \"webhookUrl unchanged\");"
+      },
+      {
+        "name": "decoy: invalid slug input returns error and does not update workspace",
+        "role": "decoy",
+        "asserts": "check(result.error?.includes(\"Use lowercase letters, numbers, and hyphens only\"), \"slug validation error\") && check(updatedWorkspace.slug === \"test-workspace\", \"slug unchanged\")",
+        "body": "arranged();\n\nconst formData = createFormData({\n  name: \"Test Workspace\",\n  slug: \"InvalidSlug!\",\n  webhookUrl: workspace.webhookUrl,\n  slackSigningSecret: \"\",\n});\n\nconst result = await updateWorkspaceSettingsAction(\"test-workspace\", {}, formData);\nrecord(\"result\", result);\n\nconst updatedWorkspace = await prisma.workspace.findUnique({ where: { slug: \"test-workspace\" } });\n\ncheck(result.error?.includes(\"Use lowercase letters, numbers, and hyphens only\"), \"slug validation error\");\ncheck(updatedWorkspace.slug === \"test-workspace\", \"slug unchanged\");"
+      }
+    ],
+    "trace": {
+      "file": "lib/actions/workspace-settings.ts",
+      "function": "updateWorkspaceSettingsAction"
+    },
+    "tests_sha256": "c961c317c0bf0bd1f5d3e6f3d1576f64792a563a7cd79aca5c3cd6862078516e",
+    "frozen_at": "2026-10-25T18:52:45.317Z",
+    "harness_sha256": "1ba042ccf0a7a71d7f315a03498989c104b818cfbdcd7d6b891e79c2a165342a",
+    "harness_repairs": [],
+    "pre_freeze_redrafts": [],
+    "pre_freeze_reviews": [
+      {
+        "inputs_trigger_claimed_situation": true,
+        "harm_true_on_given_code": true,
+        "harm_false_on_corrected_code": true,
+        "decoys_self_contained": true,
+        "problem": ""
+      }
+    ],
+    "decoy_vacuity": {
+      "mutant": "built",
+      "vacuous": [],
+      "redrafted": []
+    },
+    "reproduction_sha256": "1893577f20d20613660a6f6c4713f5de92d59c57b0bae1af202534c57061a819",
+    "setup_probe": [
+      {
+        "ok": true,
+        "target_ran": true,
+        "recorded": "[{\"name\":\"result\",\"value\":{\"success\":true}}]"
+      }
+    ],
+    "python_indent_fixes": [],
+    "decoy_redrafts_on_original": [
+      {
+        "name": "decoy: updating workspace name and slug without changing webhookUrl works correctly",
+        "failed_with": "Error: NEXT_REDIRECT |     at getRedirectError (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:15:17) |     at redirect (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:40:9)",
+        "replaced": false
+      }
+    ],
+    "dropped_model_stubs_for_shimmed": []
+  },
+  "patch": {
+    "text": "  let { name, slug, webhookUrl, slackSigningSecret } = parsed.data;\n\n  // Normalize webhookUrl to lowercase if present\n  if (typeof webhookUrl === \"string\" && webhookUrl !== null) {\n    webhookUrl = webhookUrl.toLowerCase();\n  }\n\n  if (slug !== workspace.slug) {\n    const slugTaken = await prisma.workspace.findUnique({ where: { slug } });\n    if (slugTaken) {\n      return { error: \"That slug is already taken\" };\n    }\n  }\n\n  await prisma.workspace.update({\n    where: { id: workspace.id },\n    data: { name, slug, webhookUrl: webhookUrl ?? null, slackSigningSecret: slackSigningSecret ?? null },\n  });",
+    "file": "lib/actions/workspace-settings.ts",
+    "changed_lines": 7,
+    "diff": "+  let { name, slug, webhookUrl, slackSigningSecret } = parsed.data;\n+\n+  // Normalize webhookUrl to lowercase if present\n+  if (typeof webhookUrl === \"string\" && webhookUrl !== null) {\n+    webhookUrl = webhookUrl.toLowerCase();\n+  }\n-  const { name, slug, webhookUrl, slackSigningSecret } = parsed.data;\n \n   if (slug !== workspace.slug) {",
+    "rationale": "The webhookUrl is validated and lowercased by the schema, but the parsed data can still contain a string with uppercase letters if the original input had them. To ensure consistent storage and avoid case mismatches, webhookUrl is explicitly lowercased before updating the database. This prevents issues like the webhook URL being stored with different casing than expected, which caused the 404 errors reported.",
+    "attempts": [
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "changed_lines": 7
+      }
+    ]
+  },
+  "runs": {
+    "original": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: webhookUrl case mismatch causes stored URL to differ in case",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "result",
+              "value": {
+                "success": true
+              }
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Workspace",
+              "op": "update",
+              "row": {
+                "id": "cmvo6quev00019ufnvn1wg7ll",
+                "name": "Test Workspace Updated",
+                "slug": "test-workspace",
+                "createdAt": "2026-10-25T18:53:00.919",
+                "updatedAt": "2026-10-25T18:53:00.947",
+                "webhookUrl": "https://hooks.zapier.com/hooks/catch/1234567/abcdefg/",
+                "webhookSecret": "somesecret",
+                "slackSigningSecret": null
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: updating workspace name and slug without changing webhookUrl works correctly",
+          "role": "decoy",
+          "pass": false,
+          "error": "Error: NEXT_REDIRECT |     at getRedirectError (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:15:17) |     at redirect (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:40:9)",
+          "stack": "Error: NEXT_REDIRECT\n    at getRedirectError (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:15:17)\n    at redirect (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:40:9)\n    at updateWorkspaceSettingsAction (/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app/lib/actions/workspace-settings.ts:45:5)\n    at async <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app/.wce/1620884-mvo6qtgc-h6nu6b/t1.mts:81:20)\n    at async <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app/.wce/1620884-mvo6qtgc-h6nu6b/t1.mts:70:3)",
+          "recorded": [],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Workspace",
+              "op": "update",
+              "row": {
+                "id": "cmvo6qv8l00019uhd2x8qs7z0",
+                "name": "New Workspace Name",
+                "slug": "new-slug",
+                "createdAt": "2026-10-25T18:53:01.99",
+                "updatedAt": "2026-10-25T18:53:02.033",
+                "webhookUrl": "https://hooks.zapier.com/hooks/catch/1234567/abcdefg/",
+                "webhookSecret": "somesecret",
+                "slackSigningSecret": null
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: invalid slug input returns error and does not update workspace",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "result",
+              "value": {
+                "error": "Use lowercase letters, numbers, and hyphens only"
+              }
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 3582,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app"
+    },
+    "patched": {
+      "ok": true,
+      "results": [
+        {
+          "name": "reproduction: webhookUrl case mismatch causes stored URL to differ in case",
+          "role": "reproduction",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "result",
+              "value": {
+                "success": true
+              }
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Workspace",
+              "op": "update",
+              "row": {
+                "id": "cmvo6qx6700019uk4riniehen",
+                "name": "Test Workspace Updated",
+                "slug": "test-workspace",
+                "createdAt": "2026-10-25T18:53:04.495",
+                "updatedAt": "2026-10-25T18:53:04.526",
+                "webhookUrl": "https://hooks.zapier.com/hooks/catch/1234567/abcdefg/",
+                "webhookSecret": "somesecret",
+                "slackSigningSecret": null
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: updating workspace name and slug without changing webhookUrl works correctly",
+          "role": "decoy",
+          "pass": false,
+          "error": "Error: NEXT_REDIRECT |     at getRedirectError (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:15:17) |     at redirect (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:40:9)",
+          "stack": "Error: NEXT_REDIRECT\n    at getRedirectError (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:15:17)\n    at redirect (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:40:9)\n    at updateWorkspaceSettingsAction (/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app-patched/lib/actions/workspace-settings.ts:50:5)\n    at async <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app/.wce/1620884-mvo6qw7z-1esq5a/t1.mts:81:20)\n    at async <anonymous> (/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app/.wce/1620884-mvo6qw7z-1esq5a/t1.mts:70:3)",
+          "recorded": [],
+          "target_ran": true,
+          "db_changes": [
+            {
+              "table": "Workspace",
+              "op": "update",
+              "row": {
+                "id": "cmvo6qy1800019ulqydd4dy4x",
+                "name": "New Workspace Name",
+                "slug": "new-slug",
+                "createdAt": "2026-10-25T18:53:05.613",
+                "updatedAt": "2026-10-25T18:53:05.642",
+                "webhookUrl": "https://hooks.zapier.com/hooks/catch/1234567/abcdefg/",
+                "webhookSecret": "somesecret",
+                "slackSigningSecret": null
+              }
+            }
+          ],
+          "db_baseline": "arranged"
+        },
+        {
+          "name": "decoy: invalid slug input returns error and does not update workspace",
+          "role": "decoy",
+          "pass": true,
+          "recorded": [
+            {
+              "name": "result",
+              "value": {
+                "error": "Use lowercase letters, numbers, and hyphens only"
+              }
+            }
+          ],
+          "target_ran": true,
+          "db_changes": [],
+          "db_baseline": "arranged"
+        }
+      ],
+      "stderr": "",
+      "isolated": true,
+      "ms": 3901,
+      "tree": "/workspace/open-agent/why-code-exists/artifacts/m11-v17a/heldout2-webhook-case/app-patched"
+    }
+  },
+  "mechanism": {
+    "verdict": "mechanism_mismatch",
+    "elements": [
+      {
+        "element": "webhookUrl assignment from parsed.data without case normalization",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "webhookUrl: formData.get(\"webhookUrl\") ?? \"\",\n  },",
+        "quote_verified": false
+      },
+      {
+        "element": "workspaceSettingsSchema applies .toLowerCase() during validation",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "webhookUrl: z\n    .string()\n    .trim()\n    .toLowerCase()\n    .refine((v) => v === \"\" || z.string().url().safeParse(v).success, \"Enter a valid URL\")\n    .transform((v) => (v === \"\" ? null : v))\n    .nullable()\n    .optional(),\n  },",
+        "quote_verified": false
+      },
+      {
+        "element": "updateWorkspaceSettingsAction assigns webhookUrl directly from parsed.data to prisma.update data",
+        "claimed": "present",
+        "actual": "present",
+        "quote": "data: { name, slug, webhookUrl: webhookUrl ?? null, slackSigningSecret: slackSigningSecret ?? null },\n  },",
+        "quote_verified": false
+      }
+    ],
+    "reason": "\"webhookUrl assignment from parsed.data without case normalization\" claimed present but no verbatim code quote",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "version": "mech-v1"
+  },
+  "binding": {
+    "cited": [
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 22,
+        "text": "webhookUrl: formData.get(\"webhookUrl\") ?? \"\","
+      },
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 19,
+        "text": "const parsed = workspaceSettingsSchema.safeParse({"
+      },
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 20,
+        "text": "name: formData.get(\"name\"),"
+      },
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 21,
+        "text": "slug: formData.get(\"slug\"),"
+      }
+    ],
+    "patch_file": "lib/actions/workspace-settings.ts",
+    "patch_touched_lines": [
+      30
+    ],
+    "overlap": [],
+    "cause_gate": {
+      "harm_condition": "storedWebhookUrl !== originalWebhookUrl && storedWebhookUrl.toLowerCase() === originalWebhookUrl.toLowerCase()",
+      "alternative_defect": "The code normalizes webhookUrl to lowercase via workspaceSettingsSchema.safeParse().toLowerCase(), but the database stores the original case input. If the schema's .toLowerCase() were removed or bypassed, the input would be stored as-is, and the test would still pass because the stored URL would retain the original case difference from the input.",
+      "alternative_also_satisfies_harm": true,
+      "harm_requires_cited_lines": false,
+      "claim_specific": false,
+      "harm_matches_error": true,
+      "reason": "The test checks that stored URL case differs from input, which is satisfied if the schema's lowercase normalization is absent. The cited lines parse the URL but do not enforce case storage; the failure is due to missing normalization, not the cited lines' specific behavior."
+    },
+    "rival": {
+      "status": "unavailable",
+      "proposal": {
+        "rival_cause": "The code normalizes the slug to lowercase via the schema's `.toLowerCase()` but applies no case normalization to the webhookUrl, allowing mixed-case URLs to be stored and later delivered incorrectly.",
+        "rival_rule": "The webhookUrl should be normalized to lowercase before storage, matching the slug normalization pattern, to ensure delivered URLs exactly match the registered case.",
+        "rival_location": "webhookUrl: formData.get(\"webhookUrl\") ?? \"\","
+      },
+      "attempts": [
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged",
+        "edit touches the lines the claim cites; the rival fix must leave them unchanged"
+      ]
+    },
+    "claim_causes": [
+      "The updateWorkspaceSettingsAction function assigns webhookUrl directly from parsed.data without normalizing to lowercase, while the schema applies .toLowerCase() during validation. This mismatch allows case differences to persist in the database. [fix: Add .toLowerCase() normalization to webhookUrl assignment in updateWorkspaceSettingsAction, or apply the same normalization before database storage.]"
+    ]
+  },
+  "verdict": "patch_ineffective",
+  "reasons": [
+    "reproduction test passes on the original code (bug reproduced on the real code)",
+    "reproduction test still passes on the patch: the corrected belief does not remove the bug",
+    "decoy \"decoy: updating workspace name and slug without changing webhookUrl works correctly\" failed (Error: NEXT_REDIRECT |     at getRedirectError (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:15:17) |     at redirect (/home/box/.cache/wce/deps/cc39abd72f073c52/node_modules/next/src/client/components/redirect.ts:40:9)): harness or patch disturbs unrelated behaviour",
+    "reproduction executed the attributed function lib/actions/workspace-settings.ts:updateWorkspaceSettingsAction",
+    "patch changes lib/actions/workspace-settings.ts lines 30 but the claim cites lib/actions/workspace-settings.ts:22, lib/actions/workspace-settings.ts:19, lib/actions/workspace-settings.ts:20, lib/actions/workspace-settings.ts:21: the fix is not at the claimed cause",
+    "decoy vacuity control: built, every kept decoy fails on the no-op mutant",
+    "cause gate (nemotron): the reproduction's harm condition does not pin the claimed cause (The test checks that stored URL case differs from input, which is satisfied if the schema's lowercase normalization is absent. The cited lines parse the URL but do not enforce case storage; the failure is due to missing normalization, not the cited lines' specific behavior.)",
+    "rival-cause counterfactual: not checked (unavailable)",
+    "mechanism gate (nemotron): mechanism_mismatch (\"webhookUrl assignment from parsed.data without case normalization\" claimed present but no verbatim code quote)"
+  ],
+  "finished_at": "2026-10-25T18:53:23.546Z",
+  "zetaris": {
+    "ok": true,
+    "sql": "SELECT\n  el.error_id,\n  el.ts AS error_timestamp,\n  el.message AS error_message,\n  dbw.id AS workspace_id,\n  dbw.webhookUrl AS stored_webhook_url\nFROM ERROR_LOG el\nJOIN APP_DB_WRITES dbw ON dbw.__empty = 0 AND el.__empty = 0\nWHERE el.error_id = 'pulseboard-webhook-url-case'\n  AND dbw.scenario = 'reported_scenario'\n  AND dbw.db_table = 'Workspace'\n  AND lower(dbw.webhookUrl) = 'https://hooks.zapier.com/hooks/catch/1234567/abcdefg/'\n  AND dbw.webhookUrl != lower(dbw.webhookUrl)",
+    "sha256": "dc1f589b98e9dce05abc3613d47e65f8da923d3e34c59fc19a77627aeb0b062f",
+    "frozen_at": "2026-10-25T18:53:22.330Z",
+    "rationale": "This query returns rows only when the production error log contains the specific error about webhook URL case mismatch (error_id 'pulseboard-webhook-url-case'), and the application database writes for the reported scenario include a Workspace update where the webhookUrl is stored with uppercase letters (i.e., the stored webhookUrl is not all lowercase), but its lowercase form matches the expected lowercase URL. This matches the claim that the code does not enforce lowercase storage, causing mismatched webhook URLs due to case differences. Filtering on __empty = 0 ensures only valid rows are considered. If no such rows exist, the query returns zero rows, indicating no evidence of the harmful outcome.",
+    "tables": [
+      {
+        "name": "ERROR_LOG",
+        "description": "production error log: one row per stack frame",
+        "columns": [
+          "error_id STRING",
+          "ts STRING",
+          "severity STRING",
+          "service STRING",
+          "message STRING",
+          "frame_index DOUBLE",
+          "frame_file STRING",
+          "frame_line DOUBLE",
+          "frame_function STRING",
+          "ctx_captured_by STRING",
+          "ctx_tree STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 1,
+        "sample": [
+          {
+            "error_id": "pulseboard-webhook-url-case",
+            "ts": "2026-10-25T03:37:42.571Z",
+            "severity": "error",
+            "service": "pulseboard",
+            "message": "Zapier says our webhook hits 404 'hook not found'. Admin saved the outgoing webhook URL https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/ in workspace settings, but the stored URL that deliveries go to is https://hooks.zapier.com/hooks/catch/1234567/abcdefg/.",
+            "frame_index": 0,
+            "frame_file": "lib/actions/workspace-settings.ts",
+            "frame_line": 12,
+            "frame_function": "updateWorkspaceSettingsAction",
+            "ctx_captured_by": "src/bin/capture-error.ts --scenario cases/heldout2-webhook-case/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+            "ctx_tree": "transcript_replay",
+            "__empty": 0
+          }
+        ],
+        "provenance": "input error file"
+      },
+      {
+        "name": "CODE_EDITS",
+        "description": "repo/commit metadata: each edit the coding agent made (transcript) and git commits of the frame file",
+        "columns": [
+          "source STRING",
+          "file STRING",
+          "edit_line DOUBLE",
+          "tool STRING",
+          "at STRING",
+          "is_frame_file DOUBLE",
+          "code_written STRING",
+          "__empty DOUBLE"
+        ],
+        "row_count": 137,
+        "sample": [
+          {
+            "source": "agent_transcript",
+            "file": "~/.cursor/skills-cursor/env-setup/SKILL.md",
+            "edit_line": 10,
+            "tool": null,
+            "at": null,
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          },
+          {
+            "source": "agent_transcript",
+            "file": "~/.cursor/skills-cursor/env-setup/SKILL.md",
+            "edit_line": 11,
+            "tool": "read_file",
+            "at": "2026-10-22T23:28:54.969Z",
+            "is_frame_file": 0,
+            "code_written": "",
+            "__empty": 0
+          }
+        ],
+        "provenance": "agent transcript"
+      },
+      {
+        "name": "APP_DB_WRITES",
+        "description": "rows the real application code wrote to its real PostgreSQL tables (snapshot diff after seeding); other columns are the app table's own fields; scenario says whether it was the reported scenario",
+        "columns": [
+          "run STRING",
+          "scenario STRING",
+          "db_table STRING",
+          "op STRING",
+          "id STRING",
+          "name STRING",
+          "slug STRING",
+          "createdAt STRING",
+          "updatedAt STRING",
+          "webhookUrl STRING",
+          "webhookSecret STRING",
+          "slackSigningSecret DOUBLE",
+          "__empty DOUBLE"
+        ],
+        "row_count": 2,
+        "sample": [
+          {
+            "run": "original",
+            "scenario": "reported_scenario",
+            "db_table": "Workspace",
+            "op": "update",
+            "id": "cmvo6quev00019ufnvn1wg7ll",
+            "name": "Test Workspace Updated",
+            "slug": "test-workspace",
+            "createdAt": "2026-10-25T18:53:00.919",
+            "updatedAt": "2026-10-25T18:53:00.947",
+            "webhookUrl": "https://hooks.zapier.com/hooks/catch/1234567/abcdefg/",
+            "webhookSecret": "somesecret",
+            "slackSigningSecret": null,
+            "__empty": 0
+          },
+          {
+            "run": "original",
+            "scenario": "other_behaviour",
+            "db_table": "Workspace",
+            "op": "update",
+            "id": "cmvo6qv8l00019uhd2x8qs7z0",
+            "name": "New Workspace Name",
+            "slug": "new-slug",
+            "createdAt": "2026-10-25T18:53:01.99",
+            "updatedAt": "2026-10-25T18:53:02.033",
+            "webhookUrl": "https://hooks.zapier.com/hooks/catch/1234567/abcdefg/",
+            "webhookSecret": "somesecret",
+            "slackSigningSecret": null,
+            "__empty": 0
+          }
+        ],
+        "provenance": "real PostgreSQL rows written by the original application code"
+      }
+    ],
+    "tables_joined": [
+      "ERROR_LOG",
+      "APP_DB_WRITES"
+    ],
+    "sql_attempts": [],
+    "original_rows": 0,
+    "patched_rows": 0,
+    "original_sample": [],
+    "patched_sample": [],
+    "verdict": "does_not_confirm"
+  }
+}

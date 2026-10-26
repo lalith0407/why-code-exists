@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that removing the blanket \"reasoning on = bridge to Responses\" rule would automatically make gpt-5.4/5.5 work with function tools on Chat Completions, without accounting for the fact that OpenAI's API still rejects function tools with any non\u2011`none` reasoning_effort in chat completions, causing the 400 error reported in production.",
+ "why_it_breaks": "The code comment (line 1127\u20111128) now states that gpt-5.4 and gpt-5.5 default to \"none\" and serve tools on Chat Completions, and that unset effort only bridges from gpt-5.6 onward. However, OpenAI's actual API still returns HTTP 400 \"Function tools with reasoning_effort are not supported for gpt-5.5 in /v1/chat/completions\" whenever a non\u2011`none` reasoning_effort is present, regardless of the model version. The agent's edit removed the old guard that explicitly warned users to set reasoning_effort to \"none\" to keep requests chat\u2011servable, but the underlying API constraint was not lifted\u2014so any request that still carries an explicit `reasoning_effort: low` (as the user's production deployment does) is rejected by the chat completions endpoint. The fix assumed that simply changing the routing logic would bypass the API rejection, but the API itself enforces the restriction, causing the 400 error.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 1127,
+   "quote": "    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from\n",
+   "verified": false,
+   "reason": "cited line does not exist"
+  },
+  {
+   "kind": "code",
+   "file": "litellm/main.py",
+   "line": 1127,
+   "quote": "    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

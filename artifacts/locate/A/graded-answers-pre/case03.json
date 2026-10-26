@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that the first cashflow amount represents a deposit/initial investment and should be included in the XIRR calculation as a negative number, but in this case it is the starting equity value which should be excluded from the amounts list used for IRR computation.",
+ "why_it_breaks": "The _xirr function collects all cashflow amounts into the `amounts` list without distinguishing between the initial equity outflow and subsequent deposits/withdrawals. When the first cashflow is -100000 (starting equity) and the second is +106000 (ending equity after 10 days), the XIRR function treats -100000 as an investment amount and computes a rate that equates the present value of +106000 to -100000. However, the intended use case for a performance memo is to calculate returns on the capital, not to treat the starting equity as a cash inflow/outflow. The XIRR function returns 'n/a' (None) because the Newton-Raphson solver either fails to converge or produces a rate that the memoization layer interprets as invalid. The correct approach is to skip the first cashflow amount (the starting equity) when computing IRR, since IRR should only consider actual cash movements (deposits, withdrawals, and the ending equity value).",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 219,
+   "quote": "def _xirr(cashflows: list[tuple[date, float]]) -> float | None:\n    if len(cashflows) < 2:\n        return None\n    start = cashflows[0][0]\n    times = [max((day - start).days, 0) / 365.0 for day, _amount in cashflows]\n    amounts = [amount for _day, amount in cashflows]\n",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/sim/metrics.py",
+   "line": 43,
+   "quote": "amounts = [amount for _day, amount in cashflows]",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

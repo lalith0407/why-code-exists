@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> prisma/seed.ts:117
+stage: ok
+provider: nemotron
+frame: prisma/seed.ts:117
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed the webhook URL stored in the database was the correct Zapier catch hook URL, without checking whether the URL format or path structure had changed or was being normalized differently when stored versus when used in outbound requests.
+report: /workspace/open-agent/wt-fix/artifacts/locate/A/case06/report.html

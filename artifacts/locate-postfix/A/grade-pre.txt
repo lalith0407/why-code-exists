@@ -1,0 +1,18 @@
+case      grounded  quotes_ok  transcript  code  proximity errors
+case01    False     False      False       False False     
+case02    False     False      True        True  True      
+case03    False     False      False       True  False     
+case04    False     False      False       True  True      
+case05    False     False      False       False False     
+case06    False     False      False       False False     
+case07    False     False      False       True  False     
+case08    False     False      False       False False     
+case09    False     False      False       True  False     
+case10    False     False      False       True  False     
+case11    False     False      False       False False     
+case12    False     False      False       False False     
+case13    False     False      True        True  False     
+case14    True      True       True        True  True      
+case15    False     False      False       True  False     
+
+Grounded (mechanical): 1/15

@@ -1,0 +1,45 @@
+{
+ "overlooked_assumption": "The agent assumed that adding FrameworkPattern to ComputeReferenceStaticWebAssetItems would automatically apply framework asset materialization at P2P boundaries, but did not implement the actual pattern matching and materialization logic in that task's Execute method.",
+ "why_it_breaks": "The FrameworkPattern property was added to ComputeReferenceStaticWebAssetItems and the task creates a matcher, but the actual ApplyFrameworkPattern method call is truncated/incomplete in the diff. Without complete pattern matching and materialization logic in this task, framework assets like blazor.webassembly.js are not properly materialized (copied to intermediate output and metadata updated), so they remain referenced with their original paths which return 404 when the consuming app tries to load them.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 6,
+   "quote": "Assets whose <c>RelativePath</c> matches any pattern will have their",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 6,
+   "quote": "+            var frameworkMatcher = CreateFrameworkMatcher();",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+   "line": 139,
+   "quote": "private StaticWebAssetGlobMatcher CreateFrameworkMatcher()",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 6,
+   "quote": "+                                ApplyFrameworkPatt",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+   "line": 32,
+   "quote": "/// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 3
+}

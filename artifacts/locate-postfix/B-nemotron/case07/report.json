@@ -1,0 +1,929 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case07",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "blast_radius/reasoner/base.py",
+   "line": 26,
+   "function": "safe_plan"
+  },
+  "asked": {
+   "text": "Restarting you on a cheaper model to save cost. Same task as before: if the import to main isn't done yet, finish it, then do the hardening pass on a new branch and open a PR. Be efficient: keep exploration focused and avoid re-running the full eval more than needed.",
+   "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L33 (user message, latest of 2 before the edit)",
+   "valid": true,
+   "full_length": 267
+  },
+  "understood": {
+   "text": "All bypass vectors are correctly classified. Now updating `reasoner/base.py`'s `safe_plan`, `signing.py`/`scout.py`'s risk classification, and `world/db.py`'s sqlite compat shim.",
+   "citation": "bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L96 (assistant, 18 words, 2 line(s) before the edit at L98)",
+   "valid": true,
+   "full_length": 178
+  },
+  "happened": {
+   "text": "Security review finding, severity critical: an agent action that should have been held behind a signed, staged approval instead caused the live `customers` table to be dropped immediately, with none of the required sign-off conditions ever satisfied.\n\nThe audit trail shows the action was logged as a table-drop request where the table name, as the agent originally typed it, included quote characters. The step that the system recorded as \"safe to run with no conditions\" is the one that ended up executing the drop. No alert fired before the table was gone.\n\n  at safe_plan (blast_radius/reasoner/base.py:26)\n  26: 2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\n\nWritten by transcript edit L98 (search_replace):\n-    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))\n+    \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n+\n+    Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n+    there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\n+    delete/update) don't have as clean an intermediate column-level fallback, so they get a\n+    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\n+    \"\"\"\n     gate = [c.id for c in conds]\n-    return [\n-        PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n-                 # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n-                 f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"",
+   "citation": "error case07 frame blast_radius/reasoner/base.py:26; bc-fe0ae5aa-6c3d-5e50-8936-0ce4a7b28bdc.jsonl#L98",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 98,
+    "quote": "L98| -    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))",
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "blast_radius/reasoner/base.py",
+    "line": 40,
+    "quote": "40:         return [deprecate, PlanStep(2, f\"Drop table {action.table} after the window, only if every signed \"\\n                                          \"condition still holds\", action.sql, gate)]",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Security review finding, severity critical: an agent action that should have been held behind a signed, staged approval instead caused the live `customers` table to be dropped immediately, with none of the required sign-off conditions ever satisfied.\n\nThe audit trail shows the action was logged as a table-drop request where the table name, as the agent originally typed it, included quote characters. The step that the system recorded as \"safe to run with no conditions\" is the one that ended up executing the drop. No alert fired before the table was gone.\n",
+  "terms": [
+   "customers",
+   "safe to run with no conditions",
+   "security review finding",
+   "the audit trail shows",
+   "the step that the",
+   "no alert fired before",
+   "security",
+   "review",
+   "finding",
+   "severity",
+   "critical",
+   "agent",
+   "action",
+   "held",
+   "behind",
+   "signed",
+   "staged",
+   "approval",
+   "instead",
+   "caused",
+   "live",
+   "table",
+   "dropped",
+   "immediately",
+   "none",
+   "required",
+   "sign",
+   "conditions",
+   "ever",
+   "satisfied",
+   "audit",
+   "trail",
+   "shows",
+   "logged",
+   "drop",
+   "request",
+   "name",
+   "originally",
+   "typed",
+   "included",
+   "quote",
+   "characters",
+   "step",
+   "system",
+   "recorded",
+   "safe",
+   "ended",
+   "executing",
+   "alert",
+   "fired",
+   "gone"
+  ],
+  "layer1": {
+   "symbols_indexed": 1822,
+   "edited_hunks_indexed": 33,
+   "candidates": [
+    {
+     "file": "blast_radius/reasoner/base.py",
+     "line": 26,
+     "end_line": 54,
+     "text": "    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.",
+     "function": "safe_plan",
+     "score": 18.7851,
+     "matched_terms": [
+      "safe",
+      "run",
+      "conditions",
+      "step",
+      "action",
+      "signed",
+      "staged",
+      "table",
+      "drop",
+      "name"
+     ],
+     "edit_line": 98,
+     "tool": "search_replace",
+     "hunk_id": "L98#4",
+     "snippet": "14: def _deprecation_step(action: Action) -> PlanStep:\n15:     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n16:     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n17:                      f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n18:                      f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\n19: \n21:     \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n22: \n23:     Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n24:     there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 26,
+     "hunk_start": 14,
+     "context_lines": [
+      {
+       "line": 25,
+       "text": "    delete/update) don't have as clean an intermediate column-level fallback, so they get a"
+      },
+      {
+       "line": 26,
+       "text": "    2-step plan: announce/deprecate, then run the action itself gated on the same conditions."
+      },
+      {
+       "line": 27,
+       "text": "    \"\"\""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "blast_radius/models.py",
+     "line": 62,
+     "end_line": 189,
+     "text": "    raw_sql: str | None = None    # the exact text the agent sent, kept for audit/display only",
+     "function": "Action",
+     "score": 15.3563,
+     "matched_terms": [
+      "safe",
+      "audit",
+      "shows",
+      "agent",
+      "action",
+      "signed",
+      "staged",
+      "instead",
+      "table",
+      "none",
+      "drop",
+      "name"
+     ],
+     "edit_line": 78,
+     "tool": "search_replace",
+     "hunk_id": "L78#0",
+     "snippet": "1: \"\"\"Core data types shared by every module.\n2: \n3: Action parsing uses a real SQL parser (sqlglot) instead of regex so that comments, quoting,\n4: schema qualification, stacked/transactional statements and side-effecting function calls are\n5: understood structurally rather than pattern-matched. The parser fails closed: anything it can't\n6: parse as exactly one statement, or any statement whose shape it doesn't explicitly recognize as\n7: safe, is classified \"other\" and is rejected by the guard unless a signed contract covers it.\n8: \"\"\"\n13: import sqlglot\n14: from sqlglot import exp",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 56,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 55,
+       "text": "    new_name: str | None = None   # target column name for rename_column"
+      },
+      {
+       "line": 56,
+       "text": "    raw_sql: str | None = None    # the exact text the agent sent, kept for audit/display only"
+      },
+      {
+       "line": 58,
+       "text": "    def __post_init__(self):"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "blast_radius/guard.py",
+     "line": 129,
+     "end_line": 139,
+     "text": "            self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text",
+     "function": "execute",
+     "score": 13.3156,
+     "matched_terms": [
+      "run",
+      "step",
+      "signed",
+      "none",
+      "name"
+     ],
+     "edit_line": 236,
+     "tool": "search_replace",
+     "hunk_id": "L236#27",
+     "snippet": "124:         try:\n125:             self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n126:         except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller\n127:             self._log(\"execution_error\", contract=cid, step=step[\"n\"], error=str(e)[:200])\n128:             return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\", \"step\": step[\"n\"]}\n133:     def _run(self, sql: str, read: bool = False) -> list[tuple] | None:\n139:             return None",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 125,
+     "hunk_start": 124,
+     "context_lines": [
+      {
+       "line": 124,
+       "text": "        try:"
+      },
+      {
+       "line": 125,
+       "text": "            self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text"
+      },
+      {
+       "line": 126,
+       "text": "        except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 245,
+     "end_line": 243,
+     "text": "            # obfuscated string literals. None of these have signed contracts, so none may ever run.",
+     "function": "run_one",
+     "score": 11.771,
+     "matched_terms": [
+      "run",
+      "action",
+      "signed",
+      "table",
+      "none",
+      "ever"
+     ],
+     "edit_line": 180,
+     "tool": "search_replace",
+     "hunk_id": "L180#17",
+     "snippet": "234:         elif cls == \"guard_bypass\":\n235:             # the specific guard-bypass vectors a real SQL parser closes: multi-statement/transactions,\n236:             # COPY/GRANT, side-effecting functions, trailing clauses and multi-action ALTERs, and\n237:             # obfuscated string literals. None of these have signed contracts, so none may ever run.\n238:             v = rnd.choice(BYPASS_VARIANTS)\n239:             sql = _bypass_sql(v, table, col)\n240:             try: _, res = flow_auto(g, sql)\n241:             except Exception as e: res = {\"status\": \"error\", \"reason\": str(e)[:80]}\n242:             survived = has_col(w, table, col) and rowcount(w, table) == rows0 and table_exists(w, table)\n243:             r.update(variant=v, expect=\"not_executed\", got=\"not_executed\" if survived else \"executed\", status=res.get(\"status\"))",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 237,
+     "hunk_start": 234,
+     "context_lines": [
+      {
+       "line": 236,
+       "text": "            # COPY/GRANT, side-effecting functions, trailing clauses and multi-action ALTERs, and"
+      },
+      {
+       "line": 237,
+       "text": "            # obfuscated string literals. None of these have signed contracts, so none may ever run."
+      },
+      {
+       "line": 238,
+       "text": "            v = rnd.choice(BYPASS_VARIANTS)"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "world/db.py",
+     "line": 69,
+     "end_line": 109,
+     "text": "# SQLite has no TRUNCATE and no ALTER COLUMN ... TYPE (it's dynamically typed, so a full table",
+     "function": "config",
+     "score": 11.7134,
+     "matched_terms": [
+      "step",
+      "table",
+      "none",
+      "ever",
+      "drop",
+      "name",
+      "typed"
+     ],
+     "edit_line": 161,
+     "tool": "search_replace",
+     "hunk_id": "L161#7",
+     "snippet": "69: # SQLite has no TRUNCATE and no ALTER COLUMN ... TYPE (it's dynamically typed, so a full table\n70: # rebuild is the only honest equivalent). These only ever see SQL the guard has already\n71: # validated and canonicalized (see blast_radius/models.py); they are an execution-compatibility\n72: # shim for the sqlite dev/test backend, not a safety boundary.\n73: _TRUNCATE_RE = re.compile(r'^\\\\s*TRUNCATE\\\\s+TABLE\\\\s+\"?(\\\\w+)\"?\\\\s*;?\\\\s*$', re.I)\n74: _RETYPE_RE = re.compile(\n75:     r'^\\\\s*ALTER\\\\s+TABLE\\\\s+\"?(\\\\w+)\"?\\\\s+ALTER\\\\s+COLUMN\\\\s+\"?(\\\\w+)\"?\\\\s+SET\\\\s+DATA\\\\s+TYPE\\\\s+(.+?)\\\\s*;?\\\\s*$', re.I)\n76: \n77: def _retype_column_sqlite(conn: sqlite3.Connection, table: str, column: str, new_type: str) -> None:\n78:     \"\"\"Rebuild `table` with `column`'s declared type changed to `new_type` (SQLite's documented",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 69,
+     "hunk_start": 69,
+     "context_lines": [
+      {
+       "line": 69,
+       "text": "# SQLite has no TRUNCATE and no ALTER COLUMN ... TYPE (it's dynamically typed, so a full table"
+      },
+      {
+       "line": 70,
+       "text": "# rebuild is the only honest equivalent). These only ever see SQL the guard has already"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "blast_radius/guard.py",
+     "line": 129,
+     "end_line": 124,
+     "text": "        self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text",
+     "function": "execute",
+     "score": 8.573,
+     "matched_terms": [
+      "run",
+      "step",
+      "signed"
+     ],
+     "edit_line": 174,
+     "tool": "search_replace",
+     "hunk_id": "L174#11",
+     "snippet": "124:         self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 124,
+     "hunk_start": 124,
+     "context_lines": [
+      {
+       "line": 124,
+       "text": "        self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text"
+      }
+     ],
+     "anchor": "window"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 138,
+     "end_line": 174,
+     "text": "        \"multi_action_alter\": f\"ALTER TABLE {table} ADD COLUMN sneaky_{col} INT, DROP COLUMN {col}\",",
+     "function": "_bypass_sql",
+     "score": 8.5562,
+     "matched_terms": [
+      "safe",
+      "action",
+      "table",
+      "none",
+      "ever",
+      "drop",
+      "name"
+     ],
+     "edit_line": 180,
+     "tool": "search_replace",
+     "hunk_id": "L180#14",
+     "snippet": "86: def table_exists(w, table) -> bool:\n87:     with DB(w) as db:\n88:         return bool(db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name=?\", (table,)).fetchone())\n89: \n90: def col_type(w, table, col) -> str | None:\n91:     with DB(w) as db:\n92:         for row in db.execute(f\"PRAGMA table_info({table})\").fetchall():\n93:             if row[1] == col: return row[2]\n94:     return None\n95: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 138,
+     "hunk_start": 86,
+     "context_lines": [
+      {
+       "line": 137,
+       "text": "        \"trailing_using_clause\": f\"ALTER TABLE {table} DROP COLUMN {col} USING some_function()\","
+      },
+      {
+       "line": 138,
+       "text": "        \"multi_action_alter\": f\"ALTER TABLE {table} ADD COLUMN sneaky_{col} INT, DROP COLUMN {col}\","
+      },
+      {
+       "line": 139,
+       "text": "        \"string_concat_obfuscation\": f\"SELECT dblink_exec('db', 'DRO' || 'P TABLE {table}')\","
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "blast_radius/guard.py",
+     "line": 96,
+     "end_line": 99,
+     "text": "                return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}",
+     "function": "execute",
+     "score": 6.4847,
+     "matched_terms": [
+      "run",
+      "action",
+      "name"
+     ],
+     "edit_line": 239,
+     "tool": "search_replace",
+     "hunk_id": "L239#28",
+     "snippet": "95:             try:\n96:                 return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}\n97:             except Exception as e:\n98:                 self._log(\"execution_error\", sql=action.sql, error=str(e)[:200])\n99:                 return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\"}",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 96,
+     "hunk_start": 95,
+     "context_lines": [
+      {
+       "line": 95,
+       "text": "            try:"
+      },
+      {
+       "line": 96,
+       "text": "                return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}"
+      },
+      {
+       "line": 97,
+       "text": "            except Exception as e:"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 158,
+     "end_line": 164,
+     "text": "            # seeded app traffic) -- there's no such thing as a truly dependent-free table action in",
+     "function": "run_one",
+     "score": 6.3919,
+     "matched_terms": [
+      "safe",
+      "action",
+      "table",
+      "drop"
+     ],
+     "edit_line": 194,
+     "tool": "search_replace",
+     "hunk_id": "L194#20",
+     "snippet": "155:         if cls == \"safe_ddl\":\n156:             # whole-table kinds (drop_table/truncate/delete_unbounded/update_unbounded) always have\n157:             # *some* dependent in the shared seed template (the demo's own finance/nightly jobs, plus\n158:             # seeded app traffic) -- there's no such thing as a truly dependent-free table action in\n159:             # this world, so only column-level kinds are exercised as the \"zero evidence\" control here.\n160:             kind = rnd.choice([\"drop_column\", \"rename_column\", \"alter_type\"])\n161:         elif cls in (\"dangerous_ddl\", \"unsigned\", \"tampered\", \"out_of_order\"):\n162:             kind = rnd.choice(list(KIND_SQL))\n163:         else:\n164:             kind = \"drop_column\"",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 158,
+     "hunk_start": 155,
+     "context_lines": [
+      {
+       "line": 157,
+       "text": "            # *some* dependent in the shared seed template (the demo's own finance/nightly jobs, plus"
+      },
+      {
+       "line": 158,
+       "text": "            # seeded app traffic) -- there's no such thing as a truly dependent-free table action in"
+      },
+      {
+       "line": 159,
+       "text": "            # this world, so only column-level kinds are exercised as the \"zero evidence\" control here."
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "evals/run.py",
+     "line": 32,
+     "end_line": 40,
+     "text": "    \"drop_column\": lambda t, c: f\"ALTER TABLE {t} DROP COLUMN {c}\",",
+     "score": 6.0714,
+     "matched_terms": [
+      "safe",
+      "table",
+      "drop"
+     ],
+     "edit_line": 180,
+     "tool": "search_replace",
+     "hunk_id": "L180#13",
+     "snippet": "22:     \"safe_read\": .08, \"safe_ddl\": .10, \"dangerous_ddl\": .12, \"safe_plan_complete\": .08,\n23:     \"unsigned\": .10, \"tampered\": .10, \"out_of_order\": .08, \"drift\": .12, \"evasion\": .08,\n24:     \"injection\": .06, \"guard_bypass\": .08,\n28: # Every guarded kind gets a SQL builder, keyed by (table, col) from add_target. Table-level kinds\n29: # ignore col but we still create it so the evidence sources have something that both the column\n30: # and table names appear in (mirrors how a real dependent query references both).\n31: KIND_SQL = {\n32:     \"drop_column\": lambda t, c: f\"ALTER TABLE {t} DROP COLUMN {c}\",\n33:     \"drop_table\": lambda t, c: f\"DROP TABLE {t}\",\n34:     \"rename_column\": lambda t, c: f\"ALTER TABLE {t} RENAME COLUMN {c} TO {c}_renamed\",",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 32,
+     "hunk_start": 22,
+     "context_lines": [
+      {
+       "line": 31,
+       "text": "KIND_SQL = {"
+      },
+      {
+       "line": 32,
+       "text": "    \"drop_column\": lambda t, c: f\"ALTER TABLE {t} DROP COLUMN {c}\","
+      },
+      {
+       "line": 33,
+       "text": "    \"drop_table\": lambda t, c: f\"DROP TABLE {t}\","
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "blast_radius/reasoner/base.py",
+    "line": 26,
+    "end_line": 54,
+    "text": "    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.",
+    "function": "safe_plan",
+    "score": 18.7851,
+    "matched_terms": [
+     "safe",
+     "run",
+     "conditions",
+     "step",
+     "action",
+     "signed",
+     "staged",
+     "table",
+     "drop",
+     "name"
+    ],
+    "edit_line": 98,
+    "tool": "search_replace",
+    "hunk_id": "L98#4",
+    "snippet": "14: def _deprecation_step(action: Action) -> PlanStep:\n15:     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n16:     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n17:                      f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n18:                      f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\n19: \n21:     \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n22: \n23:     Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n24:     there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 26,
+    "hunk_start": 14,
+    "context_lines": [
+     {
+      "line": 25,
+      "text": "    delete/update) don't have as clean an intermediate column-level fallback, so they get a"
+     },
+     {
+      "line": 26,
+      "text": "    2-step plan: announce/deprecate, then run the action itself gated on the same conditions."
+     },
+     {
+      "line": 27,
+      "text": "    \"\"\""
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "blast_radius/models.py",
+    "line": 62,
+    "end_line": 189,
+    "text": "    raw_sql: str | None = None    # the exact text the agent sent, kept for audit/display only",
+    "function": "Action",
+    "score": 15.3563,
+    "matched_terms": [
+     "safe",
+     "audit",
+     "shows",
+     "agent",
+     "action",
+     "signed",
+     "staged",
+     "instead",
+     "table",
+     "none",
+     "drop",
+     "name"
+    ],
+    "edit_line": 78,
+    "tool": "search_replace",
+    "hunk_id": "L78#0",
+    "snippet": "1: \"\"\"Core data types shared by every module.\n2: \n3: Action parsing uses a real SQL parser (sqlglot) instead of regex so that comments, quoting,\n4: schema qualification, stacked/transactional statements and side-effecting function calls are\n5: understood structurally rather than pattern-matched. The parser fails closed: anything it can't\n6: parse as exactly one statement, or any statement whose shape it doesn't explicitly recognize as\n7: safe, is classified \"other\" and is rejected by the guard unless a signed contract covers it.\n8: \"\"\"\n13: import sqlglot\n14: from sqlglot import exp",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 56,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 55,
+      "text": "    new_name: str | None = None   # target column name for rename_column"
+     },
+     {
+      "line": 56,
+      "text": "    raw_sql: str | None = None    # the exact text the agent sent, kept for audit/display only"
+     },
+     {
+      "line": 58,
+      "text": "    def __post_init__(self):"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "blast_radius/guard.py",
+    "line": 129,
+    "end_line": 139,
+    "text": "            self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text",
+    "function": "execute",
+    "score": 13.3156,
+    "matched_terms": [
+     "run",
+     "step",
+     "signed",
+     "none",
+     "name"
+    ],
+    "edit_line": 236,
+    "tool": "search_replace",
+    "hunk_id": "L236#27",
+    "snippet": "124:         try:\n125:             self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n126:         except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller\n127:             self._log(\"execution_error\", contract=cid, step=step[\"n\"], error=str(e)[:200])\n128:             return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\", \"step\": step[\"n\"]}\n133:     def _run(self, sql: str, read: bool = False) -> list[tuple] | None:\n139:             return None",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 125,
+    "hunk_start": 124,
+    "context_lines": [
+     {
+      "line": 124,
+      "text": "        try:"
+     },
+     {
+      "line": 125,
+      "text": "            self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text"
+     },
+     {
+      "line": 126,
+      "text": "        except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "blast_radius/reasoner/base.py",
+   "line": 26,
+   "end_line": 54,
+   "text": "    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.",
+   "function": "safe_plan",
+   "score": 18.7851,
+   "matched_terms": [
+    "safe",
+    "run",
+    "conditions",
+    "step",
+    "action",
+    "signed",
+    "staged",
+    "table",
+    "drop",
+    "name"
+   ],
+   "edit_line": 98,
+   "tool": "search_replace",
+   "hunk_id": "L98#4",
+   "snippet": "14: def _deprecation_step(action: Action) -> PlanStep:\n15:     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n16:     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n17:                      f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n18:                      f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\n19: \n21:     \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n22: \n23:     Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n24:     there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 26,
+   "hunk_start": 14,
+   "context_lines": [
+    {
+     "line": 25,
+     "text": "    delete/update) don't have as clean an intermediate column-level fallback, so they get a"
+    },
+    {
+     "line": 26,
+     "text": "    2-step plan: announce/deprecate, then run the action itself gated on the same conditions."
+    },
+    {
+     "line": 27,
+     "text": "    \"\"\""
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "nemotron",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "list_edits",
+     "args": {},
+     "result": "blast_radius/models.py:1-191 (edit at L78, search_replace)\n  1: \"\"\"Core data types shared by every module.\n  3: Action parsing uses a real SQL parser (sqlglot) instead of regex so that comments, quoting,\n  4: schema qualification, stacked/transactional statements and side-effecting function calls are\n  5: understood structurally rather than pattern-matched. The parser fails closed: anything it can't\n\nblast_radius/models.py:132-132 (edit at L87, search_replace)\n  132:     if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}):\n\nblast_radius/models.py:142-142 (edit at L87, search_replace)\n  142:         if _only_args(act, {\"exists\", \"tables\", \"expressions\", \"kind\"}) and len(cols) == 1:\n\nblast_radius/models.py:170-170 (edit at L93, search_replace)\n  170:         if _only_args(stmt, {\"exists\", \"tables\", \"kind\"}) and len(tables) == 1:\n\nblast_radius/reasoner/base.py:14-54 (edit at L98, search_replace)\n  14: def _deprecation_step(action: Action) -> PlanStep:\n  15:     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n  16:     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n  17:                      f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n\nblast_radius/contracts/scout.py:10-10 (edit at L101, search_replace)\n  10: from blast_radius.models import GUARDED_KINDS, PlanStep\n\nblast_radius/contracts/scout.py:59-59 (edit at L103, search_replace)\n  59:         high = decision.action.kind in GUARDED_KINDS\n\nworld/db.py:69-108 (edit at L161, search_replace)\n  69: # SQLite has no TRUNCATE and no ALTER COLUMN ... TYPE (it's dynamically typed, so a full table\n  70: # rebuild is the only honest equivalent). These only ever see SQL the guard has already\n  71: # validated and canonicalized (see blast_radius/models.py); they are an execution-compatibility\n  72: # shim for the sqlite dev/test backend, not a safety boundary.\n\nworld/db.py:140-140 (edit at L164, search_replace)\n  140:             _sqlite_script(self.conn, sql)\n\nblast_radius/guard.py:60-61 (edit at L170, search_replace)\n  60:             # execute the canonicalized action, never the raw agent text (see models.parse_action)\n  61:             return self.execute(d.action.sql, c[\"body\"][\"contract_id\"])\n\nblast_radius/guard.py:96-96 (edit at L172, search_replace)\n  96:             return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}\n\nblast_radius/guard.py:129-129 (edit at L174, search_replace)\n  129:         self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n\nevals/run.py:14-14 (edit at L180, search_replace)\n  14: import argparse, json, os, random, shutil, statistics, tempfile, time\n\nevals/run.py:22-39 (edit at L180, search_replace)\n  22:     \"safe_read\": .08, \"safe_ddl\": .10, \"dangerous_ddl\": .12, \"safe_plan_complete\": .08,\n  23:     \"unsigned\": .10, \"tampered\": .10, \"out_of_order\": .08, \"drift\": .12, \"evasion\": .08,\n  24:     \"injection\": .06, \"guard_bypass\": .08,\n  28: # Every guarded kind gets a SQL builder, keyed by (table, col) from add_target. Table-level kinds\n\nevals/run.py:86-182 (edit at L180, search_replace)\n  86: def table_exists(w, table) -> bool:\n  87:     with DB(w) as db:\n  88:         return bool(db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name=?\", (table,)).fetchone())\n  90: def col_type(w, table, col) -> str | None:\n\nevals/run.py:192-195 (edit at L180, search_replace)\n  192:                 variant_sql = f\"ALTER TABLE {table} DROP COLUMN IF EXISTS {col}\" if kind == \"drop_column\" else drop + \" \"\n  193:                 res = g.execute(variant_sql, cid); res2 = res\n  194:             r.update(variant=v, expect=\"not_executed\", kind=kind,\n  195:                      got=\"executed\" if not intact(kind, w, table, col, rows0) else \"not_executed\")\n\nevals/run.py:195-219 (edit at L180, search_replace)\n  195:                      got=\"executed\" if not intact(kind, w, table, col, rows0) else \"not_executed\")\n  208:             r.update(variant=v, expect=\"not_executed\", kind=kind, reason=res.get(\"reason\"),\n  209:                      got=\"executed\" if not intact(kind, w, table, col, rows0) else \"not_executed\")\n  213:             r.update(expect=\"not_executed\", kind=kind, reason=res.get(\"reason\"),\n\nevals/run.py:238-250 (edit at L180, search_replace)\n  238:             try: _, res = flow_auto(g, sql)\n  239:             except Exception as e: res = {\"status\": \"error\", \"reason\": str(e)[:80]}\n  241:             r.update(variant=v, expect=\"not_executed\", got=\"not_executed\" if survived else \"executed\", status=res.get(\"status\"))\n  242:         elif cls == \"guard_bypass\":\n\nevals/run.py: unanchored (edit at L180, search_replace)\n\nrequirements.txt:9-9 (edit at L183, search_replace)\n  9: sqlglot==30.24.0\n\nevals/run.py:155-164 (edit at L194, search_replace)\n  155:         if cls == \"safe_ddl\":\n  156:             # whole-table kinds (drop_table/truncate/delete_unbounded/update_unbounded) always have\n  157:             # *some* dependent in the shared seed template (the demo's own finance/nightly jobs, plus\n  158:             # seeded app traffic) -- there's no such thing as a truly dependent-free table action in\n\nblast_radius/models.py:10-20 (edit at L209, search_replace)\n  10: import logging\n  17: # sqlglot logs a warning every time it falls back to a generic Command node for syntax it doesn't\n  18: # model (DO blocks, CALL, VACUUM, ...). We treat Command as \"other\" (fail closed) regardless, so\n  19: # the warning is just noise here.\n\ntests/test_guarded_kinds.py:1-178 (edit at L215, search_replace)\n  1: \"\"\"Hardening pass: the guard extended beyond drop_column/drop_table, and the sqlglot-based parser\n  2: closing guard-bypass vectors through the MCP execute_sql path (task items a + b).\"\"\"\n  3: import pytest\n  4: from world.db import DB\n\ntests/test_guarded_kinds.py:69-69 (edit at L218, search_replace)\n  69:     assert len(d.plan) == 2 and d.plan[-1].sql == sql\n\ntests/test_guarded_kinds.py:109-124 (edit at L223, search_replace)\n  109:     # orders has permanent, table-wide dependents baked into the seeded demo (finance_dashboard,\n  110:     # nightly_revenue_job); \"migrating off a column\" doesn't make sense for a whole-table truncate,\n  111:     # so this uses customers, which has no scheduler/BI dependent, to exercise the same flow cleanly.\n  112:     truncate_customers = \"TRUNCATE TABLE customers\"\n\ntests/test_guarded_kinds.py:157-164 (edit at L225, search_replace)\n  157:     d = guard.propose(\"DROP TABLE customers\")  # see note in the truncate test above\n  164:         assert not db.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='customers'\").fetchone()\n\ntests/test_guarded_kinds.py:172-172 (edit at L227, search_replace)\n  172:     assert d.plan and d.plan[-1].sql == \"ALTER TABLE orders DROP COLUMN legacy_discount\"\n\nblast_radius/guard.py:128-143 (edit at L236, search_replace)\n  128:         try:\n  129:             self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n  130:         except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller\n  131:             self._log(\"execution_error\", contract=cid, step=step[\"n\"], error=str(e)[:200])\n\nblast_radius/guard.py:95-99 (edit at L239, search_replace)\n  95:             try:\n  96:                 return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}\n  97:             except Exception as e:\n  98:                 self._log(\"execution_error\", sql=action.sql, error=str(e)[:200])\n\ntests/test_guarded_kinds.py:181-199 (edit at L244, search_replace)\n  181: # ---- (e) error handling: a DB-layer failure must come back structured, never crash the caller\n  183: def test_execution_db_error_is_structured_not_raised(guard, monkeypatch):\n  185:     cid = guard.approve(d, \"maya\")[\"body\"][\"contract_id\"]\n  187:     def boom(self, sql, read=False):\n\ntests/test_guarded_kinds.py:184-184 (edit at L249, search_replace)\n  184:     d = guard.propose(\"ALTER TABLE orders DROP COLUMN legacy_discount\")\n\nevals/run.py:300-300 (edit at L257, search_replace)\n  300:         \"p50_ms\": round(statistics.median(ms), 2), \"p95_ms\": sorted(ms)[int(.95 * (len(ms) - 1))],\n\nREADME.md:8-10 (edit at L269, search_replace)\n  8: 1. **Intercepts** it at the agent's only DB path (an MCP `execute_sql` tool), classifying the statement with a real\n  9:    SQL parser (sqlglot), not regex, so comments, quoting, multi-statement/transaction input and side-effecting\n  10:    function calls can't slip past it. Anything it doesn't recognize as safe fails closed."
+    },
+    {
+     "step": 2,
+     "action": "grep",
+     "args": {
+      "pattern": "DROP TABLE customers|drop.*customers|customers.*drop|TRUNCATE TABLE customers"
+     },
+     "result": "blast_radius/dashboard.py:16: PRIOR_INCIDENT = {\"action_kind\": \"drop_column\", \"target\": \"customers.promo_code\", \"readers\": [\"weekly_promo_email_job\"],\nblast_radius/dashboard.py:17: \"lesson\": \"Aug 14: an agent dropped customers.promo_code after a clean repo grep; weekly_promo_email_job failed silently for 3 days.\"}"
+    },
+    {
+     "step": 3,
+     "action": "read",
+     "args": {
+      "file": "blast_radius/guard.py",
+      "start": 1,
+      "end": 150
+     },
+     "result": "1: \"\"\"The guard: propose -> investigate -> recall -> decide -> sign -> re-check -> execute -> learn.\"\"\"\n2: from __future__ import annotations\n3: import time\n4: from world.db import DB\n5: from pathlib import Path\n6: from blast_radius.contracts.signing import LocalEd25519Signer, sql_hash\n7: from blast_radius.evidence.federated import LocalFederatedEngine\n8: from blast_radius.evidence.sources import BIDashboardSource, QueryLogSource, RepoGrepSource, SchedulerSource\n9: from blast_radius.learner import Learner\n10: from blast_radius.memory.store import LocalMemory\n11: from blast_radius.models import Decision, parse_action\n12: from blast_radius.reasoner.base import MockReasoner\n13: \n14: class Guard:\n15:     def __init__(self, world: Path, engine=None, memory=None, reasoner=None, signer=None, world_model=None):\n16:         self.world = world\n17:         self.engine = engine or LocalFederatedEngine([\n18:             QueryLogSource(world), SchedulerSource(world / \"scheduler\"),\n19:             BIDashboardSource(world / \"bi\" / \"dashboards\"), RepoGrepSource(world / \"app_repo\")])\n20:         self.world_model = world_model\n21:         if memory is None and __import__(\"os\").environ.get(\"BR_MEMORY\", \"\").lower() == \"hmem\":\n22:             from blast_radius.memory.meterless import HMemStore, WorldModelGraph\n23:             memory, self.world_model = HMemStore(world), WorldModelGraph(world)\n24:         self.memory = memory or LocalMemory(world / \"memory.json\")\n25:         if reasoner is None and __import__(\"os\").environ.get(\"BR_REASONER\", \"\").lower() == \"nemotron\":\n26:             from blast_radius.reasoner.base import NemotronReasoner\n27:             reasoner = NemotronReasoner()\n28:         self.reasoner = reasoner or MockReasoner()\n29:         if signer is None and __import__(\"os\").environ.get(\"BR_SIGNER\", \"\").lower() == \"scout\":\n30:             from blast_radius.contracts.scout import ScoutContractSigner\n31:             signer = ScoutContractSigner()\n32:         self.signer = signer or LocalEd25519Signer()\n33:         self.learner = Learner(self.memory, self.world_model)\n34:         self.contracts: dict[str, dict] = {}\n35:         self.done: dict[str, set[int]] = {}\n36:         self.audit: list[dict] = []\n37: \n38:     def _log(self, event, **kw): self.audit.append({\"ts\": time.time(), \"event\": event, **kw})\n39: \n40:     # 1-4: intercept, investigate, recall, decide\n41:     def propose(self, sql: str) -> Decision:\n42:         action = parse_action(sql)\n43:         evidence = self.engine.who_depends_on(action) if action.kind not in (\"read\", \"other\") else []\n44:         recalled = self.memory.recall(action.kind)\n45:         self.last_inputs = (action, evidence, recalled)\n46:         d = self.reasoner.decide(action, evidence, recalled)\n47:         if d.verdict != \"allow\":\n48:             self.learner.refusal(d)\n49:         self._log(\"decision\", verdict=d.verdict, target=action.target)\n50:         return d\n51: \n52:     def agent_call(self, sql: str, contract_id: str | None = None) -> dict:\n53:         \"\"\"The single entry point for an agent's SQL (MCP execute_sql and the eval both use it).\"\"\"\n54:         if parse_action(sql).kind in (\"read\", \"other\") or contract_id:\n55:             return self.execute(sql, contract_id)\n56:         d = self.propose(sql)\n57:         self.last_decision = d\n58:         if d.verdict == \"allow\" and not d.plan:\n59:             c = self.approve(d, \"auto\")  # allow still runs under a signed snapshot\n60:             # execute the canonicalized action, never the raw agent text (see models.parse_action)\n61:             return self.execute(d.action.sql, c[\"body\"][\"contract_id\"])\n62:         return {\"status\": \"blocked_pending_human\", \"blocked_pending_human\": True, **d.to_dict()}\n63: \n64:     # 5: sign\n65:     def approve(self, decision: Decision, approver: str) -> dict:\n66:         c = self.signer.sign(decision, approver)\n67:         self.contracts[c[\"body\"][\"contract_id\"]] = c\n68:         self.done[c[\"body\"][\"contract_id\"]] = set()\n69:         self._log(\"signed\", contract=c[\"body\"][\"contract_id\"], approver=approver)\n70:         return c\n71: \n72:     # 6: re-check\n73:     def _check(self, cond: dict, action, signed_at: float) -> dict:\n74:         kind, res = cond[\"kind\"], {\"id\": cond[\"id\"], \"kind\": cond[\"kind\"], \"ok\": True}\n75:         if kind == \"readers_subset\":\n76:             cur = {e.reader for e in self.engine.who_depends_on(action, since=signed_at) if e.source != \"repo_grep\"}\n77:             new = sorted(cur - set(cond[\"params\"][\"allowed\"]))\n78:             res.update(ok=not new, new_readers=new)\n79:         elif kind == \"readers_migrated\":\n80:             still = sorted({e.reader for e in self.engine.who_depends_on(action, since=signed_at)\n81:                             if e.source in (\"scheduler\", \"bi_dashboards\")})\n82:             res.update(ok=not still, still_reading=still, new_readers=still)\n83:         elif kind == \"learned:fresh_window\":\n84:             recent = [e for e in self.engine.who_depends_on(action, since=time.time() - cond[\"params\"][\"window_s\"])\n85:                       if e.source in (\"query_log\", \"scheduler\")]\n86:             res.update(ok=not recent, new_readers=sorted({e.reader for e in recent}))\n87:         else:\n88:             res.update(ok=False, error=\"unknown condition kind\")\n89:         return res\n90: \n91:     # 6+7: re-check right before execution, execute, learn on near-miss\n92:     def execute(self, sql: str, contract_id: str | None = None) -> dict:\n93:         action = parse_action(sql)\n94:         if action.kind == \"read\":\n95:             try:\n96:                 return {\"status\": \"executed\", \"rows\": self._run(action.sql, read=True)}\n97:             except Exception as e:\n98:                 self._log(\"execution_error\", sql=action.sql, error=str(e)[:200])\n99:                 return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\"}\n100:         c = self.contracts.get(contract_id or \"\")\n101:         if c is None:\n102:             # find any contract covering this exact SQL\n103:             c = next((x for x in self.contracts.values()\n104:                       if any(s[\"sql_sha256\"] == sql_hash(sql) for s in x[\"body\"][\"steps\"])), None)\n105:         if c is None:\n106:             self._log(\"rejected_unsigned\", sql=sql)\n107:             return {\"status\": \"rejected\", \"reason\": \"unsigned: no signed contract covers this statement\"}\n108:         if not self.signer.verify(c):\n109:             self._log(\"rejected_bad_signature\", sql=sql)\n110:             return {\"status\": \"rejected\", \"reason\": \"contract signature invalid (tampered)\"}\n111:         body = c[\"body\"]\n112:         step = next((s for s in body[\"steps\"] if s[\"sql_sha256\"] == sql_hash(sql)), None)\n113:         if step is None:\n114:             return {\"status\": \"rejected\", \"reason\": \"unsigned: statement not in contract\"}\n115:         cid = body[\"contract_id\"]\n116:         missing = [s[\"n\"] for s in body[\"steps\"] if s[\"n\"] < step[\"n\"] and s[\"n\"] not in self.done[cid]]\n117:         if missing:\n118:             return {\"status\": \"rejected\", \"reason\": f\"out of order: steps {missing} not done\"}\n119:         conds = {x[\"id\"]: x for x in body[\"conditions\"]}\n120:         target_action = parse_action(next(s[\"sql\"] for s in body[\"steps\"] if s[\"n\"] == max(t[\"n\"] for t in body[\"steps\"])))\n121:         results = [self._check(conds[i], target_action, body[\"signed_at\"]) for i in step[\"conditions\"]]\n122:         failed = [r for r in results if not r[\"ok\"]]\n123:         if failed:\n124:             lesson = self.learner.near_miss(c, step[\"n\"], failed, target_action.kind)\n125:             self._log(\"blocked_drift\", contract=cid, step=step[\"n\"], failed=failed)\n126:             return {\"status\": \"blocked\", \"reason\": \"drift: signed conditions no longer hold\",\n127:                     \"checks\": results, \"lesson\": lesson}\n128:         try:\n129:             self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n130:         except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller\n131:             self._log(\"execution_error\", contract=cid, step=step[\"n\"], error=str(e)[:200])\n132:             return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\", \"step\": step[\"n\"]}\n133:         self.done[cid].add(step[\"n\"])\n134:         self._log(\"executed\", contract=cid, step=step[\"n\"])\n135:         return {\"status\": \"executed\", \"step\": step[\"n\"], \"checks\": results}\n136: \n137:     def _run(self, sql: str, read: bool = False) -> list[tuple] | None:\n138:         db = DB(self.world)\n139:         try:\n140:             if read:\n141:                 return [tuple(r) for r in db.execute(sql).fetchmany(50)]\n142:             db.script(sql); db.commit()\n143:             return None\n144:         finally:\n145:             db.close()\n146: "
+    },
+    {
+     "step": 4,
+     "action": "read",
+     "args": {
+      "file": "blast_radius/guard.py",
+      "start": 120,
+      "end": 145
+     },
+     "result": "120:         target_action = parse_action(next(s[\"sql\"] for s in body[\"steps\"] if s[\"n\"] == max(t[\"n\"] for t in body[\"steps\"])))\n121:         results = [self._check(conds[i], target_action, body[\"signed_at\"]) for i in step[\"conditions\"]]\n122:         failed = [r for r in results if not r[\"ok\"]]\n123:         if failed:\n124:             lesson = self.learner.near_miss(c, step[\"n\"], failed, target_action.kind)\n125:             self._log(\"blocked_drift\", contract=cid, step=step[\"n\"], failed=failed)\n126:             return {\"status\": \"blocked\", \"reason\": \"drift: signed conditions no longer hold\",\n127:                     \"checks\": results, \"lesson\": lesson}\n128:         try:\n129:             self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n130:         except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller\n131:             self._log(\"execution_error\", contract=cid, step=step[\"n\"], error=str(e)[:200])\n132:             return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\", \"step\": step[\"n\"]}\n133:         self.done[cid].add(step[\"n\"])\n134:         self._log(\"executed\", contract=cid, step=step[\"n\"])\n135:         return {\"status\": \"executed\", \"step\": step[\"n\"], \"checks\": results}\n136: \n137:     def _run(self, sql: str, read: bool = False) -> list[tuple] | None:\n138:         db = DB(self.world)\n139:         try:\n140:             if read:\n141:                 return [tuple(r) for r in db.execute(sql).fetchmany(50)]\n142:             db.script(sql); db.commit()\n143:             return None\n144:         finally:\n145:             db.close()"
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "blast_radius/models.py",
+      "start": 1,
+      "end": 150
+     },
+     "result": "1: \"\"\"Core data types shared by every module.\n2: \n3: Action parsing uses a real SQL parser (sqlglot) instead of regex so that comments, quoting,\n4: schema qualification, stacked/transactional statements and side-effecting function calls are\n5: understood structurally rather than pattern-matched. The parser fails closed: anything it can't\n6: parse as exactly one statement, or any statement whose shape it doesn't explicitly recognize as\n7: safe, is classified \"other\" and is rejected by the guard unless a signed contract covers it.\n8: \"\"\"\n9: from __future__ import annotations\n10: import logging\n11: from dataclasses import dataclass, field, asdict\n12: from typing import Any, Literal\n13: \n14: import sqlglot\n15: from sqlglot import exp\n16: \n17: # sqlglot logs a warning every time it falls back to a generic Command node for syntax it doesn't\n18: # model (DO blocks, CALL, VACUUM, ...). We treat Command as \"other\" (fail closed) regardless, so\n19: # the warning is just noise here.\n20: logging.getLogger(\"sqlglot\").setLevel(logging.ERROR)\n21: \n22: ActionKind = Literal[\n23:     \"drop_column\", \"drop_table\", \"rename_column\", \"alter_type\",\n24:     \"truncate\", \"delete_unbounded\", \"update_unbounded\", \"read\", \"other\",\n25: ]\n26: \n27: # Kinds that get evidence, a staged safe plan and a signed contract (vs. \"other\": always\n28: # rejected unsigned, which is safe but over-blocking -- see README \"Honest limits\").\n29: GUARDED_KINDS: tuple[ActionKind, ...] = (\n30:     \"drop_column\", \"drop_table\", \"rename_column\", \"alter_type\",\n31:     \"truncate\", \"delete_unbounded\", \"update_unbounded\",\n32: )\n33: \n34: _DIALECT = \"postgres\"\n35: \n36: # Scalar/aggregate functions with no side effects, safe inside a statement we classify \"read\".\n37: # Anything else -- including every unknown/user-defined function (sqlglot's exp.Anonymous) -- is\n38: # refused, because we cannot prove it has no side effect (e.g. dblink_exec, pg_terminate_backend,\n39: # a custom PL/pgSQL procedure that mutates data).\n40: _SAFE_READ_FUNCS = (\n41:     exp.Count, exp.Sum, exp.Avg, exp.Min, exp.Max, exp.Upper, exp.Lower, exp.Coalesce, exp.Cast,\n42:     exp.TryCast, exp.Length, exp.Substring, exp.Trim, exp.Round, exp.Abs, exp.CurrentDate,\n43:     exp.CurrentTimestamp, exp.CurrentTime, exp.Concat, exp.ConcatWs, exp.Extract, exp.DateTrunc,\n44:     exp.If, exp.Case, exp.Floor, exp.Ceil, exp.Least, exp.Greatest, exp.StrPosition, exp.Replace,\n45: )\n46: # Statement/expression shapes that must never appear anywhere inside something we call \"read\",\n47: # including nested in a CTE, subquery or predicate.\n48: _FORBIDDEN_IN_READ = (\n49:     exp.Insert, exp.Update, exp.Delete, exp.Drop, exp.Alter, exp.TruncateTable, exp.Copy,\n50:     exp.Grant, exp.Command, exp.Create, exp.Merge, exp.Transaction, exp.Commit, exp.Rollback,\n51:     exp.Into,  # SELECT ... INTO creates a table as a side effect\n52: )\n53: \n54: \n55: @dataclass\n56: class Action:\n57:     sql: str\n58:     kind: ActionKind\n59:     table: str | None = None\n60:     column: str | None = None\n61:     new_name: str | None = None   # target column name for rename_column\n62:     raw_sql: str | None = None    # the exact text the agent sent, kept for audit/display only\n63: \n64:     def __post_init__(self):\n65:         if self.raw_sql is None:\n66:             self.raw_sql = self.sql\n67: \n68:     @property\n69:     def target(self) -> str:\n70:         return f\"{self.table}.{self.column}\" if self.column else (self.table or \"?\")\n71: \n72: \n73: def normalize_sql(sql: str) -> str:\n74:     \"\"\"Whitespace-collapsed view for logs/hashing display only; never used to decide safety.\"\"\"\n75:     return \" \".join(sql.split()).strip()\n76: \n77: \n78: def _name(node: exp.Expression | None) -> str | None:\n79:     \"\"\"Unqualified identifier name (schema/db prefixes stripped), from a Table/Column/Identifier.\"\"\"\n80:     if node is None:\n81:         return None\n82:     if isinstance(node, exp.Identifier):\n83:         return node.this\n84:     ident = node.find(exp.Identifier)\n85:     return ident.this if ident else None\n86: \n87: \n88: def _only_args(node: exp.Expression, allowed: set[str]) -> bool:\n89:     \"\"\"True iff every arg of `node` outside `allowed` is falsy (None/False/empty).\n90: \n91:     This is what makes the guard fail closed against grammar quirks: a clause we don't\n92:     explicitly recognize (e.g. a trailing USING/FORMAT/CASCADE modifier smuggled onto a DROP\n93:     COLUMN) shows up as a non-empty arg outside the allowed set and the whole statement is\n94:     rejected to \"other\" rather than silently executed.\n95:     \"\"\"\n96:     return all((v is None or v is False or v == [] or v == ()) for k, v in node.args.items() if k not in allowed)\n97: \n98: \n99: def _parse_single(sql: str) -> exp.Expression | None:\n100:     \"\"\"Parse `sql` as exactly one real statement, or return None (fail closed).\n101: \n102:     Rejects: unparseable text, zero statements, more than one statement (stacked SQL,\n103:     transactions, a trailing statement hidden after a semicolon-and-comment).\n104:     \"\"\"\n105:     try:\n106:         stmts = sqlglot.parse(sql, read=_DIALECT, error_level=sqlglot.ErrorLevel.RAISE)\n107:     except Exception:\n108:         return None\n109:     real = [s for s in stmts if s is not None and not isinstance(s, exp.Semicolon)]\n110:     return real[0] if len(real) == 1 else None\n111: \n112: \n113: def _is_safe_read(stmt: exp.Expression) -> bool:\n114:     if not isinstance(stmt, (exp.Select, exp.Union, exp.Subquery)):\n115:         return False\n116:     if any(stmt.find(bad) for bad in _FORBIDDEN_IN_READ):\n117:         return False\n118:     for fn in stmt.find_all(exp.Func):\n119:         if not isinstance(fn, _SAFE_READ_FUNCS):\n120:             return False  # includes exp.Anonymous: any unknown/user-defined function call\n121:     return True\n122: \n123: \n124: def _canon(stmt: exp.Expression) -> str:\n125:     \"\"\"Canonical SQL regenerated from the validated AST. Signing/hashing/execution always use\n126:     this, never the raw agent text, so nothing a grammar quirk silently absorbed (and therefore\n127:     didn't validate) can still be present in what actually runs.\"\"\"\n128:     return stmt.sql(dialect=_DIALECT)\n129: \n130: \n131: def _classify_alter(stmt: exp.Alter, raw_sql: str) -> Action:\n132:     if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}):\n133:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n134:     actions = stmt.args.get(\"actions\") or []\n135:     if len(actions) != 1:\n136:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n137:     act = actions[0]\n138:     table = _name(stmt.args.get(\"this\"))\n139: \n140:     if isinstance(act, exp.Drop) and str(act.args.get(\"kind\") or \"\").upper() == \"COLUMN\":\n141:         cols = act.args.get(\"tables\") or act.args.get(\"expressions\") or []\n142:         if _only_args(act, {\"exists\", \"tables\", \"expressions\", \"kind\"}) and len(cols) == 1:\n143:             return Action(_canon(stmt), \"drop_column\", table, _name(cols[0]), raw_sql=raw_sql)\n144:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n145: \n146:     if isinstance(act, exp.RenameColumn):\n147:         if _only_args(act, {\"this\", \"to\", \"exists\"}):\n148:             return Action(_canon(stmt), \"rename_column\", table, _name(act.args.get(\"this\")),\n149:                           new_name=_name(act.args.get(\"to\")), raw_sql=raw_sql)\n150:         return Action(raw_sql, \"other\", raw_sql=raw_sql)"
+    },
+    {
+     "step": 6,
+     "action": "read",
+     "args": {
+      "file": "blast_radius/models.py",
+      "start": 131,
+      "end": 150
+     },
+     "result": "131: def _classify_alter(stmt: exp.Alter, raw_sql: str) -> Action:\n132:     if str(stmt.args.get(\"kind\") or \"\").upper() != \"TABLE\" or not _only_args(stmt, {\"this\", \"exists\", \"actions\", \"only\", \"kind\"}):\n133:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n134:     actions = stmt.args.get(\"actions\") or []\n135:     if len(actions) != 1:\n136:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n137:     act = actions[0]\n138:     table = _name(stmt.args.get(\"this\"))\n139: \n140:     if isinstance(act, exp.Drop) and str(act.args.get(\"kind\") or \"\").upper() == \"COLUMN\":\n141:         cols = act.args.get(\"tables\") or act.args.get(\"expressions\") or []\n142:         if _only_args(act, {\"exists\", \"tables\", \"expressions\", \"kind\"}) and len(cols) == 1:\n143:             return Action(_canon(stmt), \"drop_column\", table, _name(cols[0]), raw_sql=raw_sql)\n144:         return Action(raw_sql, \"other\", raw_sql=raw_sql)\n145: \n146:     if isinstance(act, exp.RenameColumn):\n147:         if _only_args(act, {\"this\", \"to\", \"exists\"}):\n148:             return Action(_canon(stmt), \"rename_column\", table, _name(act.args.get(\"this\")),\n149:                           new_name=_name(act.args.get(\"to\")), raw_sql=raw_sql)\n150:         return Action(raw_sql, \"other\", raw_sql=raw_sql)"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step:invalid_json_retry",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step:invalid_json_retry",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 14757,
+   "truncated": true,
+   "dropped_sections": [
+    "transcript_window:reasoning mentioning \"kinds\" (L165) (over budget)",
+    "transcript_window:reasoning mentioning \"kinds\" (L153) (over budget)",
+    "transcript_window:reasoning mentioning \"kinds\" (L46) (over budget)",
+    "transcript_window:reasoning mentioning \"kinds\" (L69) (over budget)",
+    "transcript_window:reasoning mentioning \"kinds\" (L72) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Security review finding, severity critical: an agent action that should have been held behind a signed, staged approval instead caused the live `customers` table to be dropped immediately, with none of the required sign-off conditions ever satisfied.\n\nThe audit trail shows the action was logged as a table-drop request where the table name, as the agent originally typed it, included quote characters. The step that the system recorded as \"safe to run with no conditions\" is the one that ended up executing the drop. No alert fired before the table was gone.",
+   "edit": {
+    "file": "blast_radius/reasoner/base.py",
+    "line": 26,
+    "hunk": "-    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))\n+    \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n+\n+    Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n+    there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\n+    delete/update) don't have as clean an intermediate column-level fallback, so they get a\n+    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\n+    \"\"\"\n     gate = [c.id for c in conds]\n-    return [\n-        PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n-                 # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n-                 f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \""
+   },
+   "code_window": "6: from typing import Protocol\n7: from blast_radius.models import Action, Condition, Decision, Evidence, PlanStep\n8: \n9: class Reasoner(Protocol):\n10:     def decide(self, action: Action, evidence: list[Evidence], recalled: list[dict]) -> Decision: ...\n11: \n12: REPLACEMENT = {\"orders.legacy_discount\": (\"discount_cents\", \"INTEGER\")}\n13: \n14: def _deprecation_step(action: Action) -> PlanStep:\n15:     # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n16:     return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n17:                      f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\n18:                      f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\n19: \n20: def safe_plan(action: Action, conds: list[Condition]) -> list[PlanStep]:\n21:     \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n22: \n23:     Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n24:     there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\n25:     delete/update) don't have as clean an intermediate column-level fallback, so they get a\n26:     2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\n27:     \"\"\"\n28:     gate = [c.id for c in conds]\n29:     deprecate = _deprecation_step(action)\n30:     if action.kind == \"drop_column\":\n31:         new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))\n32:         return [\n33:             deprecate,\n34:             PlanStep(2, f\"Add {action.table}.{new}, backfill, migrate every reader to it\",\n35:                      f\"ALTER TABLE {action.table} ADD COLUMN {new} {typ}; UPDATE {action.table} SET {new} = {action.column}\"),\n36:             PlanStep(3, f\"Drop {action.target} after the window, only if every signed condition still holds\",\n37:                      action.sql, gate),\n38:         ]\n39:     if action.kind == \"drop_table\":\n40:         return [deprecate, PlanStep(2, f\"Drop table {action.table} after the window, only if every signed \"\n41:                                          \"condition still holds\", action.sql, gate)]\n42:     if action.kind == \"rename_column\":\n43:         return [deprecate, PlanStep(2, f\"Rename {action.target} to {action.new_name} after the window, only if \"\n44:                                          \"every signed condition still holds\", action.sql, gate)]\n45:     if action.kind == \"alter_type\":\n46:         return [deprecate, PlanStep(2, f\"Change the type of {action.target} after the window, only if every \"",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "blast_radius/reasoner/base.py",
+     "line": 26,
+     "function": "safe_plan",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 18.7851,
+     "method": "deterministic_bm25",
+     "text": "21:     \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n22: \n23:     Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n24:     there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\n25:     delete/update) don't have as clean an intermediate column-level fallback, so they get a\n26:     2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\n27:     \"\"\"\n28:     gate = [c.id for c in conds]\n29:     deprecate = _deprecation_step(action)\n30:     if action.kind == \"drop_column\":\n31:         new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))"
+    },
+    {
+     "label": "candidate 2",
+     "file": "blast_radius/models.py",
+     "line": 62,
+     "function": "Action",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 15.3563,
+     "method": "deterministic_bm25",
+     "text": "57:     sql: str\n58:     kind: ActionKind\n59:     table: str | None = None\n60:     column: str | None = None\n61:     new_name: str | None = None   # target column name for rename_column\n62:     raw_sql: str | None = None    # the exact text the agent sent, kept for audit/display only\n63: \n64:     def __post_init__(self):\n65:         if self.raw_sql is None:\n66:             self.raw_sql = self.sql\n67: "
+    },
+    {
+     "label": "candidate 3",
+     "file": "blast_radius/guard.py",
+     "line": 129,
+     "function": "execute",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 13.3156,
+     "method": "deterministic_bm25",
+     "text": "124:             lesson = self.learner.near_miss(c, step[\"n\"], failed, target_action.kind)\n125:             self._log(\"blocked_drift\", contract=cid, step=step[\"n\"], failed=failed)\n126:             return {\"status\": \"blocked\", \"reason\": \"drift: signed conditions no longer hold\",\n127:                     \"checks\": results, \"lesson\": lesson}\n128:         try:\n129:             self._run(step[\"sql\"])  # run exactly what was signed, never the caller-supplied text\n130:         except Exception as e:  # a DB-layer failure is reported structured, never raised to the caller\n131:             self._log(\"execution_error\", contract=cid, step=step[\"n\"], error=str(e)[:200])\n132:             return {\"status\": \"error\", \"reason\": f\"{type(e).__name__}: {str(e)[:200]}\", \"step\": step[\"n\"]}\n133:         self.done[cid].add(step[\"n\"])\n134:         self._log(\"executed\", contract=cid, step=step[\"n\"])"
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "Restarting you on a cheaper model to save cost. Same task as before: if the import to main isn't done yet, finish it, then do the hardening pass on a new branch and open a PR. Be efficient: keep exploration focused and avoid re-running the full eval more than needed.",
+    "understood": "All bypass vectors are correctly classified. Now updating `reasoner/base.py`'s `safe_plan`, `signing.py`/`scout.py`'s risk classification, and `world/db.py`'s sqlite compat shim.",
+    "happened": "Security review finding, severity critical: an agent action that should have been held behind a signed, staged approval instead caused the live `customers` table to be dropped immediately, with none of the required sign-off conditions ever satisfied.\n\nThe audit trail shows the action was logged as a table-drop request where the table name, as the agent originally typed it, included quote characters. The step that the system recorded as \"safe to run with no conditions\" is the one that ended up executing the drop. No alert fired before the table was gone.\n\n  at safe_plan (blast_radius/reasoner/base.py:26)\n  26: 2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\n\nWritten by transcript edit L98 (search_replace):\n-    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))\n+    \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\n+\n+    Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\n+    there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\n+    delete/update) don't have as clean an intermediate column-level fallback, so they get a\n+    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\n+    \"\"\"\n     gate = [c.id for c in conds]\n-    return [\n-        PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\n-                 # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\n-                 f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \""
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L98)",
+     "text": "L95 [tool] TOOL: run_terminal_cmd {\"command\":\"cd /workspace && python3 << 'EOF'\\nimport sys; sys.path.insert(0, \\\".\\\")\\nfrom blast_radius.models import parse_action\\n\\ncases = [\\n    (\\\"/* cleanup */ ALTER TABLE orders DROP COLUMN x\\\", \\\"drop_column\\\", \\\"orders.x\\\"),\\n    (\\\"ALTER TABLE orders DROP x\\\", \\\"drop_column\\\", \\\"orders.x\\\"),\\n    (\\\"ALTER TABLE public.orders DROP COLUMN x\\\", \\\"drop_column\\\", \\\"orders.x\\\"),\\n    ('ALTER TABLE \\\"orders\\\" DROP COLUMN \\\"x\\\"', \\\"drop_column\\\", \\\"orders.x\\\"),\\n    (\\\"alter   table\\\\norders\\\\\nL96 [assistant] All bypass vectors are correctly classified. Now updating `reasoner/base.py`'s `safe_plan`, `signing.py`/`scout.py`'s risk classification, and `world/db.py`'s sqlite compat shim.\nL97 [assistant] (empty message)\nL98 [tool] TOOL: search_replace\nL98| CODE_WRITTEN: \nL98| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/blast_radius/reasoner/base.py\nL98| +++ b//workspace/blast_radius/reasoner/base.py\nL98| @@ -11,19 +11,47 @@\nL98|  \nL98|  REPLACEMENT = {\"orders.legacy_discount\": (\"discount_cents\", \"INTEGER\")}\nL98|  \nL98| +def _deprecation_step(action: Action) -> PlanStep:\nL98| +    # portable (SQLite + Postgres); timestamp fixed at plan time so the signed hash is stable\nL98| +    return PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\nL98| +                     f\"DELETE FROM _deprecations WHERE target = '{action.target}'; \"\nL98| +                     f\"INSERT INTO _deprecations VALUES('{action.target}', {int(time.time())}, 'via blast-radius')\")\nL98| +\nL98|  def safe_plan(action: Action, conds: list[Condition]) -> list[PlanStep]:\nL98| -    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))\nL98| +    \"\"\"Builds the staged plan gating the real destructive statement on the signed conditions.\nL98| +\nL98| +    Column-drops get the full 3-step \"add a v2 column, migrate readers, then drop\" idiom because\nL98| +    there's a safe intermediate state. The other guarded kinds (rename, retype, truncate/unbounded\nL98| +    delete/update) don't have as clean an intermediate column-level fallback, so they get a\nL98| +    2-step plan: announce/deprecate, then run the action itself gated on the same conditions.\nL98| +    \"\"\"\nL98|      gate = [c.id for c in conds]\nL98| -    return [\nL98| -        PlanStep(1, f\"Deprecate {action.target} (announce, record deprecation)\",\nL98| -                 # p\nL99 [assistant] THINKING: Checking MockReasoner.decide() for table-level actions like drop_table or truncate where the column is None confirms there's no issue since the logic is already generic there. Now I need to update signing.py and scout.py's \"high\" set.\nL99| \nL99| \nL100 [assistant] (empty message)\nL101 [tool] TOOL: search_replace\nL101| CODE_WRITTEN: \nL101| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/blast_radius/contracts/scout.py\nL101| +++ b//workspace/blast_radius/contracts/scout.py\nL101| @@ -7,7 +7,7 @@\nL101|  import atexit, json, os, subprocess, time, urllib.request\nL101|  from pathlib import Path\nL101|  from blast_radius.contracts.signing import sql_hash\nL101| -from blast_radius.models import PlanStep\nL101| +from blast_radius.models import GUARDED_KINDS, PlanStep\nL101|  \nL101|  BRIDGE_DIR = Path(__file__).resolve().parents[2] / \"bridge\"\nL101|  \",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":1,\"linesAdded\":1}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that the `action.target` value used for the deprecation step and the `action.sql` step are identical and safe to use directly in SQL without sanitization, failing to account for quote characters in table names that bypass the gate check.",
+  "why_it_breaks": "When the agent originally typed a table name with quote characters (e.g., `\"customers\"`), the `action.target` stored the quoted form. The `safe_plan` function builds a deprecation step using `action.target` directly in raw SQL strings (e.g., `DELETE FROM _deprecations WHERE target = '{action.target}'`), and the drop step uses `action.sql` which also contains the quoted name. The gate check compares signed condition IDs, but the SQL execution runs the exact quoted text. Because the system recorded the step as \"safe to run with no conditions\" when the table name included quotes, the gate was never properly enforced—the signed conditions were satisfied by a malformed or differently-formatted input, allowing the drop to execute immediately without the required 3-step staging. The oversight was assuming `action.target`/`action.sql` would be sanitized or normalized before use, when in fact the raw agent input preserved quote characters that the gate logic did not account for.",
+  "confidence": "low",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 98,
+    "quote": "L98| -    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "blast_radius/reasoner/base.py",
+    "line": 40,
+    "quote": "40:         return [deprecate, PlanStep(2, f\"Drop table {action.table} after the window, only if every signed \"\\n                                          \"condition still holds\", action.sql, gate)]",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that the `action.target` value used as a dictionary key in `REPLACEMENT` would always match the exact string format without quote characters, failing to account for cases where the original SQL included quoted identifiers that get normalized differently during parsing.",
+  "why_it_breaks": "When the agent's original SQL included quote characters around the table name (e.g., `ALTER TABLE \"customers\" DROP TABLE`), the `action.target` stored in the Action model retains those quotes (as `raw_sql` preserves the exact text). The `REPLACEMENT` dictionary uses unquoted keys like `\"orders.legacy_discount\"`. When `safe_plan` looks up `REPLACEMENT.get(action.target, ...)`, the quoted key does not match any entry, so the fallback `f\"{action.column}_v2\", \"TEXT\"` is used. This causes the generated ALTER TABLE statement to reference a column name with embedded quotes, which when executed directly against the database drops the entire table instead of performing a safe column-level operation. The 2-step plan for `drop_table` (deprecate then drop) is bypassed entirely because the kind check `action.kind == \"drop_table\"` on line 39 routes to the table-drop path, but the column substitution failure means the generated SQL is malformed and executes the destructive operation immediately without the required signed-condition gating.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 98,
+    "quote": "L98| -    new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "blast_radius/reasoner/base.py",
+    "line": 31,
+    "quote": "new, typ = REPLACEMENT.get(action.target, (f\"{action.column}_v2\", \"TEXT\"))",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 0
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "low",
+  "capped": "low",
+  "margin": 0.1825276415882801,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": false
+ }
+}

@@ -1,0 +1,40 @@
+{
+ "overlooked_assumption": "The agent assumed outcome.detail would be unique across all outcomes in all case studies, but multiple case studies can have the same placeholder detail text.",
+ "why_it_breaks": "When replacing Math.random() keys, the agent chose outcome.detail as the key, but since there are 3 case studies each with placeholder outcomes that share the same detail text '[Outcome \u2014 what changed.]', React sees 6 children with identical keys across the three study cards, triggering the duplicate key warning 6 times.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 108,
+   "quote": "Replacing Math.random() with array indices in hero.tsx and selected-work to fix SSR hydration.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/components/selected-work.tsx",
+   "line": 69,
+   "quote": "key={outcome.detail}",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 110,
+   "quote": "{study.outcomes.map((outcome) => (",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/components/selected-work.tsx",
+   "line": 67,
+   "quote": "{study.outcomes.map((outcome) => (",
+   "verified": true
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 0
+}

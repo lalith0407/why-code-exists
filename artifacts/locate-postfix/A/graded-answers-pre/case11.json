@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that a stop-loss should trigger when the current price falls below the average cost basis, without checking whether the position has an unrealized loss relative to the stop percentage. The code computes `average = lot.cost / lot.qty` and compares `price <= average * (1.0 - stop_pct)`, which correctly identifies price drops below the stop threshold. However, the agent overlooked that the stop-loss logic is only invoked as part of decision checks and may be blocked by the cooldown or thesis-gate guards that were added in the same session, causing the order to be rejected internally before market submission.",
+ "why_it_breaks": "The stop-loss calculation in `_forced_stops` correctly identifies tickers whose mark price has fallen below the stop threshold relative to average cost. However, the function's output (`forced` set) is consumed by `_trade_reason` (line 5803: `if side == \"sell\" and ticker in forced: return \"stop\"`) which is called during decision checks. The agent's recent session edits added cooldown and thesis-gate guards that block trades on names with recent activity or without a cited thesis change. When a stop-loss order is generated, those guards reject the order internally (status \"rejected\") before it reaches the market, because the system sees the ticker as having recent trade activity or lacking a valid thesis update, even though the price condition is met. The desk sees the order rejected and no fill, while the position remains open.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 5803,
+   "quote": "def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\\n    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\\n    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\\n    forced: set[str] = set()\\n    for ticker, lot in ctx.portfolio.positions.items():\\n        price = prices.get(ticker, 0.0)\\n        if price <= 0 or lot.qty <= 0:\\n            continue\\n        average = lot.cost / lot.qty\\n        if average > 0 and price <= average * (1.0 - stop_pct):\\n            forced.add(ticker)\\n    return forced",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 314,
+   "quote": "def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\\n    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\\n    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\\n    forced: set[str] = set()\\n    for ticker, lot in ctx.portfolio.positions.items():\\n        price = prices.get(ticker, 0.0)\\n        if price <= 0 or lot.qty <= 0:\\n            continue\\n        average = lot.cost / lot.qty\\n        if average > 0 and price <= average * (1.0 - stop_pct):\\n            forced.add(ticker)\\n    return forced",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,6 @@
+stage: ok
+provider: nemotron
+frame: src/ta/replay.py:322
+status: verified (code quotes 1, transcript quotes 1)
+overlooked_assumption: The agent assumed that `end.replace(year=end.year - 5)` would always produce a valid date, overlooking that when `end` is February 29 of a leap year, subtracting 5 years lands on a non-leap year where February 29 does not exist.
+report: /workspace/open-agent/wt-fix/artifacts/locate/B-nemotron/case14/report.html

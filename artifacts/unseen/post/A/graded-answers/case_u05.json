@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The code assumes that for Modified commands, comparing original and current index values will correctly identify unchanged values, but it does not account for cases where the index value is store-generated and the original value is a shadow property placeholder that never reflects the actual database value, causing the equality check to incorrectly skip the edge creation and allow a duplicate key to be written.",
+ "why_it_breaks": "When a 1:1 relationship with a unique index (shadow FK) is reassigned to an already-attached entity, the index value on the dependent entity is store-generated. The code creates the current value without fromOriginalValues and then compares it to the original value obtained with fromOriginalValues: true. If the original value is a null/placeholder shadow property that never matches the actual generated key, the equality check passes (both may evaluate as equal or both may be null), the code continues without adding the unique-index dependency edge, and the new key value violates the unique constraint on save. The fix in preview.6 correctly compared original vs. current before skipping, but the preview.7 change moved the fromOriginalValues flag inside the Modified branch and lost the guard that prevented skipping edges for changed values, allowing the false negative to propagate.",
+ "confidence": "medium",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+   "line": 1267,
+   "quote": "if (command.EntityState == EntityState.Modified)\n                    {\n                        var (originalValue, _) = rowIndexValueFactory.CreateEquatableIndexValue(command, fromOriginalValues: true);\n                        if (Equals(originalValue, value))\n                    }",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "src/EFCore.Relational/Update/Internal/CommandBatchPreparer.cs",
+   "line": 1265,
+   "quote": "var (value, hasNullValue) = rowIndexValueFactory.CreateEquatableIndexValue(command);",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 2,
+   "quote": "In `CommandBatchPreparer.AddUniqueValueEdges`, unique-index predecessor edges are now skipped for `Modified` commands when the index value is unchanged between original and current values.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

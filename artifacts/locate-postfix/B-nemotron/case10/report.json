@@ -1,0 +1,860 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case10",
+  "complete": true,
+  "notes": [],
+  "frame": {
+   "file": "src/ta/mcp_servers/risk_tools.py",
+   "line": 27,
+   "function": "_meta_for"
+  },
+  "asked": {
+   "text": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 2870
+  },
+  "understood": {
+   "text": "The EDGAR data layer requires a user-agent environment variable for its client.\n\nA minor resource leak in the EDGAR client was noted but deferred. The next components to build are portfolio tools, risk, research, guides, verification, audit, logging, broker, and thesis stubs. The gateway will follow. Portfolio position sizing is the largest remaining piece.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L151 (assistant, 54 words, 4 line(s) before the edit at L155)",
+   "valid": true,
+   "full_length": 359
+  },
+  "happened": {
+   "text": "Compliance flagged a hard-cap breach that the system did not catch on its own.\n\nA proposed position of 95% of the portfolio in ticker KVXR passed the automated risk check with no violations recorded, even though the single-name cap for any position is documented as 15%. This is the first time the fund has taken a position in KVXR.\n\n  at _meta_for (src/ta/mcp_servers/risk_tools.py:27)\n  27: @tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")\n\nWritten by transcript edit L155 (search_replace):\n+        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\n+        price = 0.0 if bar is None else bar.adj_close\n+        meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\n+    return meta\n+\n+\n+@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")\n+def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:\n+    meta = _meta_for(ctx, list(weights))\n+    outcome = enforce_caps(weights, meta, ctx.settings.risk)\n+    return {\n+        \"ok\": outcome.ok,\n+        \"weights\": outcome.weights,",
+   "citation": "error case10 frame src/ta/mcp_servers/risk_tools.py:27; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L155",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 29,
+    "quote": "def _name_cap(meta: NameMeta, caps: RiskCaps) -> float:\n    if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\n        return caps.single_high_risk_pct\n    return caps.single_core_pct",
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 155,
+    "quote": "L155 [tool] TOOL: search_replace\nL155| CODE_WRITTEN: \nL155| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL155| +++ b//workspace/src/ta/mcp_servers/risk_tools.py\nL155| @@ -1,0 +1,40 @@\nL155| +\"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\nL155| +\nL155| +from __future__ import annotations\nL155| +\nL155| +from typing import Any\nL155| +\nL155| +from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\nL155| +from ta.harness.context import ToolContext\nL155| +from ta.mcp_servers.portfolio_tools import snapshot_state\nL155| +from ta.mcp_servers.registry import tool\nL155| +\nL155| +def _meta_for(ctx: ToolContext, tickers: list[str]) -> dict[str, NameMeta]:\nL155| +    meta: dict[str, NameMeta] = {}\nL155| +    for ticker in tickers:\nL155| +        security = ctx.store.security_by_ticker(ticker)\nL155| +        if security is None:\nL155| +            continue\nL155| +        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\nL155| +        price = 0.0 if bar is None else bar.adj_close\nL155| +        meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nL155| +    return meta",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Compliance flagged a hard-cap breach that the system did not catch on its own.\n\nA proposed position of 95% of the portfolio in ticker KVXR passed the automated risk check with no violations recorded, even though the single-name cap for any position is documented as 15%. This is the first time the fund has taken a position in KVXR.\n",
+  "terms": [
+   "compliance flagged a hard",
+   "a proposed position of",
+   "kvxr passed the automated",
+   "this is the first",
+   "95",
+   "15",
+   "compliance",
+   "flagged",
+   "hard",
+   "breach",
+   "system",
+   "catch",
+   "proposed",
+   "position",
+   "portfolio",
+   "ticker",
+   "kvxr",
+   "passed",
+   "automated",
+   "risk",
+   "check",
+   "violations",
+   "recorded",
+   "though",
+   "single",
+   "name",
+   "documented",
+   "first",
+   "time",
+   "fund",
+   "taken"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "src/ta/mcp_servers/risk_tools.py",
+     "line": 27,
+     "end_line": 40,
+     "text": "@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")",
+     "function": "_meta_for",
+     "score": 28.481,
+     "matched_terms": [
+      "hard",
+      "proposed",
+      "portfolio",
+      "ticker",
+      "risk",
+      "check",
+      "violations",
+      "name"
+     ],
+     "edit_line": 155,
+     "tool": "search_replace",
+     "hunk_id": "L155#54",
+     "snippet": "1: \"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from typing import Any\n6: \n7: from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\n8: from ta.harness.context import ToolContext\n9: from ta.mcp_servers.portfolio_tools import snapshot_state\n10: from ta.mcp_servers.registry import tool",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 25,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 24,
+       "text": ""
+      },
+      {
+       "line": 25,
+       "text": "@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")"
+      },
+      {
+       "line": 26,
+       "text": "def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 31,
+     "end_line": 201,
+     "text": "        return caps.single_high_risk_pct",
+     "function": "_name_cap",
+     "score": 23.8891,
+     "matched_terms": [
+      "hard",
+      "portfolio",
+      "ticker",
+      "risk",
+      "violations",
+      "single",
+      "name"
+     ],
+     "edit_line": 108,
+     "tool": "search_replace",
+     "hunk_id": "L108#37",
+     "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 31,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 30,
+       "text": "    if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:"
+      },
+      {
+       "line": 31,
+       "text": "        return caps.single_high_risk_pct"
+      },
+      {
+       "line": 32,
+       "text": "    return caps.single_core_pct"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 152,
+     "end_line": 223,
+     "text": "def sector_breach(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> str | None:",
+     "function": "sector_breach",
+     "score": 23.37,
+     "matched_terms": [
+      "hard",
+      "first",
+      "breach",
+      "ticker",
+      "risk",
+      "single",
+      "name"
+     ],
+     "edit_line": 8931,
+     "tool": "search_replace",
+     "hunk_id": "L8931#1083",
+     "snippet": "139: def equal_weight_targets(\n140:     names: list[str],\n141:     meta: dict[str, NameMeta],\n142:     caps: RiskCaps,\n143: ) -> dict[str, float]:\n144:     \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n145:     priced = [name for name in names if name in meta and meta[name].price > 0]\n146:     if not priced:\n147:         return {}\n148:     share = 1.0 / len(priced)",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 152,
+     "hunk_start": 139,
+     "context_lines": [
+      {
+       "line": 151,
+       "text": ""
+      },
+      {
+       "line": 152,
+       "text": "def sector_breach(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> str | None:"
+      },
+      {
+       "line": 153,
+       "text": "    totals: dict[str, float] = defaultdict(float)"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "dashboard/src/app/activity/page.tsx",
+     "line": 37,
+     "end_line": 93,
+     "text": "          Each check starts with a plan. This page compares that plan with what was actually recorded.",
+     "function": "ActivityPage",
+     "score": 22.7605,
+     "matched_terms": [
+      "flagged",
+      "catch",
+      "check",
+      "recorded",
+      "name"
+     ],
+     "edit_line": 1370,
+     "tool": "search_replace",
+     "hunk_id": "L1370#257",
+     "snippet": "1: \"use client\";\n2: \n3: import { useEffect, useState } from \"react\";\n4: \n5: import { Panel, Status } from \"@/components/shell\";\n6: import { Term } from \"@/components/cite\";\n7: import { loadJson } from \"@/lib/utils\";\n8: \n9: type Row = { tool: string; plain: string; expected: string; actual: number; ok: boolean };\n10: type Check = {",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 37,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 36,
+       "text": "        <p className=\"mt-2 max-w-2xl text-ink/80\">"
+      },
+      {
+       "line": 37,
+       "text": "          Each check starts with a plan. This page compares that plan with what was actually recorded."
+      },
+      {
+       "line": 38,
+       "text": "        </p>"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 0,
+     "end_line": 158,
+     "text": "                ctx.settings.risk.single_high_risk_pct",
+     "function": "_material_candidate",
+     "score": 22.4649,
+     "matched_terms": [
+      "proposed",
+      "position",
+      "portfolio",
+      "ticker",
+      "risk",
+      "violations",
+      "single",
+      "name"
+     ],
+     "edit_line": 153,
+     "tool": "search_replace",
+     "hunk_id": "L153#53",
+     "snippet": "1: \"\"\"Portfolio state and sizing. Sizes are computed here, never by the model.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from typing import Any\n6: \n7: from ta.harness.caps import NameMeta, enforce_caps\n8: from ta.harness.context import ToolContext\n9: from ta.ids import canonical_json\n10: from ta.mcp_servers.registry import tool",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 100,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 99,
+       "text": "            limit = ("
+      },
+      {
+       "line": 100,
+       "text": "                ctx.settings.risk.single_high_risk_pct"
+      },
+      {
+       "line": 101,
+       "text": "                if sleeves[ticker] == \"high_risk\" or prices[ticker] < ctx.settings.risk.penny_price_threshold"
+      }
+     ],
+     "anchor": "unanchored"
+    },
+    {
+     "file": "dashboard/src/app/simulator/page.tsx",
+     "line": 66,
+     "end_line": 110,
+     "text": "                <th className=\"py-2 font-medium\"><Term tip=\"Estimated trading costs taken out of the practice account.\">Costs</Term></th>",
+     "function": "SimulatorPage",
+     "score": 19.1143,
+     "matched_terms": [
+      "compliance",
+      "catch",
+      "check",
+      "recorded",
+      "single",
+      "name",
+      "fund",
+      "taken"
+     ],
+     "edit_line": 1374,
+     "tool": "search_replace",
+     "hunk_id": "L1374#259",
+     "snippet": "1: \"use client\";\n2: \n3: import { useEffect, useState } from \"react\";\n4: \n5: import { EquityChart } from \"@/components/chart\";\n6: import { Figure, Term } from \"@/components/cite\";\n7: import { Panel, Status } from \"@/components/shell\";\n8: import { Cite, loadJson } from \"@/lib/utils\";\n9: \n10: type Book = {",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 66,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 65,
+       "text": "                <th className=\"py-2 font-medium\"><Term tip=\"How smooth the path was. Higher means less of a roller coaster. Not a promise.\">Smoothness</Term></th>"
+      },
+      {
+       "line": 66,
+       "text": "                <th className=\"py-2 font-medium\"><Term tip=\"Estimated trading costs taken out of the practice account.\">Costs</Term></th>"
+      },
+      {
+       "line": 67,
+       "text": "              </tr>"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "config/risk.yaml",
+     "line": 11,
+     "end_line": 30,
+     "text": "  single_high_risk_pct: 0.05",
+     "score": 19.0849,
+     "matched_terms": [
+      "hard",
+      "position",
+      "risk",
+      "single"
+     ],
+     "edit_line": 34,
+     "tool": "search_replace",
+     "hunk_id": "L34#4",
+     "snippet": "1: # Hard risk caps. Immutable to agents and to the guide evolver.\n2: # Changes require an explicit user edit and a new version hash.\n3: version: v1\n4: caps:\n5:   high_risk_sleeve_pct: 0.30\n6:   option_premium_per_position_pct: 0.02\n7:   option_premium_total_pct: 0.10\n8:   options_gate_min_equity: 10000\n9:   options_enabled: false\n10:   single_core_pct: 0.15",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 11,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 10,
+       "text": "  single_core_pct: 0.15"
+      },
+      {
+       "line": 11,
+       "text": "  single_high_risk_pct: 0.05"
+      },
+      {
+       "line": 12,
+       "text": "  penny_total_pct: 0.10"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/harness/permissions.py",
+     "line": 34,
+     "end_line": 47,
+     "text": "        \"portfolio.size_position\",",
+     "score": 18.9762,
+     "matched_terms": [
+      "position",
+      "portfolio",
+      "risk",
+      "check",
+      "fund"
+     ],
+     "edit_line": 112,
+     "tool": "search_replace",
+     "hunk_id": "L112#39",
+     "snippet": "1: \"\"\"Per-agent allow lists. The gateway rejects anything else.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: ALLOWED_TOOLS: dict[str, set[str]] = {\n6:     \"orchestrator\": {\n7:         \"portfolio.get_state\",\n8:         \"guides.get_active\",\n9:     },\n10:     \"fundamentals\": {",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 21,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 20,
+       "text": "        \"portfolio.get_state\","
+      },
+      {
+       "line": 21,
+       "text": "        \"portfolio.size_position\","
+      },
+      {
+       "line": 22,
+       "text": "        \"risk.check_caps\","
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 678,
+     "end_line": 216,
+     "text": "    for ticker, weight in {**{name: 0.0 for name in ctx.portfolio.positions}, **outcome.weights}.items():",
+     "function": "_public_portfolio_check",
+     "score": 18.8226,
+     "matched_terms": [
+      "hard",
+      "portfolio",
+      "ticker",
+      "risk",
+      "violations",
+      "name"
+     ],
+     "edit_line": 805,
+     "tool": "search_replace",
+     "hunk_id": "L805#177",
+     "snippet": "144: def orders_toward(ctx: ToolContext, target: dict[str, float]) -> dict[str, Any]:\n145:     \"\"\"Buy and sell toward explicit weights. Caps are applied here, not by a model.\"\"\"\n146:     state = snapshot_state(ctx)\n147:     sizing_equity = float(state[\"sizing_equity\"])\n148:     band = float(ctx.settings.sizing_rules.get(\"rebalance_band\", 0.01))\n149:     min_notional = float(ctx.settings.sizing_rules.get(\"min_order_notional\", ctx.settings.risk.min_order_notional))\n150:     meta: dict[str, NameMeta] = {}\n151:     prices: dict[str, float] = {}\n152:     sleeves: dict[str, str] = {}\n153:     ids: dict[str, str] = {}",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 176,
+     "hunk_start": 144,
+     "context_lines": [
+      {
+       "line": 175,
+       "text": "    orders: list[dict[str, Any]] = []"
+      },
+      {
+       "line": 176,
+       "text": "    for ticker, weight in {**{name: 0.0 for name in ctx.portfolio.positions}, **outcome.weights}.items():"
+      },
+      {
+       "line": 177,
+       "text": "        price = prices.get(ticker, 0.0)"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/data/public_sources.py",
+     "line": 0,
+     "end_line": 988,
+     "text": "        single = fetch_gdelt_batch([(ticker, company_name(ticker))], window_start, as_of)",
+     "score": 18.6731,
+     "matched_terms": [
+      "ticker",
+      "recorded",
+      "single",
+      "name"
+     ],
+     "edit_line": 7978,
+     "tool": "search_replace",
+     "hunk_id": "L7978#1013",
+     "snippet": "970: def _retry_gdelt_names(\n971:     batch: list[str],\n972:     window_start: date,\n973:     as_of: date,\n974:     articles: list[tuple[str, dict[str, str]]],\n975: ) -> tuple[list[tuple[str, str]], tuple[str, str] | None]:\n976:     \"\"\"A failed multi-name query is retried per company. Only names that still fail are recorded.\"\"\"\n977:     failed: list[tuple[str, str]] = []\n978:     for ticker in batch:\n979:         single = fetch_gdelt_batch([(ticker, company_name(ticker))], window_start, as_of)",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 979,
+     "hunk_start": 970,
+     "context_lines": [
+      {
+       "line": 978,
+       "text": "    for ticker in batch:"
+      },
+      {
+       "line": 979,
+       "text": "        single = fetch_gdelt_batch([(ticker, company_name(ticker))], window_start, as_of)"
+      },
+      {
+       "line": 980,
+       "text": "        if single[\"status\"] == \"ok\":"
+      }
+     ],
+     "anchor": "unanchored"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "src/ta/mcp_servers/risk_tools.py",
+    "line": 27,
+    "end_line": 40,
+    "text": "@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")",
+    "function": "_meta_for",
+    "score": 28.481,
+    "matched_terms": [
+     "hard",
+     "proposed",
+     "portfolio",
+     "ticker",
+     "risk",
+     "check",
+     "violations",
+     "name"
+    ],
+    "edit_line": 155,
+    "tool": "search_replace",
+    "hunk_id": "L155#54",
+    "snippet": "1: \"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from typing import Any\n6: \n7: from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\n8: from ta.harness.context import ToolContext\n9: from ta.mcp_servers.portfolio_tools import snapshot_state\n10: from ta.mcp_servers.registry import tool",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 25,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 24,
+      "text": ""
+     },
+     {
+      "line": 25,
+      "text": "@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")"
+     },
+     {
+      "line": 26,
+      "text": "def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/ta/harness/caps.py",
+    "line": 31,
+    "end_line": 201,
+    "text": "        return caps.single_high_risk_pct",
+    "function": "_name_cap",
+    "score": 23.8891,
+    "matched_terms": [
+     "hard",
+     "portfolio",
+     "ticker",
+     "risk",
+     "violations",
+     "single",
+     "name"
+    ],
+    "edit_line": 108,
+    "tool": "search_replace",
+    "hunk_id": "L108#37",
+    "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 31,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 30,
+      "text": "    if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:"
+     },
+     {
+      "line": 31,
+      "text": "        return caps.single_high_risk_pct"
+     },
+     {
+      "line": 32,
+      "text": "    return caps.single_core_pct"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "dashboard/src/app/activity/page.tsx",
+    "line": 37,
+    "end_line": 93,
+    "text": "          Each check starts with a plan. This page compares that plan with what was actually recorded.",
+    "function": "ActivityPage",
+    "score": 22.7605,
+    "matched_terms": [
+     "flagged",
+     "catch",
+     "check",
+     "recorded",
+     "name"
+    ],
+    "edit_line": 1370,
+    "tool": "search_replace",
+    "hunk_id": "L1370#257",
+    "snippet": "1: \"use client\";\n2: \n3: import { useEffect, useState } from \"react\";\n4: \n5: import { Panel, Status } from \"@/components/shell\";\n6: import { Term } from \"@/components/cite\";\n7: import { loadJson } from \"@/lib/utils\";\n8: \n9: type Row = { tool: string; plain: string; expected: string; actual: number; ok: boolean };\n10: type Check = {",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 37,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 36,
+      "text": "        <p className=\"mt-2 max-w-2xl text-ink/80\">"
+     },
+     {
+      "line": 37,
+      "text": "          Each check starts with a plan. This page compares that plan with what was actually recorded."
+     },
+     {
+      "line": 38,
+      "text": "        </p>"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "src/ta/mcp_servers/risk_tools.py",
+   "line": 27,
+   "end_line": 40,
+   "text": "@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")",
+   "function": "_meta_for",
+   "score": 28.481,
+   "matched_terms": [
+    "hard",
+    "proposed",
+    "portfolio",
+    "ticker",
+    "risk",
+    "check",
+    "violations",
+    "name"
+   ],
+   "edit_line": 155,
+   "tool": "search_replace",
+   "hunk_id": "L155#54",
+   "snippet": "1: \"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from typing import Any\n6: \n7: from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\n8: from ta.harness.context import ToolContext\n9: from ta.mcp_servers.portfolio_tools import snapshot_state\n10: from ta.mcp_servers.registry import tool",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 25,
+   "hunk_start": 1,
+   "context_lines": [
+    {
+     "line": 24,
+     "text": ""
+    },
+    {
+     "line": 25,
+     "text": "@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")"
+    },
+    {
+     "line": 26,
+     "text": "def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:"
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "nemotron",
+   "reason": "model_error: locate_step: model returned unparseable JSON (3061 chars, ends: \"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\")",
+   "steps": [],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    },
+    {
+     "label": "locate_step:invalid_json_retry",
+     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 16622,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:src/ta/harness/caps.py (over budget)",
+    "related_file:src/ta/sim/baselines.py (over budget)",
+    "related_file:src/ta/mcp_servers/risk_tools.py (over budget)",
+    "related_file:src/ta/mcp_servers/registry.py (over budget)",
+    "transcript_window:reasoning mentioning \"NameMeta\" (L9026) (over budget)",
+    "transcript_window:reasoning mentioning \"tool\" (L1) (over budget)",
+    "transcript_window:reasoning mentioning \"tool\" (L10) (over budget)",
+    "transcript_window:reasoning mentioning \"tool\" (L15) (over budget)",
+    "transcript_window:reasoning mentioning \"tool\" (L20) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Compliance flagged a hard-cap breach that the system did not catch on its own.\n\nA proposed position of 95% of the portfolio in ticker KVXR passed the automated risk check with no violations recorded, even though the single-name cap for any position is documented as 15%. This is the first time the fund has taken a position in KVXR.",
+   "edit": {
+    "file": "ta/mcp_servers/risk_tools.py",
+    "line": 27,
+    "hunk": "+        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\n+        price = 0.0 if bar is None else bar.adj_close\n+        meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\n+    return meta\n+\n+\n+@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")\n+def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:\n+    meta = _meta_for(ctx, list(weights))\n+    outcome = enforce_caps(weights, meta, ctx.settings.risk)\n+    return {\n+        \"ok\": outcome.ok,\n+        \"weights\": outcome.weights,"
+   },
+   "code_window": "7: \n8: from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\n9: from ta.harness.context import ToolContext\n10: from ta.mcp_servers.portfolio_tools import snapshot_state\n11: from ta.mcp_servers.registry import tool\n12: from ta.quant import historical_var, pearson\n13: \n14: \n15: def _meta_for(ctx: ToolContext, tickers: list[str]) -> dict[str, NameMeta]:\n16:     meta: dict[str, NameMeta] = {}\n17:     for ticker in tickers:\n18:         security = ctx.store.security_by_ticker(ticker)\n19:         if security is None:\n20:             continue\n21:         bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\n22:         price = 0.0 if bar is None else bar.adj_close\n23:         meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\n24:     return meta\n25: \n26: \n27: @tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")\n28: def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:\n29:     meta = _meta_for(ctx, list(weights))\n30:     outcome = enforce_caps(weights, meta, ctx.settings.risk)\n31:     return {\n32:         \"ok\": outcome.ok,\n33:         \"weights\": outcome.weights,\n34:         \"violations\": outcome.violations,\n35:         \"rule_version\": ctx.settings.risk.version,\n36:     }\n37: \n38: \n39: @tool(\"risk.option_gate\", \"0.1.0\", \"Report whether defined-risk options are allowed. Default is shut.\")\n40: def option_gate(ctx: ToolContext) -> dict[str, Any]:\n41:     state = snapshot_state(ctx)\n42:     return option_gate_status(float(state[\"equity\"]), ctx.settings.risk)\n43: \n44: \n45: def _aligned_returns(ctx: ToolContext, tickers: list[str], lookback: int) -> dict[str, dict]:\n46:     start = ctx.as_of - timedelta(days=max(lookback * 2, 30))\n47:     by_ticker: dict[str, dict] = {}",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "ta/mcp_servers/risk_tools.py",
+     "line": 27,
+     "function": "_meta_for",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 28.481,
+     "method": "deterministic_bm25",
+     "text": "22:         price = 0.0 if bar is None else bar.adj_close\n23:         meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\n24:     return meta\n25: \n26: \n27: @tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")\n28: def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:\n29:     meta = _meta_for(ctx, list(weights))\n30:     outcome = enforce_caps(weights, meta, ctx.settings.risk)\n31:     return {\n32:         \"ok\": outcome.ok,"
+    },
+    {
+     "label": "candidate 2",
+     "file": "ta/harness/caps.py",
+     "line": 31,
+     "function": "_name_cap",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 23.8891,
+     "method": "deterministic_bm25",
+     "text": "26:     violations: list[dict[str, str]]\n27: \n28: \n29: def _name_cap(meta: NameMeta, caps: RiskCaps) -> float:\n30:     if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\n31:         return caps.single_high_risk_pct\n32:     return caps.single_core_pct\n33: \n34: \n35: def _in_sleeve(meta: NameMeta, caps: RiskCaps) -> bool:\n36:     return meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold"
+    },
+    {
+     "label": "candidate 3",
+     "file": "dashboard/src/app/activity/page.tsx",
+     "line": 37,
+     "function": "ActivityPage",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 22.7605,
+     "method": "deterministic_bm25",
+     "text": "32:   return (\n33:     <div className=\"space-y-6\">\n34:       <div>\n35:         <h1 className=\"font-serif text-4xl\">Agent activity</h1>\n36:         <p className=\"mt-2 max-w-2xl text-ink/80\">\n37:           Each check starts with a plan. This page compares that plan with what was actually recorded.\n38:         </p>\n39:       </div>\n40:       <Panel className={data.integrity.ok ? \"bg-moss\" : \"bg-clay-soft\"}>\n41:         <p className=\"font-medium\">{data.integrity.ok ? \"Diary intact\" : \"Diary problem\"}</p>\n42:         <p className=\"mt-1 text-sm leading-6\">{data.integrity.plain}</p>"
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+    "understood": "The EDGAR data layer requires a user-agent environment variable for its client.\n\nA minor resource leak in the EDGAR client was noted but deferred. The next components to build are portfolio tools, risk, research, guides, verification, audit, logging, broker, and thesis stubs. The gateway will follow. Portfolio position sizing is the largest remaining piece.",
+    "happened": "Compliance flagged a hard-cap breach that the system did not catch on its own.\n\nA proposed position of 95% of the portfolio in ticker KVXR passed the automated risk check with no violations recorded, even though the single-name cap for any position is documented as 15%. This is the first time the fund has taken a position in KVXR.\n\n  at _meta_for (src/ta/mcp_servers/risk_tools.py:27)\n  27: @tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")\n\nWritten by transcript edit L155 (search_replace):\n+        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\n+        price = 0.0 if bar is None else bar.adj_close\n+        meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\n+    return meta\n+\n+\n+@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")\n+def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:\n+    meta = _meta_for(ctx, list(weights))\n+    outcome = enforce_caps(weights, meta, ctx.settings.risk)\n+    return {\n+        \"ok\": outcome.ok,\n+        \"weights\": outcome.weights,"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L155)",
+     "text": "L152 [assistant] (empty message)\nL153 [tool] TOOL: search_replace\nL153| CODE_WRITTEN: \nL153| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL153| +++ b//workspace/src/ta/mcp_servers/portfolio_tools.py\nL153| @@ -1,0 +1,158 @@\nL153| +\"\"\"Portfolio state and sizing. Sizes are computed here, never by the model.\"\"\"\nL153| +\nL153| +from __future__ import annotations\nL153| +\nL153| +from typing import Any\nL153| +\nL153| +from ta.harness.caps import NameMeta, enforce_caps\nL153| +from ta.harness.context import ToolContext\nL153| +from ta.ids import canonical_json\nL153| +from ta.mcp_servers.registry import tool\nL153| +\nL153| +\nL153| +def _prices(ctx: ToolContext) -> dict[str, float]:\nL153| +    prices: dict[str, float] = {}\nL153| +    for lot_ticker in list(ctx.portfolio.positions):\nL153| +        security = ctx.store.security_by_ticker(lot_ticker)\nL153| +        if security is None:\nL153| +            continue\nL153| +        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\nL153| +        if bar is not None:\nL153| +            prices[lot_ticker] = bar.adj_close\nL153| +    return prices\nL153| +\nL153| +\nL153| +def snapshot_state(ctx: ToolContext) -> dict[str, Any]:\nL153| +    prices = _prices(ctx)\nL153| +    equity = ctx.portfolio.equity(prices)\nL153| +    weights = ctx.portfolio.weights(prices)\nL153| +    positions = []\nL153| +    for ticker, lot in ctx.portfolio.positions.items():\nL153| +        security = ctx.store.security_by_ticker(ticker)\nL153| +        px = prices.get(ticker, 0.0)\nL153| +        positions.append(\nL153| +            {\nL153| +                \"ticker\": ticker,\nL153| +                \"security_id\": None if security is None else security.security_id,\nL153| +                \"qty\": round(lot.qty, 6),\nL153| +                \"mv\": round(lot.qty * px, 6)\nL154 [assistant] (empty message)\nL155 [tool] TOOL: search_replace\nL155| CODE_WRITTEN: \nL155| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL155| +++ b//workspace/src/ta/mcp_servers/risk_tools.py\nL155| @@ -1,0 +1,40 @@\nL155| +\"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\nL155| +\nL155| +from __future__ import annotations\nL155| +\nL155| +from typing import Any\nL155| +\nL155| +from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\nL155| +from ta.harness.context import ToolContext\nL155| +from ta.mcp_servers.portfolio_tools import snapshot_state\nL155| +from ta.mcp_servers.registry import tool\nL155| +\nL155| +\nL155| +def _meta_for(ctx: ToolContext, tickers: list[str]) -> dict[str, NameMeta]:\nL155| +    meta: dict[str, NameMeta] = {}\nL155| +    for ticker in tickers:\nL155| +        security = ctx.store.security_by_ticker(ticker)\nL155| +        if security is None:\nL155| +            continue\nL155| +        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\nL155| +        price = 0.0 if bar is None else bar.adj_close\nL155| +        meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nL155| +    return meta\nL155| +\nL155| +\nL155| +@tool(\"risk.check_caps\", \"0.1.0\", \"Clip proposed weights to the hard caps in config/risk.yaml.\")\nL155| +def check_caps(ctx: ToolContext, weights: dict[str, float]) -> dict[str, Any]:\nL155| +    meta = _meta_for(ctx, list(weights))\nL155| +    outcome = enforce_caps(weights, meta, ctx.settings.risk)\nL155| +    return {\nL155| +        \"ok\": outcome.ok,\nL155| +        \"weights\": outcome.weights,\nL155| +        \"violations\": outcome.violations,\nL155| +        \"rule_version\": ctx.settings.risk.version,\nL155| +    }\nL155| +\nL155| +\nL155| +@tool(\"risk.option_gate\nL156 [assistant] (empty message)\nL157 [tool] TOOL: search_replace\nL157| CODE_WRITTEN: \nL157| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL157| +++ b//workspace/src/ta/mcp_servers/research_tools.py\nL157| @@ -1,0 +1,35 @@\nL157| +\"\"\"Typed observation writer. This is not the action log.\"\"\"\nL157| +\nL157| +from __future__ import annotations\nL157| +\nL157| +from typing import Any\nL157| +\nL157| +from ta.harness.context import ToolContext\nL157| +from ta.ids import canonical_json\nL157| +from ta.mcp_servers.registry import tool\nL157| +\nL157| +\nL157| +@tool(\"research.write_observation\", \"0.1.0\", \"Validate and store a typed observation.\")\nL157| +def write_observation(\nL157| +    ctx: ToolContext,\nL157| +    type: str,\nL157| +    label: str,\nL157| +    payload: dict[str, Any],\nL157| +    fact_refs: list[dict[str, str]] | None = None,\nL157| +    security_id: str | None = None,\nL157| +) -> dict[str, Any]:\nL157| +    if label not in {\"fact\", \"opinion\"}:\nL157| +        raise ValueError(\"label must be fact or opinion\")\nL157| +    obs_id = ctx.store.insert_observation(\nL157| +        {\nL157| +            \"run_id\": ctx.run_id,\nL157| +            \"agent\": type,\nL157| +            \"type\": type,\nL157| +            \"security_id\": security_id,\nL157| +            \"as_of\": ctx.as_of,\nL157| +            \"payload_json\": canonical_json(payload),\nL157| +            \"fact_refs_json\": canonical_json(fact_refs or []),\nL157| +            \"label\": label,\nL157| +        }\nL157| +    )\nL157| +    return {\"obs_id\": obs_id, \"type\": type, \"label\": label, \"security_id\": security_id}\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":35}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL158 [assistant] (empty message)"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "_meta_for assumes every security has a sleeve and sector assigned, but newly added securities may have None values, causing _name_cap to return the wrong cap percentage (single_high_risk_pct instead of single_core_pct) and bypass the 15% hard cap.",
+  "why_it_breaks": "The _meta_for function constructs NameMeta objects using sleeve and sector directly from the security object. If a newly added ticker like KVXR has sleeve=None (no sleeve assigned yet), _name_cap evaluates the condition meta.sleeve == \"high_risk\" as False and meta.price < caps.penny_price_threshold also as False (price defaults to 0.0, which is typically below the threshold, but the logic may depend on the order of evaluation or the threshold value). In the reported scenario, the condition likely returns caps.single_high_risk_pct (e.g., 25%) instead of caps.single_core_pct (e.g., 15%), so the enforced cap is higher than the documented 15% limit, allowing the 95% position to pass without a violation flag.",
+  "confidence": "low",
+  "evidence": [
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 29,
+    "quote": "def _name_cap(meta: NameMeta, caps: RiskCaps) -> float:\n    if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\n        return caps.single_high_risk_pct\n    return caps.single_core_pct",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/risk_tools.py",
+    "line": 21,
+    "quote": "bar = ctx.store.latest_bar(security.security_id, ctx.as_of)",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/risk_tools.py",
+    "line": 22,
+    "quote": "price = 0.0 if bar is None else bar.adj_close",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/risk_tools.py",
+    "line": 23,
+    "quote": "meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 155,
+    "quote": "L155 [tool] TOOL: search_replace\nL155| CODE_WRITTEN: \nL155| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL155| +++ b//workspace/src/ta/mcp_servers/risk_tools.py\nL155| @@ -1,0 +1,40 @@\nL155| +\"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\nL155| +\nL155| +from __future__ import annotations\nL155| +\nL155| +from typing import Any\nL155| +\nL155| +from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\nL155| +from ta.harness.context import ToolContext\nL155| +from ta.mcp_servers.portfolio_tools import snapshot_state\nL155| +from ta.mcp_servers.registry import tool\nL155| +\nL155| +def _meta_for(ctx: ToolContext, tickers: list[str]) -> dict[str, NameMeta]:\nL155| +    meta: dict[str, NameMeta] = {}\nL155| +    for ticker in tickers:\nL155| +        security = ctx.store.security_by_ticker(ticker)\nL155| +        if security is None:\nL155| +            continue\nL155| +        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\nL155| +        price = 0.0 if bar is None else bar.adj_close\nL155| +        meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nL155| +    return meta",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 3,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "_meta_for always returns a NameMeta for every ticker in weights, so enforce_caps receives complete metadata",
+  "why_it_breaks": "_meta_for skips tickers where security is None (line 155: \"if security is None: continue\"). When a ticker like KVXR has no security record, it never gets a NameMeta entry, so enforce_caps receives an incomplete meta dict. The _name_cap function then either raises an AttributeError on missing meta.sleeve/meta.price or defaults to single_core_pct, bypassing the single_high_risk_pct cap entirely. This allows positions exceeding the documented 15% single-name cap to pass without violation flags.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 155,
+    "quote": "L155 [tool] TOOL: search_replace\nL155| CODE_WRITTEN: \nL155| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL155| +++ b//workspace/src/ta/mcp_servers/risk_tools.py\nL155| @@ -1,0 +1,40 @@\nL155| +\"\"\"Risk tools. check_caps cannot be overridden by an agent.\"\"\"\nL155| +\nL155| +from __future__ import annotations\nL155| +\nL155| +from typing import Any\nL155| +\nL155| +from ta.harness.caps import NameMeta, enforce_caps, option_gate_status\nL155| +from ta.harness.context import ToolContext\nL155| +from ta.mcp_servers.portfolio_tools import snapshot_state\nL155| +from ta.mcp_servers.registry import tool\nL155| +\nL155| +\nL155| +def _meta_for(ctx: ToolContext, tickers: list[str]) -> dict[str, NameMeta]:\nL155| +    meta: dict[str, NameMeta] = {}\nL155| +    for ticker in tickers:\nL155| +        security = ctx.store.security_by_ticker(ticker)\nL155| +        if security is None:\nL155| +            continue\nL155| +        bar = ctx.store.latest_bar(security.security_id, ctx.as_of)\nL155| +        price = 0.0 if bar is None else bar.adj_close\nL155| +        meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nL155| +    return meta",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 31,
+    "quote": "def _name_cap(meta: NameMeta, caps: RiskCaps) -> float:\n    if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\n        return caps.single_high_risk_pct\n    return caps.single_core_pct",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 0,
+  "verified_transcript_quotes": 0
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "src/ta/mcp_servers/risk_tools.py",
+  "line": 27,
+  "hunk_id": "L155#54"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "low",
+  "capped": "low",
+  "margin": 0.16122678276745908,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": false
+ }
+}

@@ -1,0 +1,6 @@
+locate: none (no candidate)
+stage: no_frame (no stack frame in the report; the LOCATE stage (deterministic symbol search + model-assisted search) found no candidate either)
+provider: anthropic
+frame: -
+
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/B-anthropic/u08/report.html

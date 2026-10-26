@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> litellm/main.py:1127
+stage: ok
+provider: anthropic
+frame: litellm/main.py:1127
+status: verified (code quotes 1, transcript quotes 2)
+overlooked_assumption: The agent assumed that gpt-5.4 and gpt-5.5 default reasoning_effort to "none", but the production deployment explicitly sets reasoning_effort to "low" in extra_body, which the agent's logic still bridges to /v1/responses.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/B-anthropic/u02/report.html

@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that halt_high_risk being True would block all high-risk buys, but the condition requires both halt_high_risk AND sleeve == \"high_risk\". A buy with a non-high-risk sleeve passes through even when the drawdown halt is active.",
+ "why_it_breaks": "The drawdown halt sets halt_high_risk = True when drawdown <= -0.20 (i.e., -20% or worse). The guard at line 276 then blocks only buys that also have sleeve == \"high_risk\". If FALN was assigned a core or other sleeve, the condition fails and the order proceeds without any warning, even though the portfolio is already past the -20% halt threshold. The agent overlooked that the sleeve check acts as an additional filter, allowing non-high-risk buys to bypass the halt entirely.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 276,
+   "quote": "if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 261,
+   "quote": "halt_high_risk = drawdown <= caps.drawdown_halt_high_risk",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

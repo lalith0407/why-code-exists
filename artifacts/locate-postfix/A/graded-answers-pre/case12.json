@@ -1,0 +1,25 @@
+{
+ "overlooked_assumption": "The agent assumed that adding valuation_target and time_stop to discretionary_exits would allow the guard to distinguish them from swing-trade exits, but the guard checks the swing-trade cap before evaluating exit type, so all three exits bypass the cap.",
+ "why_it_breaks": "The swing-trade cap guard in caps.py forces a `continue` before any exit type is evaluated. Adding valuation_target and time_stop to the discretionary_exits list places them ahead of the blocked list, but the guard\u2019s cap check runs unconditionally on every exit before it reaches the discretionary logic, so the three sells slip through unblocked and increment the quarterly swing-trade count to 4.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 48,
+   "quote": "+  - valuation_target\n+  - time_stop\n+blocked:\n+  - trend_chase\n+min_hold_reference: config/risk.yaml\n+notes: >\n+  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\n+  Thesis-break exits are wired in a later phase.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 288,
+   "quote": "and swings_this_quarter >= caps.swing_trades_per_quarter\n            ):\n                notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n                continue",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 1
+}

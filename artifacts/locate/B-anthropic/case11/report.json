@@ -1,0 +1,571 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case11",
+  "complete": true,
+  "notes": [
+   "function decision_checks_of was introduced at L6982; the frame line itself was written at L5803"
+  ],
+  "frame": {
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 314,
+   "function": "decision_checks_of"
+  },
+  "asked": {
+   "text": "Next: anti-churn fixes (user-approved). In the last Sonnet replay JNJ was bought and sold 8 times and OKE, MO, PEP, WMT, COP and LOW also flipped; the full-exit-only cooldown didn't catch partial trims and top-ups.\n1. Make portfolio rebalancing weekly (a configurable day) by default. Daily runs still do monitoring and alerts, and may only trade on hard triggers: a risk-limit breach, stop or drawdown rules, a material cited event (8-K, earnings, guidance) that changes the thesis, or a new high-conviction entry above a threshold.\n2. Cooldown of N sessions (default 10) after ANY trade on a name, in either direction, unless a hard trigger fires.\n3. Thesis-change gate: a trade on an existing holding must cite what changed since the last decision on that name (new fact_refs dated after it). Otherwise it's blocked and logged.\n4. A minimum trade size (dollars and % of book) so tiny $1 trims don't happen; the no-trade band applies to drift.\n5. Add a turnover and round-trip metric to the replay report, plus a test that recreates the JNJ flip pattern and asserts it's blocked.\nAlso, EIA is skipped permanently (the user can't register); make it a silent optional skip rather than a warn. FRED_API_KEY and CENSUS_API_KEY are now set on the box. Make sure the FRED and Census refreshes write dated point-in-time rows and that data-audit reports them. Pick a sensible default series set relevant to the AI supply chain (power and electricity, industrial production, semis, construction, rates, inflation, labor). Tests and ruff must pass; export the tarball. No paid replay.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L5402 (user message, latest of 17 before the edit)",
+   "valid": true,
+   "full_length": 1576
+  },
+  "understood": {
+   "text": "The cooldown and thesis gates are in place. Next I’ll apply them in the sizer, stamp decisions after planning, and wire the dated FRED and Census rows.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L5799 (assistant, 27 words, 4 line(s) before the edit at L5803)",
+   "valid": true,
+   "full_length": 151
+  },
+  "happened": {
+   "text": "Trading desk escalation, severity critical: a stop-loss did not execute.\n\nAAA was down 30% from the desk's average cost basis. The order management system shows a full stop-loss sell order was generated for the position, but the order never reached the market — the order blotter shows it was rejected internally before submission, with status \"rejected\" and no fill. The position in AAA is still open.\n\n  at decision_checks_of (src/ta/mcp_servers/portfolio_tools.py:314)\n  314: \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n\nWritten by transcript edit L5803 (search_replace):\n     return score is not None and float(score) >= threshold\n \n \n+def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n+    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n+    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n+    forced: set[str] = set()\n+    for ticker, lot in ctx.portfolio.positions.items():\n+        price = prices.get(ticker, 0.0)\n+        if price <= 0 or lot.qty <= 0:\n+            continue",
+   "citation": "error case11 frame src/ta/mcp_servers/portfolio_tools.py:314; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L5803",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5790,
+    "quote": "A `_forced_stops` helper is being added to identify positions that have hit their stop-loss threshold. It calculates each lot's average cost and flags tickers whose current price falls at or below the configured percentage below that average.",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "verified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Trading desk escalation, severity critical: a stop-loss did not execute.\n\nAAA was down 30% from the desk's average cost basis. The order management system shows a full stop-loss sell order was generated for the position, but the order never reached the market — the order blotter shows it was rejected internally before submission, with status \"rejected\" and no fill. The position in AAA is still open.\n",
+  "terms": [
+   "rejected",
+   "trading desk escalation",
+   "aaa was down",
+   "the order management system",
+   "the position in aaa",
+   "30",
+   "trading",
+   "desk",
+   "escalation",
+   "severity",
+   "critical",
+   "stop",
+   "loss",
+   "execute",
+   "down",
+   "average",
+   "cost",
+   "basis",
+   "order",
+   "management",
+   "system",
+   "shows",
+   "full",
+   "sell",
+   "generated",
+   "position",
+   "never",
+   "reached",
+   "market",
+   "blotter",
+   "internally",
+   "submission",
+   "status",
+   "fill",
+   "open"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 145,
+     "end_line": 180,
+     "text": "    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"",
+     "function": "decision_checks_of",
+     "score": 26.9364,
+     "matched_terms": [
+      "stop",
+      "loss",
+      "average",
+      "cost",
+      "sell"
+     ],
+     "edit_line": 5803,
+     "tool": "search_replace",
+     "hunk_id": "L5803#746",
+     "snippet": "144: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n145:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n146:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n147:     forced: set[str] = set()\n148:     for ticker, lot in ctx.portfolio.positions.items():\n149:         price = prices.get(ticker, 0.0)\n150:         if price <= 0 or lot.qty <= 0:\n151:             continue\n152:         average = lot.cost / lot.qty\n153:         if average > 0 and price <= average * (1.0 - stop_pct):",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/sim/portfolio.py",
+     "line": 76,
+     "end_line": 271,
+     "text": "    \"\"\"`ratio` is new shares per old share. Total cost basis stays put.\"\"\"",
+     "function": "half_spread",
+     "score": 25.6028,
+     "matched_terms": [
+      "order",
+      "execute",
+      "cost",
+      "basis",
+      "full",
+      "sell",
+      "fill",
+      "open"
+     ],
+     "edit_line": 106,
+     "tool": "search_replace",
+     "hunk_id": "L106#36",
+     "snippet": "1: \"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date\n7: \n8: from ta.config import CostConfig, RiskCaps\n9: from ta.models import OrderIntent\n10: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "guides/risk_manager/v1.md",
+     "line": 23,
+     "end_line": 27,
+     "text": "The first cap breach that reached an order, or the first size the agent typed instead of citing `size_position`, is the fault.",
+     "score": 22.6884,
+     "matched_terms": [
+      "order",
+      "position",
+      "sell",
+      "never",
+      "reached",
+      "status"
+     ],
+     "edit_line": 60,
+     "tool": "search_replace",
+     "hunk_id": "L60#17",
+     "snippet": "1: # Risk manager guide v1\n2: \n3: Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\n4: \n5: ## 1. Read task\n6: \n7: Read the analyst's selected names, the current portfolio, incoming contribution cash, and the option-gate status.\n8: \n9: ## 2. Choose tools/sources\n10: ",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "README.md",
+     "line": 170,
+     "end_line": 170,
+     "text": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order below `min_trade_dollars` (50) and `min_trade_pct` (1% of equity) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "score": 21.0978,
+     "matched_terms": [
+      "order",
+      "stop",
+      "loss",
+      "full",
+      "fill"
+     ],
+     "edit_line": 5880,
+     "tool": "search_replace",
+     "hunk_id": "L5880#779",
+     "snippet": "170: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order below `min_trade_dollars` (50) and `min_trade_pct` (1% of equity) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "README.md",
+     "line": 170,
+     "end_line": 170,
+     "text": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "score": 20.9697,
+     "matched_terms": [
+      "order",
+      "stop",
+      "loss",
+      "full",
+      "fill"
+     ],
+     "edit_line": 5885,
+     "tool": "search_replace",
+     "hunk_id": "L5885#781",
+     "snippet": "170: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "README.md",
+     "line": 172,
+     "end_line": 172,
+     "text": "Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "score": 20.2939,
+     "matched_terms": [
+      "order",
+      "stop",
+      "loss",
+      "full",
+      "fill"
+     ],
+     "edit_line": 7051,
+     "tool": "search_replace",
+     "hunk_id": "L7051#933",
+     "snippet": "172: Rebalancing runs on Monday (`rebalance_weekday` in `rules/sizing/v1.yaml`). A daily run still monitors and writes alerts. It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05). Any fill, in either direction, starts a cooldown of `trade_cooldown_sessions` (10). A full exit still waits `reentry_sessions` (5) before a new buy, and a name inside `min_hold_sessions` (5) is not sold unless a hard trigger requires it. A trade that would drop a holding must cite a new fact. Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through. The 5 percentage-point no-trade band still applies to that drift, and an order smaller than the larger of `min_trade_dollars` (50) and `min_trade_pct` of equity (1%) is not sent. An order that matches an earlier order that did not fill is not issued again. Gross order notional in one decision cannot exceed `max_turnover_pct` of equity (1.0). The replay report prints turnover and the round-trip count.",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "src/ta/sim/metrics.py",
+     "line": 141,
+     "end_line": 146,
+     "text": "        elif fill.side == \"sell\" and open_buys.get(ticker, 0) > 0:",
+     "function": "_round_trips",
+     "score": 19.133,
+     "matched_terms": [
+      "sell",
+      "fill",
+      "open"
+     ],
+     "edit_line": 5635,
+     "tool": "search_replace",
+     "hunk_id": "L5635#742",
+     "snippet": "133: def _round_trips(trades: list) -> int:\n134:     \"\"\"A round trip is a buy of a name followed later by a sell of that name.\"\"\"\n135:     open_buys: dict[str, int] = {}\n136:     trips = 0\n137:     for fill in trades:\n138:         ticker = fill.ticker\n139:         if fill.side == \"buy\":\n140:             open_buys[ticker] = open_buys.get(ticker, 0) + 1\n141:         elif fill.side == \"sell\" and open_buys.get(ticker, 0) > 0:\n142:             open_buys[ticker] -= 1",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "rules/sizing/v1.yaml",
+     "line": 25,
+     "end_line": 29,
+     "text": "  A full exit starts a reentry wait. Any fill, including a partial trim or top-up, starts trade_cooldown_sessions.",
+     "score": 18.6274,
+     "matched_terms": [
+      "order",
+      "stop",
+      "loss",
+      "full",
+      "fill"
+     ],
+     "edit_line": 5830,
+     "tool": "search_replace",
+     "hunk_id": "L5830#759",
+     "snippet": "12: rebalance_weekday: monday\n13: trade_cooldown_sessions: 10\n14: min_trade_dollars: 50\n15: min_trade_pct: 0.01\n16: high_conviction_quality: 0.05\n17: stop_loss_pct: 0.20\n20:   The book is rebalanced on rebalance_weekday. Other sessions only trade a hard trigger:\n21:   a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name\n22:   whose quality score clears high_conviction_quality.\n23:   The sizer trades the gap between current weight and target when it exceeds the 5 percentage-point band",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_churn.py",
+     "line": 47,
+     "end_line": 94,
+     "text": "    assert all(order[\"ticker\"] != \"AAPL\" or order[\"side\"] != \"sell\" for order in held[\"orders\"])",
+     "score": 18.0943,
+     "matched_terms": [
+      "order",
+      "execute",
+      "cost",
+      "sell",
+      "fill"
+     ],
+     "edit_line": 2555,
+     "tool": "search_replace",
+     "hunk_id": "L2555#393",
+     "snippet": "1: \"\"\"Sells inside the minimum hold are not re-issued, and an unfilled order is not repeated.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from datetime import date\n6: \n7: from ta.harness.context import ToolContext\n8: from ta.mcp_servers.portfolio_tools import apply_churn_rules, plan_orders\n9: from ta.models import OrderIntent\n10: from ta.sim.engine import advance, fresh_book",
+     "method": "deterministic_bm25"
+    },
+    {
+     "file": "tests/test_grade_and_books.py",
+     "line": 131,
+     "end_line": 436,
+     "text": "        rejected=[],",
+     "score": 17.8401,
+     "matched_terms": [
+      "rejected",
+      "aaa",
+      "order",
+      "loss",
+      "execute",
+      "cost",
+      "sell",
+      "open"
+     ],
+     "edit_line": 9043,
+     "tool": "search_replace",
+     "hunk_id": "L9043#1138",
+     "snippet": "1: \"\"\"Holdings fit, override acceptance, the isolated grader, and one paper session.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from datetime import date, timedelta\n6: from pathlib import Path\n7: \n8: import httpx\n9: from typer.testing import CliRunner\n10: ",
+     "method": "deterministic_bm25"
+    }
+   ]
+  },
+  "picked": {
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 145,
+   "end_line": 180,
+   "text": "    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"",
+   "function": "decision_checks_of",
+   "score": 26.9364,
+   "matched_terms": [
+    "stop",
+    "loss",
+    "average",
+    "cost",
+    "sell"
+   ],
+   "edit_line": 5803,
+   "tool": "search_replace",
+   "hunk_id": "L5803#746",
+   "snippet": "144: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n145:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n146:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n147:     forced: set[str] = set()\n148:     for ticker, lot in ctx.portfolio.positions.items():\n149:         price = prices.get(ticker, 0.0)\n150:         if price <= 0 or lot.qty <= 0:\n151:             continue\n152:         average = lot.cost / lot.qty\n153:         if average > 0 and price <= average * (1.0 - stop_pct):",
+   "method": "deterministic_bm25"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "stop.?loss"
+     },
+     "result": "src/ta/mcp_servers/portfolio_tools.py:315: stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))"
+    },
+    {
+     "step": 2,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 310,
+      "end": 330
+     },
+     "result": "310:     return score is not None and float(score) >= threshold\n311: \n312: \n313: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n314:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n315:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n316:     forced: set[str] = set()\n317:     for ticker, lot in ctx.portfolio.positions.items():\n318:         price = prices.get(ticker, 0.0)\n319:         if price <= 0 or lot.qty <= 0:\n320:             continue\n321:         average = lot.cost / lot.qty\n322:         if average > 0 and price <= average * (1.0 - stop_pct):\n323:             forced.add(ticker)\n324:     return forced\n325: \n326: \n327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False"
+    },
+    {
+     "step": 3,
+     "action": "grep",
+     "args": {
+      "pattern": "_forced_stops"
+     },
+     "result": "src/ta/mcp_servers/portfolio_tools.py:313: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\nsrc/ta/mcp_servers/portfolio_tools.py:572: forced = _forced_stops(ctx, prices)\nsrc/ta/mcp_servers/portfolio_tools.py:665: forced = _forced_stops(ctx, prices)"
+    },
+    {
+     "step": 4,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 565,
+      "end": 580
+     },
+     "result": "565:     scores = {ticker: _quality_score(ctx, ticker) for ticker in meta}\n566:     seen: list[str] = []\n567:     for ticker in selected:\n568:         if ticker in meta and prices.get(ticker, 0) > 0 and ticker not in seen:\n569:             seen.append(ticker)\n570:     ranked = sorted(seen, key=lambda ticker: (-scores.get(ticker, -1e9), ticker))\n571:     fitted = fit_book(ranked, meta, ctx.settings.risk, name_cap) if sizing_equity > 0 else {}\n572:     forced = _forced_stops(ctx, prices)\n573:     for ticker in forced:\n574:         fitted.pop(ticker, None)\n575:     raw = dict(fitted)\n576:     for ticker in ctx.portfolio.positions:\n577:         raw.setdefault(ticker, 0.0)\n578:     for ticker in forced:\n579:         raw[ticker] = 0.0\n580:     trims = forced_trims(list(fitted), list(ctx.portfolio.positions), scores, meta, ctx.settings.risk, name_cap)"
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 580,
+      "end": 620
+     },
+     "result": "580:     trims = forced_trims(list(fitted), list(ctx.portfolio.positions), scores, meta, ctx.settings.risk, name_cap)\n581: \n582:     outcome = enforce_caps(raw, meta, ctx.settings.risk)\n583:     reduced = {\n584:         ticker\n585:         for ticker, weight in raw.items()\n586:         if outcome.weights.get(ticker, 0.0) + 1e-9 < weight\n587:     }\n588:     review = _drawdown_review(ctx, float(state[\"equity\"]))\n589:     current_weights = ctx.portfolio.weights(prices)\n590:     orders: list[dict[str, Any]] = []\n591:     size_notes: list[str] = []\n592:     for ticker, target in {**{name: 0.0 for name in ctx.portfolio.positions}, **outcome.weights}.items():\n593:         price = prices.get(ticker, 0.0)\n594:         if price <= 0:\n595:             continue\n596:         current = current_weights.get(ticker, 0.0)\n597:         if abs(target - current) < band and ticker in ctx.portfolio.positions and target > 0:\n598:             continue\n599:         gap = target * sizing_equity - current * float(state[\"equity\"])\n600:         side = \"buy\" if gap > 0 else \"sell\"\n601:         reason = _trade_reason(side, ticker, reduced, forced, review, trims)\n602:         if reason not in _HARD_REASONS and abs(gap) < floor:\n603:             size_notes.append(f\"minimum size kept {ticker} {side}\")\n604:             continue\n605:         order = {\n606:             \"ticker\": ticker,\n607:             \"side\": side,\n608:             \"notional\": round(abs(gap), 2),\n609:             \"limit_price\": round(price, 2),\n610:             \"sleeve\": sleeves.get(ticker, \"core\"),\n611:             \"reason\": reason,\n612:             \"security_id\": ids.get(ticker),\n613:         }\n614:         orders.append(order)\n615:     kept = set(fitted)\n616:     orders, churn_notes = apply_churn_rules(ctx, orders, float(state[\"equity\"]), selected=kept)\n617:     churn_notes = size_notes + churn_notes\n618:     if name_floor and len(kept) < name_floor:\n619:         churn_notes.append(f\"{len(kept)} names in the book, below the {name_floor}-name floor\")\n620:     return {"
+    },
+    {
+     "step": 6,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 595,
+      "end": 615
+     },
+     "result": "595:             continue\n596:         current = current_weights.get(ticker, 0.0)\n597:         if abs(target - current) < band and ticker in ctx.portfolio.positions and target > 0:\n598:             continue\n599:         gap = target * sizing_equity - current * float(state[\"equity\"])\n600:         side = \"buy\" if gap > 0 else \"sell\"\n601:         reason = _trade_reason(side, ticker, reduced, forced, review, trims)\n602:         if reason not in _HARD_REASONS and abs(gap) < floor:\n603:             size_notes.append(f\"minimum size kept {ticker} {side}\")\n604:             continue\n605:         order = {\n606:             \"ticker\": ticker,\n607:             \"side\": side,\n608:             \"notional\": round(abs(gap), 2),\n609:             \"limit_price\": round(price, 2),\n610:             \"sleeve\": sleeves.get(ticker, \"core\"),\n611:             \"reason\": reason,\n612:             \"security_id\": ids.get(ticker),\n613:         }\n614:         orders.append(order)\n615:     kept = set(fitted)"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 15593,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:src/ta/live.py (over budget)",
+    "related_file:src/ta/mcp_servers/portfolio_tools.py (over budget)",
+    "transcript_window:reasoning mentioning \"float\" (L102) (over budget)",
+    "transcript_window:reasoning mentioning \"float\" (L248) (over budget)",
+    "transcript_window:reasoning mentioning \"float\" (L254) (over budget)",
+    "transcript_window:reasoning mentioning \"float\" (L277) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Trading desk escalation, severity critical: a stop-loss did not execute.\n\nAAA was down 30% from the desk's average cost basis. The order management system shows a full stop-loss sell order was generated for the position, but the order never reached the market — the order blotter shows it was rejected internally before submission, with status \"rejected\" and no fill. The position in AAA is still open.",
+   "edit": {
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 314,
+    "hunk": "     return score is not None and float(score) >= threshold\n \n \n+def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n+    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n+    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n+    forced: set[str] = set()\n+    for ticker, lot in ctx.portfolio.positions.items():\n+        price = prices.get(ticker, 0.0)\n+        if price <= 0 or lot.qty <= 0:\n+            continue"
+   },
+   "code_window": "294:     if check.get(\"hard_trigger\") is True:\n295:         label = \"8-K hard trigger alert\" if alert else \"8-K hard trigger\"\n296:         notes.append(f\"{label} {ticker} {_decision_phrase(check)}\")\n297:     elif check.get(\"hard_trigger\") is False:\n298:         notes.append(f\"8-K not a hard trigger {ticker} {_decision_phrase(check)}\")\n299: \n300: \n301: def _high_conviction(ctx: ToolContext, ticker: str) -> bool:\n302:     threshold = float(ctx.settings.sizing_rules.get(\"high_conviction_quality\", 0.05))\n303:     security = ctx.store.security_by_ticker(ticker)\n304:     if security is None:\n305:         return False\n306:     from ta.mcp_servers.fund import compute_ratio_block\n307: \n308:     block = compute_ratio_block(ctx.store, security, ctx.as_of, ctx.settings.screen_rules)\n309:     score = block.get(\"quality_score\")\n310:     return score is not None and float(score) >= threshold\n311: \n312: \n313: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n314:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n315:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n316:     forced: set[str] = set()\n317:     for ticker, lot in ctx.portfolio.positions.items():\n318:         price = prices.get(ticker, 0.0)\n319:         if price <= 0 or lot.qty <= 0:\n320:             continue\n321:         average = lot.cost / lot.qty\n322:         if average > 0 and price <= average * (1.0 - stop_pct):\n323:             forced.add(ticker)\n324:     return forced\n325: \n326: \n327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False\n331:     return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\n332: \n333: \n334: def _trade_reason(",
+   "related_files": [],
+   "three_piece": {
+    "asked": "Next: anti-churn fixes (user-approved). In the last Sonnet replay JNJ was bought and sold 8 times and OKE, MO, PEP, WMT, COP and LOW also flipped; the full-exit-only cooldown didn't catch partial trims and top-ups.\n1. Make portfolio rebalancing weekly (a configurable day) by default. Daily runs still do monitoring and alerts, and may only trade on hard triggers: a risk-limit breach, stop or drawdown rules, a material cited event (8-K, earnings, guidance) that changes the thesis, or a new high-conviction entry above a threshold.\n2. Cooldown of N sessions (default 10) after ANY trade on a name, in either direction, unless a hard trigger fires.\n3. Thesis-change gate: a trade on an existing holding must cite what changed since the last decision on that name (new fact_refs dated after it). Otherwise it's blocked and logged.\n4. A minimum trade size (dollars and % of book) so tiny $1 trims don't happen; the no-trade band applies to drift.\n5. Add a turnover and round-trip metric to the replay report, plus a test that recreates the JNJ flip pattern and asserts it's blocked.\nAlso, EIA is skipped permanently (the user can't register); make it a silent optional skip rather than a warn. FRED_API_KEY and CENSUS_API_KEY are now set on the box. Make sure the FRED and Census refreshes write dated point-in-time rows and that data-audit reports them. Pick a sensible default series set relevant to the AI supply chain (power and electricity, industrial production, semis, construction, rates, inflation, labor). Tests and ruff must pass; export the tarball. No paid replay.",
+    "understood": "The cooldown and thesis gates are in place. Next I’ll apply them in the sizer, stamp decisions after planning, and wire the dated FRED and Census rows.",
+    "happened": "Trading desk escalation, severity critical: a stop-loss did not execute.\n\nAAA was down 30% from the desk's average cost basis. The order management system shows a full stop-loss sell order was generated for the position, but the order never reached the market — the order blotter shows it was rejected internally before submission, with status \"rejected\" and no fill. The position in AAA is still open.\n\n  at decision_checks_of (src/ta/mcp_servers/portfolio_tools.py:314)\n  314: \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n\nWritten by transcript edit L5803 (search_replace):\n     return score is not None and float(score) >= threshold\n \n \n+def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n+    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n+    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n+    forced: set[str] = set()\n+    for ticker, lot in ctx.portfolio.positions.items():\n+        price = prices.get(ticker, 0.0)\n+        if price <= 0 or lot.qty <= 0:\n+            continue"
+   },
+   "transcript_windows": [
+    {
+     "label": "reasoning mentioning \"_forced_stops\" (L5790)",
+     "text": "L5789 [tool] TOOL: web_search\nL5790 [assistant] THINKING: Confirmed series are IPG3344S and IPG2211S. IPUTIL will be included if available.\nL5790| \nL5790| IPG2211S is the specific electricity series. IPUTIL is broader and will be dropped.\nL5790| \nL5790| IPG2211S will be paired with IPUTIL for electric power and utilities. PPI: PCU334413334413 is retained. Census HS endpoint is known.\nL5790| \nL5790| TOPIC_SERIES is finalized with DGS10 for rates. The replay _MACRO will include a comment on the series set. FRED fetches will drop vintages after the end date. Census data will use a 70-day publication lag.\nL5790| \nL5790| Census rows will be filtered by realtime_start against the end date. A 70-day lag window that is too short will return zero dated observations, which the audit will flag. Two-country Census HS rows will have their values summed. FRED fetch will be structured so tests can monkeypatch httpx.get to capture vintage parameters.\nL5790| \nL5790| A unit test for the Census HS pipeline will verify country-value summation and 70-day publication lag without any HTTP calls.\nL5790| \nL5790| The 70-day publication lag for Census data will be computed with timedelta rather than hardcoded, since the exact date shifts between leap and non-leap years.\nL5790| \nL5790| The test will assert the 70-day lag via timedelta. A row is hidden before its publication date and visible on that date. The fetcher returns unavailable for malformed payloads.\nL5790| \nL5790| A unit test will mock a Census error response containing the API key and assert that the secret is stripped from the returned status.\nL5790| \nL5790| Census HS fetch parameters will be validated: commodity code 8542, level HS4, and a time range containing 2024-01. The IMPCH series is skipped when no API key is configured. The data audit query for industry spans will use a SQL join in the FROM clause.\nL5790| \nL5790| The `_span` helper interpolates its WHERE clause directly, so the source filter must be a quoted literal after validating it against `{fred, eia, census}`.\nL5790| \nL5790| The audit query will fall back to \"fred\" if the source is invalid. EIA ingestion is optional, so its failure notes are suppressed and it is excluded from replay macros. Unused imports such as fetch_eia should be removed, and remember_decisions in loop.py needs to be placed after size_position.\nL5790| \nL5790| remember_decisions is imported in baselines and called after plan_orders. The rules-only path stamps selected names against existing positions, so the next decision thesis gate works correctly. Equal-weight baseline uses _buy_cash directly and skips cooldowns. The sixty_forty and spy baselines also bypass plan_orders. compute_ratio_block may be slow but only runs for orders that reach that branch. apply_churn mutates order dictionaries in place, which is acceptable.\nL5790| \nL5790| The thesis gate correctly blocks buy top-ups when drift is absent. Weekly monitoring notes are appended once per non-rebalance day even if no orders execute, which is intended for daily runs. The audit impact of these notes is being checked.\nL5790| \nL5790| The weekly monitoring notes are not uncited facts; they are guard notes and churn notes. The simulation test only checks that equity remains positive and deterministic, so the weekly cooldown will not break it. On Monday the demo fixture capital of 1000 supports eight equal-weight positions at roughly 125 each, which clears the fifty-dollar floor and the fifteen-percent cap.\nL5790| \nL5790| Stop-loss and floor rules will be applied inside `orders_toward` alongside churn logic. A shared `_draft_orders` helper is being considered to unify the two order loops, though they currently diverge slightly on cap-reduction detection.\nL5790| \nL5790| A `_forced_stops` helper is being added to identify positions that have hit their stop-loss threshold. It calculates each lot’s average cost and flags tickers whose current price falls at or below the configured percentage below that average.\nL5790| \nL5790| A `_drawdown_review` helper is being added to flag portfolio drawdowns against the configured derisk threshold. In `plan_orders`, forced stops zero out raw weights before gap and side calculations, and the final trade gate will block orders when the gap is below the floor unless the reason is a hard trigger.\nL5790| \nL5790| A `_trade_reason` helper is being added to classify each order as a stop, cap reduction, drawdown, or rebalance. `orders_toward` will compute the `reduced` set by comparing raw weights against outcome weights. Forced stops will zero out targets before `enforce_caps`. Full exits that leave only a one-dollar position are dropped unless the reason is a hard trigger.\nL5790| \nL5790| Large positions may exit on rebalance day when the thesis allows it, provided the name is not selected and has no citation. The next step is to implement the files. A quick check of the test_phase2 rebalance case on 2024-06-03 will confirm whether the existing\nL5791 [assistant] (empty message)"
+    },
+    {
+     "label": "around the edit (L5803)",
+     "text": "L5800 [assistant] (empty message)\nL5801 [tool] TOOL: search_replace\nL5801| CODE_WRITTEN: \nL5801| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/src/ta/sim/portfolio.py\nL5801| +++ b//workspace/src/ta/sim/portfolio.py\nL5801| @@ -268,10 +268,10 @@\nL5801|          if reason != \"delisting\":\nL5801|              portfolio.exit_sessions[ticker] = session\nL5801|          del portfolio.positions[ticker]\nL5801| -    portfolio.last_trade_session[ticker] = session\nL5801|      else:\nL5801|          lot.qty = remaining\nL5801|          lot.cost = max(0.0, lot.cost - avg * qty)\nL5801| +    portfolio.last_trade_session[ticker] = session\nL5801|      fill = FillRecord(\nL5801|          ticker=ticker,\nL5801|          side=\"sell\",\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":1,\"linesAdded\":1}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL5802 [assistant] (empty message)\nL5803 [tool] TOOL: search_replace\nL5803| CODE_WRITTEN: \nL5803| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/src/ta/mcp_servers/portfolio_tools.py\nL5803| +++ b//workspace/src/ta/mcp_servers/portfolio_tools.py\nL5803| @@ -141,6 +141,43 @@\nL5803|      return score is not None and float(score) >= threshold\nL5803|  \nL5803|  \nL5803| +def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\nL5803| +    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\nL5803| +    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\nL5803| +    forced: set[str] = set()\nL5803| +    for ticker, lot in ctx.portfolio.positions.items():\nL5803| +        price = prices.get(ticker, 0.0)\nL5803| +        if price <= 0 or lot.qty <= 0:\nL5803| +            continue\nL5803| +        average = lot.cost / lot.qty\nL5803| +        if average > 0 and price <= average * (1.0 - stop_pct):\nL5803| +            forced.add(ticker)\nL5803| +    return forced\nL5803| +\nL5803| +\nL5803| +def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\nL5803| +    peak = ctx.portfolio.peak_equity\nL5803| +    if peak <= 0:\nL5803| +        return False\nL5803| +    return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\nL5803| +\nL5803| +\nL5803| +def _trade_reason(\nL5803| +    side: str,\nL5803| +    ticker: str,\nL5803| +    reduced: set[str],\nL5803| +    forced: set[str],\nL5803| +    review: bool,\nL5803| +) -> str:\nL5803| +    if side == \"sell\" and ticker in forced:\nL5803| +        return \"stop\"\nL5803| +    if side == \"sell\" and ticker in reduced:\nL5803| +        return \"cap_reduction\"\nL5803| +    if side == \"sell\" and review:\nL5803| +        return \"drawdown\"\nL5803| +    return \"rebalance\"\nL5803| +\nL5803| +\nL5803|  def remember_decisions(ctx: ToolContext, selected: l\nL5804 [assistant] (empty message)\nL5805 [tool] TOOL: search_replace\nL5806 [assistant] (empty message)"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that stop-loss orders would be classified as hard triggers and bypass the trade gate, but the _trade_reason helper only classifies orders without ensuring they are exempt from minimum trade size or cooldown checks.",
+  "why_it_breaks": "The agent created _forced_stops to identify stop-loss positions and _trade_reason to classify orders as 'stop', but never implemented the logic to treat 'stop' reasons as hard triggers that bypass the trade gate's minimum size and cooldown checks, causing the AAA stop-loss order to be rejected internally instead of executing.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5790,
+    "quote": "the final trade gate will block orders when the gap is below the floor unless the reason is a hard trigger.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 313,
+    "quote": "def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 322,
+    "quote": "if average > 0 and price <= average * (1.0 - stop_pct):",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5790,
+    "quote": "A `_trade_reason` helper is being added to classify each order as a stop, cap reduction, drawdown, or rebalance.",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 2
+ },
+ "pre_repair_answer": {
+  "overlooked_assumption": "The agent assumed that checking if price <= average * (1.0 - stop_pct) would trigger a stop-loss when the position is down 30%, but it used the wrong comparison operator.",
+  "why_it_breaks": "With stop_loss_pct configured as 0.20 (20%), the condition price <= average * (1.0 - 0.20) triggers only when price <= average * 0.80, meaning the position must be down 20% or more. However, AAA was down 30% (price = average * 0.70), which satisfies 0.70 <= 0.80, so the stop should have triggered. The bug must be elsewhere in the execution path - likely the stop-loss order was generated but then rejected by a different gate (thesis-change, cooldown, or minimum trade size) that the agent added as part of the anti-churn fixes, blocking even hard-trigger stops.",
+  "confidence": "medium",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5790,
+    "quote": "A `_forced_stops` helper is being added to identify positions that have hit their stop-loss threshold. It calculates each lot's average cost and flags tickers whose current price falls at or below the configured percentage below that average.",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 322,
+    "quote": "        if average > 0 and price <= average * (1.0 - stop_pct):",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 315,
+    "quote": "    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that stop-loss orders would be classified as hard triggers and bypass the trade gate, but the _trade_reason helper only classifies orders without ensuring they are exempt from minimum trade size or cooldown checks.",
+  "why_it_breaks": "The agent created _forced_stops to identify stop-loss positions and _trade_reason to classify orders as 'stop', but never implemented the logic to treat 'stop' reasons as hard triggers that bypass the trade gate's minimum size and cooldown checks, causing the AAA stop-loss order to be rejected internally instead of executing.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5790,
+    "quote": "the final trade gate will block orders when the gap is below the floor unless the reason is a hard trigger.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 313,
+    "quote": "def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 322,
+    "quote": "if average > 0 and price <= average * (1.0 - stop_pct):",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5790,
+    "quote": "A `_trade_reason` helper is being added to classify each order as a stop, cap reduction, drawdown, or rebalance.",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 2
+ }
+}

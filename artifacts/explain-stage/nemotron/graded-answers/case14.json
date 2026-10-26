@@ -1,0 +1,19 @@
+{
+ "case": "case14",
+ "overlooked_assumption": "The code assumes `end` is a valid calendar date that can have 5 years subtracted without hitting an invalid day (e.g., February 29 in a non-leap year).",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "line": 3567,
+   "quote": "start = end.replace(year=end.year - 5)"
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/replay.py",
+   "line": 322,
+   "quote": "start = end.replace(year=end.year - 5)"
+  }
+ ],
+ "why_it_breaks": "When `end` is February 29 of a leap year, subtracting 5 years via `end.replace(year=end.year - 5)` produces February 29 of a non-leap year (e.g., 2024 \u2192 2019), which Python's `date.replace()` rejects as 'day is out of range for month'. The bare `except Exception` in `_refresh_macro` catches this error but only records a generic failure message, losing the specific date context and allowing the crash to surface later during async execution.",
+ "confidence": "high"
+}

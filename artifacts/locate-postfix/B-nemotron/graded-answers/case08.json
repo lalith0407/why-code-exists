@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that altering a column's type does not affect data uniqueness constraints, so the existing signed condition check (readers_subset) would still prevent unsafe execution even after the type change widens the column and potentially changes how the uniqueness constraint is enforced.",
+ "why_it_breaks": "The `safe_plan` function generates a 2-step plan for `alter_type`: first a deprecation step, then the actual `ALTER TABLE ... TYPE` statement gated only on the `readers_subset` condition (the `gate`). The agent assumed that the signed conditions (reader access checks) would remain sufficient to prevent unsafe execution after the type change. However, widening a numeric column (e.g., from INT to BIGINT) can change how the database enforces uniqueness or how existing data is compared, and the original signed condition does not account for this new risk. The duplicate email issue arose because the schema change altered the column's type, which likely affected the uniqueness constraint or index behavior, and the reasoner's gate did not re-evaluate or adapt to this new risk - it simply reused the same conditions from before the schema change.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "code",
+   "file": "blast_radius/reasoner/base.py",
+   "line": 46,
+   "quote": "if action.kind == \"alter_type\":\n        return [deprecate, PlanStep(2, f\"Change the type of {action.target} after the window, only if every \\n                                         \\\"signed condition still holds\\\", action.sql, gate)]",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "transcript",
+   "file": "blast_radius/reasoner/base.py",
+   "line": 98,
+   "quote": "The other guarded kinds (rename, retype, truncate/unbounded delete/update) don't have as clean an intermediate column-level fallback, so they get a 2-step plan: announce/deprecate, then run the action itself gated on the same conditions.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

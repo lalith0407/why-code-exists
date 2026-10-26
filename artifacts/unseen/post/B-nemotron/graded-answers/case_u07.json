@@ -1,0 +1,26 @@
+{
+ "overlooked_assumption": "The agent assumed that a non-empty FrameworkPattern string would always be a valid glob pattern that could be used to match asset RelativePaths, without considering that the pattern might be malformed, empty after trimming, or that the matching logic would fail silently when no assets match, leaving SourceType unchanged and preventing framework asset discovery.",
+ "why_it_breaks": "When the FrameworkPattern is set but contains no valid glob patterns (e.g., empty string, only whitespace, or malformed patterns), the CreateFrameworkMatcher returns null (line 141-143). The matcher null-check then skips applying SourceType=Framework to any assets, so blazor.webassembly.js remains with SourceType=Discovered instead of being remapped to Framework. The browser then cannot find the file at _framework/blazor.webassembly.<fingerprint>.js because it is not recognized as a framework asset.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 141,
+   "quote": "if (string.IsNullOrEmpty(FrameworkPattern))\\n        {\\n            return null;\\n        }",
+   "verified": false,
+   "reason": "cited line does not exist"
+  },
+  {
+   "kind": "code",
+   "file": "src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs",
+   "line": 32,
+   "quote": "/// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).\\n/// Assets whose <c>RelativePath</c> matches any pattern will have their\\n/// <c>SourceType</c> set to <c>Framework</c>.\\n/// </summary>\\n    public string FrameworkPattern { get; set; }",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 0,
+ "verified_transcript_quotes": 0
+}

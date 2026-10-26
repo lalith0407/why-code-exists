@@ -1,0 +1,797 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "nemotron",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case13",
+  "complete": true,
+  "notes": [
+   "function _ask was introduced at L2926; the frame line itself was written at L250"
+  ],
+  "frame": {
+   "file": "src/ta/agents/loop.py",
+   "line": 476,
+   "function": "_ask"
+  },
+  "asked": {
+   "text": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 2870
+  },
+  "understood": {
+   "text": "The next focus is the main loop, memo system, CLI, and MCP server.\n\nDrafting the main loop in `loop.py`. The `decide` function will generate a run ID, set the gateway clock, fetch the universe as of a given timestamp, build and canonicalize the plan, store it with a SHA256 hash, and call the orchestrator to retrieve active guides.\n\nThe loop now fetches portfolio state from the orchestrator. It retrieves the market universe and filters for core and high-risk securities. It then calls price history and ratio computation for each security over a 200-day window.\n\nThe loop writes valuation observations to the research layer, linking each quality score to its ratio output. It then runs an LLM judge on the ratio results against screen rules.\n\nThe loop filters the LLM's selected securities to only those with known ratio outputs. It then queries the risk manager for portfolio state, sizes positions for the selected tickers, checks weight caps, and runs an option gate. Finally it writes a risk observation to the research layer.\n\nThe loop now renders the broker ticket from the sized orders. It constructs a claims list containing selected tickers, the risk opinion, the option gate fact, and per-ticker weight facts.\n\nThe loop now verifies claims through the citation verifier. It builds a memo from the analysis count, kept claims, and LLM judgment. The auditor diffs the memo against the kept claims. If the audit fails or warns, orders are discarded; otherwise trading proceeds. A question remains about whether to allow warn-level discrepancies.\n\nThe spec resolves the audit question: a warn-level discrepancy allows trading to proceed, while a fail blocks it. The loop now validates the rendered orders and returns them with statistics.\n\nObservation payloads are confirmed to contain no raw float values; only fact references carry numeric data. The total observation count is K plus one. An empty weights dictionary passed to check_caps is acceptable.\n\nThe loop still calls `size_position` when no tickers are selected. Weight claims use dot-notation paths like `weights.AAPL`. The option gate claim resolves to a boolean and renders safely. Opinion claims carry no fact references, so the validator keeps them. Fact claims require `log_entry_id` and `fact_refs`; the validator checks that ratio output IDs are known at verification time. `retrieved_at` is optional. The memo text will read \"Analysed {len(analysed)} stocks.\"\n\nThe audit tool will receive an explicit `in_progress` list. If a gateway tool raises an error, the loop catches it and aborts the decision, returning no orders with a failed audit note; the demo assumes tools do not raise. The prices query end date is confirmed to be exactly `as_of`.\n\nFact claims will be limited to tickers present in the cleaned weights dictionary, omitting zero-weight names. Notional dollar amounts for each selected ticker will be added as facts so the rendered ticket can cite exact dollar values; no notional claims are generated when no orders exist.\n\nNotional claims are safe for auditing because their outputs exist and log entries match. Claim JSON dumps handle dates correctly. The verify tool tolerates null citation IDs. Valuation observations use the label \"fact\" as an observation label, not a claim. Audit comparisons between guide versions require string-to-string alignment.\n\nPlan JSON round-trips cleanly through canonical storage and reconciliation. Dates convert to strings on dump but restore as dates on load. Integers like universe count survive unchanged. Guide versions stay consistent across plan build and tool execution.\n\nCanonical JSON output is hashed after rounding floats, so stored and reconciled hashes match. Every successful log entry carries a tool output; errors are excluded from plan counts and trigger a HIGH plan miss. The orchestrator and risk manager each get state once, for two total calls. The audit report model will be captured from the tool output.\n\nEpisode-level citation accuracy will be computed as kept facts divided by total facts, with opinion claims excluded from the fact count. Chain status will be tracked per episode. Baseline agents will run after the main agent to avoid portfolio interference; they share the read-only store but maintain independent books.\n\nBaseline agents will recompute ratios on every decision day without writing to the store. Their performance excludes agent trades, and the spy comparison uses matching dates. The main loop will snapshot state, insert trades after advancing the clock, and use the decision index as the gateway session index. A readable report formatter will render the memo with percent-formatted TWR. The CLI and MCP server entry points are being added, and an unused sectors variable will be cleaned up.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L248 (assistant, 750 words, 2 line(s) before the edit at L250)",
+   "valid": true,
+   "full_length": 4768
+  },
+  "happened": {
+   "text": "Audit finding: an automated fact-check approved a written claim that cites a position-sizing result for AAPL, but the actual position-sizing output it points to only contains a result for MSFT — there is no AAPL entry in it at all.\n\nThe claim was kept (1 of 1 claims passed this check) and shipped in the final report as if it were verified against real data.\n\n  at _ask (src/ta/agents/loop.py:476)\n  476: kept = verified.output[\"kept\"]\n\nWritten by transcript edit L250 (search_replace):\n+    )\n+    verified = gateway.call(\n+        \"citation_verifier\",\n+        \"verify.citations\",\n+        {\"claims\": [claim.model_dump(mode=\"json\") for claim in raw_claims]},\n+    )\n+    kept = verified.output[\"kept\"]\n+    dropped = verified.output[\"dropped\"]\n+    body = (\n+        f\"Analysed {len(analysed)} stocks.\\\n+        + \"\\\n+    )\n+    audit = gateway.call(",
+   "citation": "error case13 frame src/ta/agents/loop.py:476; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L250",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Audit finding: an automated fact-check approved a written claim that cites a position-sizing result for AAPL, but the actual position-sizing output it points to only contains a result for MSFT — there is no AAPL entry in it at all.\n\nThe claim was kept (1 of 1 claims passed this check) and shipped in the final report as if it were verified against real data.\n",
+  "terms": [
+   "audit finding",
+   "aapl entry in it",
+   "the claim was kept",
+   "1",
+   "audit",
+   "finding",
+   "automated",
+   "fact",
+   "check",
+   "approved",
+   "written",
+   "claim",
+   "cites",
+   "position",
+   "sizing",
+   "result",
+   "aapl",
+   "actual",
+   "output",
+   "points",
+   "contains",
+   "msft",
+   "entry",
+   "kept",
+   "claims",
+   "passed",
+   "shipped",
+   "final",
+   "report",
+   "verified",
+   "against",
+   "real",
+   "data"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "src/ta/agents/loop.py",
+     "line": 476,
+     "end_line": 378,
+     "text": "    kept = verified.output[\"kept\"]",
+     "function": "_ask",
+     "score": 37.6647,
+     "matched_terms": [
+      "audit",
+      "entry",
+      "claim",
+      "kept",
+      "fact",
+      "check",
+      "position",
+      "result",
+      "output",
+      "claims",
+      "report",
+      "verified",
+      "against",
+      "data"
+     ],
+     "edit_line": 250,
+     "tool": "search_replace",
+     "hunk_id": "L250#90",
+     "snippet": "1: \"\"\"One research decision, and the episode that steps the simulator around it.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date, timedelta\n7: \n8: from ta.actionlog.writer import ActionLog\n9: from ta.agents.mock_llm import MockLLM\n10: from ta.agents.orchestrator import build_plan",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 214,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 213,
+       "text": "    )"
+      },
+      {
+       "line": 214,
+       "text": "    kept = verified.output[\"kept\"]"
+      },
+      {
+       "line": 215,
+       "text": "    dropped = verified.output[\"dropped\"]"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/audit/reconciler.py",
+     "line": 15,
+     "end_line": 228,
+     "text": "from ta.models import AuditReport, Claim, Discrepancy, RunPlan",
+     "score": 32.6746,
+     "matched_terms": [
+      "audit",
+      "entry",
+      "claim",
+      "kept",
+      "fact",
+      "actual",
+      "output",
+      "claims",
+      "report",
+      "against"
+     ],
+     "edit_line": 136,
+     "tool": "search_replace",
+     "hunk_id": "L136#47",
+     "snippet": "1: \"\"\"Deterministic audit.diff.\n2: \n3: Activity sentences such as \"analysed 20 stocks\" are checked against tool outputs.\n4: A miss is HIGH and the caller strikes the sentence. FactRefs must point at a stored\n5: output whose hash matches the log.\n6: \"\"\"\n7: \n8: from __future__ import annotations\n9: \n10: import json",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 15,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 14,
+       "text": "from ta.ids import sha256_text"
+      },
+      {
+       "line": 15,
+       "text": "from ta.models import AuditReport, Claim, Discrepancy, RunPlan"
+      },
+      {
+       "line": 16,
+       "text": ""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/verify_tools.py",
+     "line": 38,
+     "end_line": 44,
+     "text": "@tool(\"verify.lookup_fact\", \"0.1.0\", \"Resolve a FactRef against the stored tool output.\")",
+     "function": "citations",
+     "score": 31.9131,
+     "matched_terms": [
+      "entry",
+      "claim",
+      "kept",
+      "fact",
+      "output",
+      "claims",
+      "against"
+     ],
+     "edit_line": 162,
+     "tool": "search_replace",
+     "hunk_id": "L162#57",
+     "snippet": "1: \"\"\"Citation tool wrapper around the deterministic validator.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import json\n6: from typing import Any\n7: \n8: from ta.harness.context import ToolContext\n9: from ta.mcp_servers.registry import tool\n10: from ta.models import Claim",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 31,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 30,
+       "text": ""
+      },
+      {
+       "line": 31,
+       "text": "@tool(\"verify.lookup_fact\", \"0.1.0\", \"Resolve a FactRef against the stored tool output.\")"
+      },
+      {
+       "line": 32,
+       "text": "def lookup_fact(ctx: ToolContext, output_id: str, json_path: str) -> dict[str, Any]:"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/memo/render.py",
+     "line": 0,
+     "end_line": 139,
+     "text": "        f\"Log-verified claim rate: {_pct(result.reward.log_verified_claim_rate)}.\",",
+     "function": "_cost_lines",
+     "score": 28.3977,
+     "matched_terms": [
+      "audit",
+      "entry",
+      "claim",
+      "result",
+      "output",
+      "final",
+      "report",
+      "verified",
+      "against"
+     ],
+     "edit_line": 264,
+     "tool": "search_replace",
+     "hunk_id": "L264#92",
+     "snippet": "1: \"\"\"Render an episode. Resolved numbers are labelled as simulator output, not as alpha.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from ta.config import Settings\n6: from ta.models import PerformanceReport\n7: \n8: \n9: def _pct(value: float | None) -> str:\n10:     if value is None:",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 60,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 59,
+       "text": "        f\"Rule compliance: {_pct(result.reward.rule_compliance)}.\","
+      },
+      {
+       "line": 60,
+       "text": "        f\"Log-verified claim rate: {_pct(result.reward.log_verified_claim_rate)}.\","
+      },
+      {
+       "line": 61,
+       "text": "        \"\","
+      }
+     ],
+     "anchor": "unanchored"
+    },
+    {
+     "file": "src/ta/agents/loop.py",
+     "line": 156,
+     "end_line": 166,
+     "text": "    \"\"\"Fraction inputs: fact claims whose FactRef output and log entry both exist.\"\"\"",
+     "function": "_claims_for",
+     "score": 27.8373,
+     "matched_terms": [
+      "entry",
+      "claim",
+      "fact",
+      "output",
+      "claims"
+     ],
+     "edit_line": 3538,
+     "tool": "search_replace",
+     "hunk_id": "L3538#508",
+     "snippet": "145: def log_backed_counts(store: Store, run_id: str, claims: list[Claim]) -> tuple[int, int]:\n146:     \"\"\"Fraction inputs: fact claims whose FactRef output and log entry both exist.\"\"\"\n147:     outputs = {row[\"output_id\"]: row for row in store.tool_outputs_for_run(run_id)}\n148:     facts = 0\n149:     backed = 0\n150:     for claim in claims:\n151:         if claim.kind != \"fact\":\n152:             continue\n153:         facts += 1\n154:         if not claim.fact_refs or not claim.log_entry_id:",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 146,
+     "hunk_start": 145,
+     "context_lines": [
+      {
+       "line": 145,
+       "text": "def log_backed_counts(store: Store, run_id: str, claims: list[Claim]) -> tuple[int, int]:"
+      },
+      {
+       "line": 146,
+       "text": "    \"\"\"Fraction inputs: fact claims whose FactRef output and log entry both exist.\"\"\""
+      },
+      {
+       "line": 147,
+       "text": "    outputs = {row[\"output_id\"]: row for row in store.tool_outputs_for_run(run_id)}"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/verify/citations.py",
+     "line": 31,
+     "end_line": 67,
+     "text": "def validate_claims(claims: list[Claim], known_output_ids: set[str]) -> tuple[list[Claim], list[dict[str, str]]]:",
+     "function": "validate_claims",
+     "score": 27.3905,
+     "matched_terms": [
+      "entry",
+      "claim",
+      "kept",
+      "fact",
+      "output",
+      "claims"
+     ],
+     "edit_line": 132,
+     "tool": "search_replace",
+     "hunk_id": "L132#45",
+     "snippet": "1: \"\"\"Drop uncited factual claims and strip bare numbers from prose.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import re\n6: \n7: from ta.models import Claim\n8: \n9: _CITE = re.compile(r\"\\\\[F-\\\\d+\\\\]\")\n10: _NUMBER = re.compile(r\"(?<![A-Za-z0-9.])(-?\\\\d+(?:\\\\.\\\\d+)?%?)(?![A-Za-z0-9.])\")",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 31,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 30,
+       "text": ""
+      },
+      {
+       "line": 31,
+       "text": "def validate_claims(claims: list[Claim], known_output_ids: set[str]) -> tuple[list[Claim], list[dict[str, str]]]:"
+      },
+      {
+       "line": 32,
+       "text": "    \"\"\"Facts without a FactRef and a log entry are discarded. Opinions may stay.\"\"\""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/agents/loop.py",
+     "line": 230,
+     "end_line": 153,
+     "text": "def _keep_after_reopen(gateway: Gateway, claims: list[Claim]) -> list[Claim]:",
+     "function": "_claims_for",
+     "score": 27.2965,
+     "matched_terms": [
+      "claim",
+      "kept",
+      "fact",
+      "output",
+      "claims"
+     ],
+     "edit_line": 1041,
+     "tool": "search_replace",
+     "hunk_id": "L1041#200",
+     "snippet": "125: def _leaf(path: str) -> str:\n126:     return path.rsplit(\".\", 1)[-1]\n127: \n128: \n129: def _keep_after_reopen(gateway: Gateway, claims: list[Claim]) -> list[Claim]:\n130:     \"\"\"Re-read each fact. Drop it when the hash misses or the cited leaf is absent.\"\"\"\n131:     kept: list[Claim] = []\n132:     for claim in claims:\n133:         if claim.kind != \"fact\" or not claim.fact_refs:\n134:             kept.append(claim)",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 129,
+     "hunk_start": 125,
+     "context_lines": [
+      {
+       "line": 128,
+       "text": ""
+      },
+      {
+       "line": 129,
+       "text": "def _keep_after_reopen(gateway: Gateway, claims: list[Claim]) -> list[Claim]:"
+      },
+      {
+       "line": 130,
+       "text": "    \"\"\"Re-read each fact. Drop it when the hash misses or the cited leaf is absent.\"\"\""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/memo/render.py",
+     "line": 176,
+     "end_line": 120,
+     "text": "        f\"Claims backed by the log: {_pct(result.reward.log_verified_claim_rate)}.\",",
+     "function": "_book_lines",
+     "score": 23.2237,
+     "matched_terms": [
+      "claim",
+      "result",
+      "claims",
+      "verified"
+     ],
+     "edit_line": 3542,
+     "tool": "search_replace",
+     "hunk_id": "L3542#510",
+     "snippet": "120:         f\"Claims backed by the log: {_pct(result.reward.log_verified_claim_rate)}.\",",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 120,
+     "hunk_start": 120,
+     "context_lines": [
+      {
+       "line": 120,
+       "text": "        f\"Claims backed by the log: {_pct(result.reward.log_verified_claim_rate)}.\","
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/agents/mock_llm.py",
+     "line": 26,
+     "end_line": 35,
+     "text": "                    fact_refs=[FactRef(output_id=result.output_id, json_path=\"quality_score\")],",
+     "function": "judge_fundamentals",
+     "score": 20.7741,
+     "matched_terms": [
+      "entry",
+      "kept",
+      "fact",
+      "result",
+      "output"
+     ],
+     "edit_line": 243,
+     "tool": "search_replace",
+     "hunk_id": "L243#87",
+     "snippet": "1: \"\"\"Deterministic stand-in for the analyst. It ranks tool fields; it does not recompute them.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from ta.models import AnalystJudgement, AnalystSelection, FactRef, ToolResult\n6: \n7: \n8: class MockLLM:\n9:     mode = \"mock\"\n10: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 26,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 25,
+       "text": "                    ticker=result.output[\"ticker\"],"
+      },
+      {
+       "line": 26,
+       "text": "                    fact_refs=[FactRef(output_id=result.output_id, json_path=\"quality_score\")],"
+      },
+      {
+       "line": 27,
+       "text": "                    log_entry_id=result.log_entry_id,"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/agents/loop.py",
+     "line": 469,
+     "end_line": 406,
+     "text": "    fact_claims, log_backed = log_backed_counts(gateway.store, run_id, proposed)",
+     "function": "run_decision",
+     "score": 20.6388,
+     "matched_terms": [
+      "entry",
+      "fact",
+      "output",
+      "claims"
+     ],
+     "edit_line": 3532,
+     "tool": "search_replace",
+     "hunk_id": "L3532#505",
+     "snippet": "395:     proposed = _claims_for(\n396:         judgement,\n397:         {\n398:             **sized.output,\n399:             \"output_id\": sized.output_id,\n400:             \"log_entry_id\": sized.log_entry_id,\n401:         },\n402:         gate,\n403:         as_of,\n405:     fact_claims, log_backed = log_backed_counts(gateway.store, run_id, proposed)",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 405,
+     "hunk_start": 395,
+     "context_lines": [
+      {
+       "line": 403,
+       "text": "        as_of,"
+      },
+      {
+       "line": 405,
+       "text": "    fact_claims, log_backed = log_backed_counts(gateway.store, run_id, proposed)"
+      },
+      {
+       "line": 406,
+       "text": "    raw_claims = _keep_after_reopen(gateway, proposed)"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "src/ta/agents/loop.py",
+    "line": 476,
+    "end_line": 378,
+    "text": "    kept = verified.output[\"kept\"]",
+    "function": "_ask",
+    "score": 37.6647,
+    "matched_terms": [
+     "audit",
+     "entry",
+     "claim",
+     "kept",
+     "fact",
+     "check",
+     "position",
+     "result",
+     "output",
+     "claims",
+     "report",
+     "verified",
+     "against",
+     "data"
+    ],
+    "edit_line": 250,
+    "tool": "search_replace",
+    "hunk_id": "L250#90",
+    "snippet": "1: \"\"\"One research decision, and the episode that steps the simulator around it.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date, timedelta\n7: \n8: from ta.actionlog.writer import ActionLog\n9: from ta.agents.mock_llm import MockLLM\n10: from ta.agents.orchestrator import build_plan",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 214,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 213,
+      "text": "    )"
+     },
+     {
+      "line": 214,
+      "text": "    kept = verified.output[\"kept\"]"
+     },
+     {
+      "line": 215,
+      "text": "    dropped = verified.output[\"dropped\"]"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/ta/audit/reconciler.py",
+    "line": 15,
+    "end_line": 228,
+    "text": "from ta.models import AuditReport, Claim, Discrepancy, RunPlan",
+    "score": 32.6746,
+    "matched_terms": [
+     "audit",
+     "entry",
+     "claim",
+     "kept",
+     "fact",
+     "actual",
+     "output",
+     "claims",
+     "report",
+     "against"
+    ],
+    "edit_line": 136,
+    "tool": "search_replace",
+    "hunk_id": "L136#47",
+    "snippet": "1: \"\"\"Deterministic audit.diff.\n2: \n3: Activity sentences such as \"analysed 20 stocks\" are checked against tool outputs.\n4: A miss is HIGH and the caller strikes the sentence. FactRefs must point at a stored\n5: output whose hash matches the log.\n6: \"\"\"\n7: \n8: from __future__ import annotations\n9: \n10: import json",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 15,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 14,
+      "text": "from ta.ids import sha256_text"
+     },
+     {
+      "line": 15,
+      "text": "from ta.models import AuditReport, Claim, Discrepancy, RunPlan"
+     },
+     {
+      "line": 16,
+      "text": ""
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/ta/mcp_servers/verify_tools.py",
+    "line": 38,
+    "end_line": 44,
+    "text": "@tool(\"verify.lookup_fact\", \"0.1.0\", \"Resolve a FactRef against the stored tool output.\")",
+    "function": "citations",
+    "score": 31.9131,
+    "matched_terms": [
+     "entry",
+     "claim",
+     "kept",
+     "fact",
+     "output",
+     "claims",
+     "against"
+    ],
+    "edit_line": 162,
+    "tool": "search_replace",
+    "hunk_id": "L162#57",
+    "snippet": "1: \"\"\"Citation tool wrapper around the deterministic validator.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import json\n6: from typing import Any\n7: \n8: from ta.harness.context import ToolContext\n9: from ta.mcp_servers.registry import tool\n10: from ta.models import Claim",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 31,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 30,
+      "text": ""
+     },
+     {
+      "line": 31,
+      "text": "@tool(\"verify.lookup_fact\", \"0.1.0\", \"Resolve a FactRef against the stored tool output.\")"
+     },
+     {
+      "line": 32,
+      "text": "def lookup_fact(ctx: ToolContext, output_id: str, json_path: str) -> dict[str, Any]:"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "src/ta/agents/loop.py",
+   "line": 476,
+   "end_line": 378,
+   "text": "    kept = verified.output[\"kept\"]",
+   "function": "_ask",
+   "score": 37.6647,
+   "matched_terms": [
+    "audit",
+    "entry",
+    "claim",
+    "kept",
+    "fact",
+    "check",
+    "position",
+    "result",
+    "output",
+    "claims",
+    "report",
+    "verified",
+    "against",
+    "data"
+   ],
+   "edit_line": 250,
+   "tool": "search_replace",
+   "hunk_id": "L250#90",
+   "snippet": "1: \"\"\"One research decision, and the episode that steps the simulator around it.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date, timedelta\n7: \n8: from ta.actionlog.writer import ActionLog\n9: from ta.agents.mock_llm import MockLLM\n10: from ta.agents.orchestrator import build_plan",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 214,
+   "hunk_start": 1,
+   "context_lines": [
+    {
+     "line": 213,
+     "text": "    )"
+    },
+    {
+     "line": 214,
+     "text": "    kept = verified.output[\"kept\"]"
+    },
+    {
+     "line": 215,
+     "text": "    dropped = verified.output[\"dropped\"]"
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic"
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 25136,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:src/ta/agents/loop.py (over budget)",
+    "transcript_window:reasoning mentioning \"_ask\" (L2919) (over budget)",
+    "transcript_window:reasoning mentioning \"_ask\" (L2853) (over budget)",
+    "transcript_window:reasoning mentioning \"_ask\" (L2848) (over budget)",
+    "transcript_window:reasoning mentioning \"_ask\" (L2843) (over budget)",
+    "transcript_window:reasoning mentioning \"_ask\" (L2619) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Audit finding: an automated fact-check approved a written claim that cites a position-sizing result for AAPL, but the actual position-sizing output it points to only contains a result for MSFT — there is no AAPL entry in it at all.\n\nThe claim was kept (1 of 1 claims passed this check) and shipped in the final report as if it were verified against real data.",
+   "edit": {
+    "file": "ta/agents/loop.py",
+    "line": 476,
+    "hunk": "+    )\n+    verified = gateway.call(\n+        \"citation_verifier\",\n+        \"verify.citations\",\n+        {\"claims\": [claim.model_dump(mode=\"json\") for claim in raw_claims]},\n+    )\n+    kept = verified.output[\"kept\"]\n+    dropped = verified.output[\"dropped\"]\n+    body = (\n+        f\"Analysed {len(analysed)} stocks.\\\n+        + \"\\\n+    )\n+    audit = gateway.call("
+   },
+   "code_window": "456:         {\"orders\": sized.output.get(\"orders\", [])},\n457:     )\n458: \n459:     proposed = _claims_for(\n460:         judgement,\n461:         {\n462:             **sized.output,\n463:             \"output_id\": sized.output_id,\n464:             \"log_entry_id\": sized.log_entry_id,\n465:         },\n466:         gate,\n467:         as_of,\n468:     )\n469:     fact_claims, log_backed = log_backed_counts(gateway.store, run_id, proposed)\n470:     raw_claims = _keep_after_reopen(gateway, proposed)\n471:     verified = gateway.call(\n472:         \"citation_verifier\",\n473:         \"verify.citations\",\n474:         {\"claims\": [claim.model_dump(mode=\"json\") for claim in raw_claims]},\n475:     )\n476:     kept = verified.output[\"kept\"]\n477:     body = (\n478:         f\"Analysed {len(analysed)} stocks.\\n\"\n479:         + \"\\n\".join(claim[\"text\"] for claim in kept)\n480:     )\n481:     audit = gateway.call(\n482:         \"auditor\",\n483:         \"audit.diff\",\n484:         {\"memo_text\": body, \"claims\": kept, \"in_progress\": [\"audit.diff\"]},\n485:     )\n486:     status = audit.output[\"status\"]\n487:     memo = body\n488:     notes = list(sized.output.get(\"churn_notes\") or [])\n489:     if status == \"fail\":\n490:         memo = \"[memo blocked: audit failed]\\n\" + \"\\n\".join(\n491:             item[\"message\"] for item in audit.output.get(\"discrepancies\", [])\n492:         )\n493:         orders: list[OrderIntent] = []\n494:     else:\n495:         orders = [OrderIntent.model_validate(order) for order in sized.output.get(\"orders\", [])]\n496:     if getattr(judgement, \"skipped\", False):",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "ta/agents/loop.py",
+     "line": 476,
+     "function": "_ask",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 37.6647,
+     "method": "deterministic_bm25",
+     "text": "471:     verified = gateway.call(\n472:         \"citation_verifier\",\n473:         \"verify.citations\",\n474:         {\"claims\": [claim.model_dump(mode=\"json\") for claim in raw_claims]},\n475:     )\n476:     kept = verified.output[\"kept\"]\n477:     body = (\n478:         f\"Analysed {len(analysed)} stocks.\\n\"\n479:         + \"\\n\".join(claim[\"text\"] for claim in kept)\n480:     )\n481:     audit = gateway.call("
+    },
+    {
+     "label": "candidate 2",
+     "file": "ta/audit/reconciler.py",
+     "line": 15,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 32.6746,
+     "method": "deterministic_bm25",
+     "text": "10: import json\n11: import re\n12: from collections import Counter\n13: \n14: from ta.ids import sha256_text\n15: from ta.models import AuditReport, Claim, Discrepancy, RunPlan\n16: \n17: _ACTIVITY = (\n18:     (re.compile(r\"\\banalysed\\s+(\\d+)\\s+stocks\\b\", re.IGNORECASE), \"stocks_analysed\"),\n19:     (re.compile(r\"\\banalyzed\\s+(\\d+)\\s+stocks\\b\", re.IGNORECASE), \"stocks_analysed\"),\n20:     (re.compile(r\"\\bread\\s+(\\d+)\\s+filings\\b\", re.IGNORECASE), \"filings_read\"),"
+    },
+    {
+     "label": "candidate 3",
+     "file": "ta/mcp_servers/verify_tools.py",
+     "line": 38,
+     "function": "citations",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 31.9131,
+     "method": "deterministic_bm25",
+     "text": "33:         \"kept_count\": len(kept),\n34:         \"dropped_count\": len(dropped),\n35:     }\n36: \n37: \n38: @tool(\"verify.lookup_fact\", \"0.1.0\", \"Resolve a FactRef against the stored tool output.\")\n39: def lookup_fact(ctx: ToolContext, output_id: str, json_path: str) -> dict[str, Any]:\n40:     row = ctx.store.get_tool_output(output_id)\n41:     if row is None:\n42:         return {\"found\": False, \"output_id\": output_id}\n43:     payload = json.loads(row[\"output_json\"])"
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+    "understood": "The next focus is the main loop, memo system, CLI, and MCP server.\n\nDrafting the main loop in `loop.py`. The `decide` function will generate a run ID, set the gateway clock, fetch the universe as of a given timestamp, build and canonicalize the plan, store it with a SHA256 hash, and call the orchestrator to retrieve active guides.\n\nThe loop now fetches portfolio state from the orchestrator. It retrieves the market universe and filters for core and high-risk securities. It then calls price history and ratio computation for each security over a 200-day window.\n\nThe loop writes valuation observations to the research layer, linking each quality score to its ratio output. It then runs an LLM judge on the ratio results against screen rules.\n\nThe loop filters the LLM's selected securities to only those with known ratio outputs. It then queries the risk manager for portfolio state, sizes positions for the selected tickers, checks weight caps, and runs an option gate. Finally it writes a risk observation to the research layer.\n\nThe loop now renders the broker ticket from the sized orders. It constructs a claims list containing selected tickers, the risk opinion, the option gate fact, and per-ticker weight facts.\n\nThe loop now verifies claims through the citation verifier. It builds a memo from the analysis count, kept claims, and LLM judgment. The auditor diffs the memo against the kept claims. If the audit fails or warns, orders are discarded; otherwise trading proceeds. A question remains about whether to allow warn-level discrepancies.\n\nThe spec resolves the audit question: a warn-level discrepancy allows trading to proceed, while a fail blocks it. The loop now validates the rendered orders and returns them with statistics.\n\nObservation payloads are confirmed to contain no raw float values; only fact references carry numeric data. The total observation count is K plus one. An empty weights dictionary passed to check_caps is acceptable.\n\nThe loop still calls `size_position` when no tickers are selected. Weight claims use dot-notation paths like `weights.AAPL`. The option gate claim resolves to a boolean and renders safely. Opinion claims carry no fact references, so the validator keeps them. Fact claims require `log_entry_id` and `fact_refs`; the validator checks that ratio output IDs are known at verification time. `retrieved_at` is optional. The memo text will read \"Analysed {len(analysed)} stocks.\"\n\nThe audit tool will receive an explicit `in_progress` list. I",
+    "happened": "Audit finding: an automated fact-check approved a written claim that cites a position-sizing result for AAPL, but the actual position-sizing output it points to only contains a result for MSFT — there is no AAPL entry in it at all.\n\nThe claim was kept (1 of 1 claims passed this check) and shipped in the final report as if it were verified against real data.\n\n  at _ask (src/ta/agents/loop.py:476)\n  476: kept = verified.output[\"kept\"]\n\nWritten by transcript edit L250 (search_replace):\n+    )\n+    verified = gateway.call(\n+        \"citation_verifier\",\n+        \"verify.citations\",\n+        {\"claims\": [claim.model_dump(mode=\"json\") for claim in raw_claims]},\n+    )\n+    kept = verified.output[\"kept\"]\n+    dropped = verified.output[\"dropped\"]\n+    body = (\n+        f\"Analysed {len(analysed)} stocks.\\\n+        + \"\\\n+    )\n+    audit = gateway.call("
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L250)",
+     "text": "L247 [tool] TOOL: search_replace\nL247| CODE_WRITTEN: \nL247| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL247| +++ b//workspace/src/ta/agents/orchestrator.py\nL247| @@ -1,0 +1,56 @@\nL247| +\"\"\"Build the RunPlan. This agent does not analyse or size.\"\"\"\nL247| +\nL247| +from __future__ import annotations\nL247| +\nL247| +from datetime import date\nL247| +\nL247| +from ta.config import Settings\nL247| +from ta.models import RunPlan, Security, ToolExpectation\nL247| +\nL247| +\nL247| +def _analysed(universe: list[Security]) -> list[Security]:\nL247| +    return [security for security in universe if security.sleeve in {\"core\", \"high_risk\"}]\nL247| +\nL247| +\nL247| +def build_plan(\nL247| +    *,\nL247| +    run_id: str,\nL247| +    as_of: date,\nL247| +    trigger: str,\nL247| +    universe: list[Security],\nL247| +    settings: Settings,\nL247| +) -> RunPlan:\nL247| +    analysed = _analysed(universe)\nL247| +    count = len(analysed)\nL247| +    expected = [\nL247| +        ToolExpectation(tool=\"guides.get_active\", min_calls=1, max_calls=1),\nL247| +        ToolExpectation(tool=\"portfolio.get_state\", min_calls=2, max_calls=2),\nL247| +        ToolExpectation(tool=\"market.universe_asof\", min_calls=1, max_calls=1),\nL247| +        ToolExpectation(tool=\"market.prices_eod\", min_calls=count, max_calls=count),\nL247| +        ToolExpectation(tool=\"fund.compute_ratios\", min_calls=count, max_calls=count),\nL247| +        ToolExpectation(tool=\"research.write_observation\", min_calls=count + 1, max_calls=count + 1),\nL247| +        ToolExpectation(tool=\"portfolio.size_position\", min_calls=1, max_calls=1),\nL247| +        ToolExpectation(tool=\"risk.check_caps\", min_calls=1, max_calls=1),\nL247| +        ToolExpectation(tool=\"risk.option_gate\", min_call\nL248 [assistant] THINKING: The next focus is the main loop, memo system, CLI, and MCP server.\nL248| \nL248| Drafting the main loop in `loop.py`. The `decide` function will generate a run ID, set the gateway clock, fetch the universe as of a given timestamp, build and canonicalize the plan, store it with a SHA256 hash, and call the orchestrator to retrieve active guides.\nL248| \nL248| The loop now fetches portfolio state from the orchestrator. It retrieves the market universe and filters for core and high-risk securities. It then calls price history and ratio computation for each security over a 200-day window.\nL248| \nL248| The loop writes valuation observations to the research layer, linking each quality score to its ratio output. It then runs an LLM judge on the ratio results against screen rules.\nL248| \nL248| The loop filters the LLM's selected securities to only those with known ratio outputs. It then queries the risk manager for portfolio state, sizes positions for the selected tickers, checks weight caps, and runs an option gate. Finally it writes a risk observation to the research layer.\nL248| \nL248| The loop now renders the broker ticket from the sized orders. It constructs a claims list containing selected tickers, the risk opinion, the option gate fact, and per-ticker weight facts.\nL248| \nL248| The loop now verifies claims through the citation verifier. It builds a memo from the analysis count, kept claims, and LLM judgment. The auditor diffs the memo against the kept claims. If the audit fails or warns, orders are discarded; otherwise trading proceeds. A question remains about whether to allow warn-level discrepancies.\nL248| \nL248| The spec resolves the audit question: a warn-level discrepancy allows trading to proceed, while a fail blocks it. The loop now validates the rendered orders and returns them with statistics.\nL248| \nL248| Observation payloads are confirmed to contain no raw float values; only fact references carry numeric data. The total observation count is K plus one. An empty weights dictionary passed to check_caps is acceptable.\nL248| \nL248| The loop still calls `size_position` when no tickers are selected. Weight claims use dot-notation paths like `weights.AAPL`. The option gate claim resolves to a boolean and renders safely. Opinion claims carry no fact references, so the validator keeps them. Fact claims require `log_entry_id` and `fact_refs`; the validator checks that ratio output IDs are known at verification time. `retrieved_at` is optional. The memo text will read \"Analysed {len(analysed)} stocks.\"\nL248| \nL248| The audit tool will receive an explicit `in_progress` list. If a gateway tool raises an error, the loop catches it and aborts the decision, returning no orders with a failed audit note; the demo assumes tools do not raise. The prices query end date is confirmed to be exactly `as_of`.\nL248| \nL248| Fact claims will be limited to tickers present in the cleaned weights dictionary, omitting zero-weight names. Notional dollar amounts for each selected ticker will be added as facts so the rendered ticket can cite exact dollar values; no notional claims are generated when no orders exist.\nL248| \nL248| Notional claims are safe for auditing because their outputs exist and log entries match. Claim JSON dumps handle dates correctly. The verify tool tolerates null citation IDs. Valuation observations use the label \"fact\" as an observation label, not a claim. Audit comparisons between guide versions require string-to-string alignment.\nL248| \nL248| Plan JSON round-trips cleanly through canonical storage and reconciliation. Dates convert to strings on dump but restore as dates on load. Integers like universe count survive unchanged. Guide versions stay consistent across plan build and tool execution.\nL248| \nL248| Canonical JSON output is hashed after rounding floats, so stored and reconciled hashes match. Every successful log entry carries a tool output; errors are excluded from plan counts and trigger a HIGH plan miss. The orchestrator and risk manager each get state once, for two total calls. The audit report model will be captured from the tool output.\nL248| \nL248| Episode-level citation accuracy will be computed as kept facts divided by total facts, with opinion claims excluded from the fact count. Chain status will be tracked per episode. Baseline agents will run after the main agent to avoid portfolio interference; they share the read-only store but maintain independent books.\nL248| \nL248| Baseline agents will recompute ratios on every decision day without writing to the store. Their performance excludes agent trades, and the spy comparison uses matching dates. The main loop will snapshot state, insert trades after advancing the clock, and use the decision index as the gateway session index. A readable report formatter will render the memo with percent-formatted TWR. The CLI and MCP server entry points are being added, and an unused sectors variable will be cleaned up.\nL249 [assistant] (empty message)\nL250 [tool] TOOL: search_replace\nL250| CODE_WRITTEN: \nL250| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL250| +++ b//workspace/src/ta/agents/loop.py\nL250| @@ -1,0 +1,378 @@\nL250| +\"\"\"One research decision, and the episode that steps the simulator around it.\"\"\"\nL250| +\nL250| +from __future__ import annotations\nL250| +\nL250| +from dataclasses import dataclass, field\nL250| +from datetime import date, timedelta\nL250| +\nL250| +from ta.actionlog.writer import ActionLog\nL250| +from ta.agents.mock_llm import MockLLM\nL250| +from ta.agents.orchestrator import build_plan\nL250| +from ta.agents.sdk import AnthropicLLM\nL250| +from ta.audit.reconciler import strike_unbacked_activity\nL250| +from ta.config import Settings\nL250| +from ta.data.store import Store\nL250| +from ta.harness.gateway import Gateway\nL250| +from ta.ids import canonical_json, new_id, sha256_text\nL250| +from ta.models import Claim, FactRef, OrderIntent, PerformanceReport, RewardVector, SourceRef\nL250| +from ta.sim.baselines import equal_weight_buy_hold, rules_only, sixty_forty, spy_buy_hold\nL250| +from ta.sim.engine import advance, fresh_book\nL250| +from ta.sim.metrics import build_reward, performance\nL250| +from ta.sim.portfolio import Portfolio\nL250| +\nL250| +\nL250| +@dataclass\nL250| +class DecisionRecord:\nL250| +    run_id: str\nL250| +    as_of: date\nL250| +    orders: list[OrderIntent]\nL250| +    audit_status: str\nL250| +    kept_facts: int\nL250| +    dropped_facts: int\nL250| +    memo: str\nL250| +    violations: list[dict]\nL250| +    guard_notes: list[str] = field(default_factory=list)\nL250| +\nL250| +\nL250| +@dataclass\nL250| +class EpisodeResult:\nL250| +    mode: str\nL250| +    start: date\nL250| +    end: date\nL250| +    sessions: int\nL250| +    decisions: list[DecisionRecord]\nL250| +    agent: Performan\nL251 [assistant] THINKING: A bug was found in `_claims_for`: it expects `sized[\"output_id\"]` but receives a merged dictionary containing `output_id`.\nL251| \nL251| Weight claims correctly reference the size_position output. Pydantic model mutation is safe since default models are not frozen. A new bug was found: check_caps may receive weights that were already rounded by round_floats inside the tool output.\nL251| \nL251| Re-rounding weights is harmless. Gateway canonicalization correctly hashes arguments without altering the tool payload. Baseline and rules-only runs read from the same price store but do not mutate prices, and baselines ignore the log. A potential audit failure was noted: JSON key order differences could cause Python dict equality checks to fail when comparing tool outputs.\nL251| \nL251| Universe security order does not affect counts. Observation counts match plan expectations because both use the same core and high-risk filters. Delisted stocks are excluded from late windows. JSON counts are integers. Empty weight claims generate no extra facts.\nL251| \nL251| Option gate outputs are always cited. Opinion text contains no digits. The reconciler counts distinct security IDs from compute_ratios outputs, matching the \"Analysed N stocks\" count. Round_floats does not affect integer counts because JSON serialization preserves them. A subtle audit bug was found: guide_versions returned by read_active_guides may differ from plan.guide_versions.\nL251| \nL251| Guide versions are consistent across plan and tool outputs because both use the same load-time settings. The auditor ignores rule version mismatches. The memo renderer, CLI, and MCP server remain to be built. A JSON path bug was noted: `weights.AAPL` breaks if tickers contain dots, though current tickers do not.\nL251| \nL251| Pydantic Claim model_dump serializes fact_refs as lists of dictionaries, which the verifier parses correctly. Weight claims reference the size tool's log entry ID, matching the audit check against that output's entry. Multiple claims sharing one log_entry_id for different JSON paths are valid and handled per-reference.\nL251| \nL251| Dropped claims are handled correctly when both the opinion and its facts are kept. The episode memo must avoid duplicating the \"Analysed N stocks\" sentence with a different count. The final report should reference the last decision's memo for the accurate count rather than aggregating across all decisions.\nL251| \nL251| The final report will cite the last decision's audited \"Analysed N stocks\" count and note that each decision examined the point-in-time universe. It will avoid inventing performance claims or conflicting activity sentences. The episode renderer will be written to remain clear and honest, with formatting helpers included.\nL251| \nL251| The CLI demo will delete the existing var/demo directory, create a fresh store, seed it, run an episode, print the memo, and write it to disk. Additional CLI commands are planned: log verify, paper status, guides list, and tools list. The demo will also support `python -m ta.demo` and an MCP server. Tests come next.\nL251| \nL251| A potential Pydantic validation issue was noted: direct assignment to `judgement.selected` might fail if the model is validated with a copy, so `model_copy` may be used as a fallback. The Anthropic path is not used in the demo. The gateway bootstrap run_id is set before `set_clock` changes it, ensuring the bootstrap ID is not logged.\nL251| \nL251| The simulation run config hash uses only the simulation model. DuckDB seeds the run ID as an integer. Date indexing is type-safe across business days and demo windows. The month check aligns between incoming cash and advance contributions. The first decision correctly handles same-month dates. An unused `sectors` and `dropped` variable in the loop will be removed.\nL251| \nL251| The unused `sectors` dictionary in `portfolio_tools` will be removed. The guide propose held-out logic is redundant but functional. A coherence check on `engine.py` will verify that replacing the `marks` variable with `equity_now` did not introduce errors.\nL252 [assistant] (empty message)\nL253 [tool] TOOL: read_file {\"target_file\":\"/workspace/src/ta/sim/engine.py\"}"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that raw_claims contains claims referencing all selected tickers including AAPL, but _keep_after_reopen filters claims based on the proposal which only contains tickers with actual position-sizing output entries, so AAPL claims are excluded before verification even begins.",
+  "why_it_breaks": "The _claims_for function builds claims from sized.output which only contains entries for tickers that have position-sizing results (e.g., MSFT). When AAPL is selected but has no sizing output entry, the proposal contains no AAPL claim. Then _keep_after_reopen filters raw_claims against this proposal, removing any AAPL-related claims before they reach the citation verifier. The verifier then only sees MSFT claims and approves the single claim that exists, even though it incorrectly cites AAPL position-sizing output that doesn't contain an AAPL entry.",
+  "confidence": "medium",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 251,
+    "quote": "A potential audit failure was noted: JSON key order differences could cause Python dict equality checks to fail when comparing tool outputs.",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/agents/loop.py",
+    "line": 470,
+    "quote": "raw_claims = _keep_after_reopen(gateway, proposed)",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/agents/loop.py",
+    "line": 459,
+    "quote": "proposed = _claims_for(judgement, {\n462:             **sized.output,\n463:             \"output_id\": sized.output_id,\n464:             \"log_entry_id\": sized.log_entry_id,\n465:         },\n467:     )",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 1,
+  "verified_transcript_quotes": 1
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "src/ta/agents/loop.py",
+  "line": 476,
+  "hunk_id": "L250#90"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "medium",
+  "capped": "medium",
+  "margin": 0.13248744845969845,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": true
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "overlooked_assumption": "The agent assumed that a vote record with the same (feedbackId, userId) pair cannot already exist when reaching the create path, failing to handle the race condition where concurrent requests both pass the findUnique check before either creates a vote.",
+ "why_it_breaks": "The code performs a findUnique to check for an existing vote, then conditionally creates a new vote if none is found. However, two concurrent requests (e.g., double-click) can both pass the findUnique check before either creates a vote, resulting in both attempts executing prisma.vote.create with the same (feedbackId, userId) pair. Prisma's unique constraint on those fields then throws a constraint violation error. The agent overlooked the need for a transactional upsert or a retry/rollback pattern to handle this race condition.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 121,
+   "quote": "Then I need toggleVoteAction, which checks for an existing vote by user+feedback and either deletes (un-vote) or creates it, with membership authorization checked against the feedback's workspace before revalidating.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 99,
+   "quote": "const existing = await prisma.vote.findUnique({ where: { feedbackId_userId: { feedbackId, userId: user.id } },",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "lib/actions/feedback.ts",
+   "line": 106,
+   "quote": "await prisma.vote.create({ data: { feedbackId, userId: user.id } });",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 1
+}

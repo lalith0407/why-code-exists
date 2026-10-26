@@ -1,0 +1,8 @@
+{
+ "id": "case10",
+ "timestamp": "1970-01-01T00:00:00Z",
+ "severity": "error",
+ "service": "unknown",
+ "message": "Compliance flagged a hard-cap breach that the system did not catch on its own.\n\nA proposed position of 95% of the portfolio in ticker KVXR passed the automated risk check with no violations recorded, even though the single-name cap for any position is documented as 15%. This is the first time the fund has taken a position in KVXR.\n",
+ "frames": []
+}

@@ -1,0 +1,33 @@
+{
+ "overlooked_assumption": "The agent assumed that adding valuation_target and time_stop to discretionary_exits would bypass the swing-trade cap, believing the notes text \"Cap-driven reductions outrank the minimum hold. Discretionary sells do not\" would prevent cap enforcement on those exits.",
+ "why_it_breaks": "The agent added valuation_target and time_stop to the discretionary_exits list while relying on the notes to exempt them from the swing-trade cap. However, the cap enforcement in caps.py checks every exit order against swings_this_quarter >= caps.swing_trades_per_quarter regardless of whether the exit is in discretionary_exits or blocked. The notes claim \"Discretionary sells do not\" [refer to the cap], but the code does not implement that exemption - it blocks any exit once the cap is reached, including discretionary ones. The three positions were sold without the cap check preventing them, causing the quarter count to go from 1 to 4, exceeding the cap of 2.",
+ "confidence": "low",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 48,
+   "quote": "L48 [tool] TOOL: search_replace\nL48| CODE_WRITTEN: \nL48| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL48| +++ b//workspace/rules/exit/v1.yaml\nL48| @@ -1,0 +1,11 @@\nL48| +version: v1\nL48| +discretionary_exits:\nL48| +  - screen_exit\nL48| +  - valuation_target\nL48| +  - time_stop\nL48| +blocked:\nL48| +  - trend_chase\nL48| +min_hold_reference: config/risk.yaml\nL48| +notes: >\nL48| +  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.\nL48| +  Thesis-break exits are wired in a later phase.\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":11}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false,\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "rules/exit/v1.yaml",
+   "line": 10,
+   "quote": "  Cap-driven reductions outrank the minimum hold. Discretionary sells do not.",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "src/ta/harness/caps.py",
+   "line": 285,
+   "quote": "285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  }
+ ],
+ "status": "unverified",
+ "verified_code_quotes": 1,
+ "verified_transcript_quotes": 0
+}

@@ -1,0 +1,868 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case11",
+  "complete": true,
+  "notes": [
+   "function decision_checks_of was introduced at L6982; the frame line itself was written at L5803"
+  ],
+  "frame": {
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 314,
+   "function": "decision_checks_of"
+  },
+  "asked": {
+   "text": "Next: anti-churn fixes (user-approved). In the last Sonnet replay JNJ was bought and sold 8 times and OKE, MO, PEP, WMT, COP and LOW also flipped; the full-exit-only cooldown didn't catch partial trims and top-ups.\n1. Make portfolio rebalancing weekly (a configurable day) by default. Daily runs still do monitoring and alerts, and may only trade on hard triggers: a risk-limit breach, stop or drawdown rules, a material cited event (8-K, earnings, guidance) that changes the thesis, or a new high-conviction entry above a threshold.\n2. Cooldown of N sessions (default 10) after ANY trade on a name, in either direction, unless a hard trigger fires.\n3. Thesis-change gate: a trade on an existing holding must cite what changed since the last decision on that name (new fact_refs dated after it). Otherwise it's blocked and logged.\n4. A minimum trade size (dollars and % of book) so tiny $1 trims don't happen; the no-trade band applies to drift.\n5. Add a turnover and round-trip metric to the replay report, plus a test that recreates the JNJ flip pattern and asserts it's blocked.\nAlso, EIA is skipped permanently (the user can't register); make it a silent optional skip rather than a warn. FRED_API_KEY and CENSUS_API_KEY are now set on the box. Make sure the FRED and Census refreshes write dated point-in-time rows and that data-audit reports them. Pick a sensible default series set relevant to the AI supply chain (power and electricity, industrial production, semis, construction, rates, inflation, labor). Tests and ruff must pass; export the tarball. No paid replay.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L5402 (user message, latest of 17 before the edit)",
+   "valid": true,
+   "full_length": 1576
+  },
+  "understood": {
+   "text": "The cooldown and thesis gates are in place. Next I’ll apply them in the sizer, stamp decisions after planning, and wire the dated FRED and Census rows.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L5799 (assistant, 27 words, 4 line(s) before the edit at L5803)",
+   "valid": true,
+   "full_length": 151
+  },
+  "happened": {
+   "text": "Trading desk escalation, severity critical: a stop-loss did not execute.\n\nAAA was down 30% from the desk's average cost basis. The order management system shows a full stop-loss sell order was generated for the position, but the order never reached the market — the order blotter shows it was rejected internally before submission, with status \"rejected\" and no fill. The position in AAA is still open.\n\n  at decision_checks_of (src/ta/mcp_servers/portfolio_tools.py:314)\n  314: \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n\nWritten by transcript edit L5803 (search_replace):\n     return score is not None and float(score) >= threshold\n \n \n+def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n+    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n+    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n+    forced: set[str] = set()\n+    for ticker, lot in ctx.portfolio.positions.items():\n+        price = prices.get(ticker, 0.0)\n+        if price <= 0 or lot.qty <= 0:\n+            continue",
+   "citation": "error case11 frame src/ta/mcp_servers/portfolio_tools.py:314; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L5803",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": false,
+  "failed_quotes": [],
+  "outcome": "not_attempted"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Trading desk escalation, severity critical: a stop-loss did not execute.\n\nAAA was down 30% from the desk's average cost basis. The order management system shows a full stop-loss sell order was generated for the position, but the order never reached the market — the order blotter shows it was rejected internally before submission, with status \"rejected\" and no fill. The position in AAA is still open.\n",
+  "terms": [
+   "rejected",
+   "trading desk escalation",
+   "aaa was down",
+   "the order management system",
+   "the position in aaa",
+   "30",
+   "trading",
+   "desk",
+   "escalation",
+   "severity",
+   "critical",
+   "stop",
+   "loss",
+   "execute",
+   "down",
+   "average",
+   "cost",
+   "basis",
+   "order",
+   "management",
+   "system",
+   "shows",
+   "full",
+   "sell",
+   "generated",
+   "position",
+   "never",
+   "reached",
+   "market",
+   "blotter",
+   "internally",
+   "submission",
+   "status",
+   "fill",
+   "open"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 314,
+     "end_line": 180,
+     "text": "    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"",
+     "function": "decision_checks_of",
+     "score": 26.9364,
+     "matched_terms": [
+      "stop",
+      "loss",
+      "average",
+      "cost",
+      "sell"
+     ],
+     "edit_line": 5803,
+     "tool": "search_replace",
+     "hunk_id": "L5803#746",
+     "snippet": "144: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n145:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n146:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n147:     forced: set[str] = set()\n148:     for ticker, lot in ctx.portfolio.positions.items():\n149:         price = prices.get(ticker, 0.0)\n150:         if price <= 0 or lot.qty <= 0:\n151:             continue\n152:         average = lot.cost / lot.qty\n153:         if average > 0 and price <= average * (1.0 - stop_pct):",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 145,
+     "hunk_start": 144,
+     "context_lines": [
+      {
+       "line": 144,
+       "text": "def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:"
+      },
+      {
+       "line": 145,
+       "text": "    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\""
+      },
+      {
+       "line": 146,
+       "text": "    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/sim/portfolio.py",
+     "line": 84,
+     "end_line": 271,
+     "text": "    \"\"\"`ratio` is new shares per old share. Total cost basis stays put.\"\"\"",
+     "function": "half_spread",
+     "score": 25.6028,
+     "matched_terms": [
+      "order",
+      "execute",
+      "cost",
+      "basis",
+      "full",
+      "sell",
+      "fill",
+      "open"
+     ],
+     "edit_line": 106,
+     "tool": "search_replace",
+     "hunk_id": "L106#36",
+     "snippet": "1: \"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date\n7: \n8: from ta.config import CostConfig, RiskCaps\n9: from ta.models import OrderIntent\n10: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 76,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 75,
+       "text": "def apply_split(portfolio: Portfolio, ticker: str, ratio: float) -> None:"
+      },
+      {
+       "line": 76,
+       "text": "    \"\"\"`ratio` is new shares per old share. Total cost basis stays put.\"\"\""
+      },
+      {
+       "line": 77,
+       "text": "    lot = portfolio.positions.get(ticker)"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/sim/metrics.py",
+     "line": 141,
+     "end_line": 146,
+     "text": "        elif fill.side == \"sell\" and open_buys.get(ticker, 0) > 0:",
+     "function": "_round_trips",
+     "score": 19.133,
+     "matched_terms": [
+      "sell",
+      "fill",
+      "open"
+     ],
+     "edit_line": 5635,
+     "tool": "search_replace",
+     "hunk_id": "L5635#742",
+     "snippet": "133: def _round_trips(trades: list) -> int:\n134:     \"\"\"A round trip is a buy of a name followed later by a sell of that name.\"\"\"\n135:     open_buys: dict[str, int] = {}\n136:     trips = 0\n137:     for fill in trades:\n138:         ticker = fill.ticker\n139:         if fill.side == \"buy\":\n140:             open_buys[ticker] = open_buys.get(ticker, 0) + 1\n141:         elif fill.side == \"sell\" and open_buys.get(ticker, 0) > 0:\n142:             open_buys[ticker] -= 1",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 141,
+     "hunk_start": 133,
+     "context_lines": [
+      {
+       "line": 140,
+       "text": "            open_buys[ticker] = open_buys.get(ticker, 0) + 1"
+      },
+      {
+       "line": 141,
+       "text": "        elif fill.side == \"sell\" and open_buys.get(ticker, 0) > 0:"
+      },
+      {
+       "line": 142,
+       "text": "            open_buys[ticker] -= 1"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "rules/sizing/v1.yaml",
+     "line": 25,
+     "end_line": 29,
+     "text": "  A full exit starts a reentry wait. Any fill, including a partial trim or top-up, starts trade_cooldown_sessions.",
+     "score": 18.6274,
+     "matched_terms": [
+      "order",
+      "stop",
+      "loss",
+      "full",
+      "fill"
+     ],
+     "edit_line": 5830,
+     "tool": "search_replace",
+     "hunk_id": "L5830#759",
+     "snippet": "12: rebalance_weekday: monday\n13: trade_cooldown_sessions: 10\n14: min_trade_dollars: 50\n15: min_trade_pct: 0.01\n16: high_conviction_quality: 0.05\n17: stop_loss_pct: 0.20\n20:   The book is rebalanced on rebalance_weekday. Other sessions only trade a hard trigger:\n21:   a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name\n22:   whose quality score clears high_conviction_quality.\n23:   The sizer trades the gap between current weight and target when it exceeds the 5 percentage-point band",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 25,
+     "hunk_start": 12,
+     "context_lines": [
+      {
+       "line": 24,
+       "text": "  and the order is at least min_trade_dollars and min_trade_pct of equity."
+      },
+      {
+       "line": 25,
+       "text": "  A full exit starts a reentry wait. Any fill, including a partial trim or top-up, starts trade_cooldown_sessions."
+      },
+      {
+       "line": 27,
+       "text": "  A name inside the minimum hold is not sold unless a hard trigger requires it."
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/decision_tools.py",
+     "line": 1,
+     "end_line": 296,
+     "text": "\"\"\"Logged Decisions API checks. They never size a position or place an order.\"\"\"",
+     "score": 17.4267,
+     "matched_terms": [
+      "rejected",
+      "order",
+      "position",
+      "stop",
+      "cost",
+      "sell",
+      "never",
+      "market",
+      "status"
+     ],
+     "edit_line": 2882,
+     "tool": "search_replace",
+     "hunk_id": "L2882#412",
+     "snippet": "1: \"\"\"Logged Decisions API checks. They never size a position or place an order.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import os\n6: from typing import Any\n7: \n8: from ta.agents.cost import TokenUse, estimate_usd, load_price_table\n9: from ta.decisions import api as decisions_api\n10: from ta.decisions.api import DECISION_MODEL",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 1,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 1,
+       "text": "\"\"\"Logged Decisions API checks. They never size a position or place an order.\"\"\""
+      },
+      {
+       "line": 2,
+       "text": ""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/dashboard/read.py",
+     "line": 68,
+     "end_line": 519,
+     "text": "    \"broker\": \"Order desk\",",
+     "score": 17.1838,
+     "matched_terms": [
+      "rejected",
+      "desk",
+      "order",
+      "position",
+      "stop",
+      "execute",
+      "sell",
+      "market",
+      "status",
+      "open"
+     ],
+     "edit_line": 1267,
+     "tool": "search_replace",
+     "hunk_id": "L1267#228",
+     "snippet": "1: \"\"\"Read-only briefing over DuckDB and the action log.\n2: \n3: Nothing in this module inserts, updates, or calls a broker. Numbers that can\n4: be tied to a tool output carry that output id so the page can open the source.\n5: \"\"\"\n6: \n7: from __future__ import annotations\n8: \n9: import json\n10: from datetime import date, datetime",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 60,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 59,
+       "text": "    \"bear\": \"Case against\","
+      },
+      {
+       "line": 60,
+       "text": "    \"broker\": \"Order desk\","
+      },
+      {
+       "line": 61,
+       "text": "}"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/agents/loop.py",
+     "line": 751,
+     "end_line": 378,
+     "text": "    # Strike any activity sentence the last audit already rejected. The renderer",
+     "function": "run_decision",
+     "score": 17.0971,
+     "matched_terms": [
+      "rejected",
+      "order",
+      "position",
+      "severity",
+      "market",
+      "status",
+      "fill",
+      "open"
+     ],
+     "edit_line": 250,
+     "tool": "search_replace",
+     "hunk_id": "L250#90",
+     "snippet": "1: \"\"\"One research decision, and the episode that steps the simulator around it.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date, timedelta\n7: \n8: from ta.actionlog.writer import ActionLog\n9: from ta.agents.mock_llm import MockLLM\n10: from ta.agents.orchestrator import build_plan",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 364,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 363,
+       "text": "    result.memo = render_episode(result, settings)"
+      },
+      {
+       "line": 364,
+       "text": "    # Strike any activity sentence the last audit already rejected. The renderer"
+      },
+      {
+       "line": 365,
+       "text": "    # rebuilds the sentence from the same counts, so this is a backstop."
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "rules/sizing/v1.yaml",
+     "line": 0,
+     "end_line": 16,
+     "text": "  A full exit starts a reentry wait. A partial sell does not.",
+     "score": 15.4486,
+     "matched_terms": [
+      "full",
+      "sell",
+      "fill"
+     ],
+     "edit_line": 3499,
+     "tool": "search_replace",
+     "hunk_id": "L3499#495",
+     "snippet": "14:   The sizer trades the gap between current weight and target when it exceeds the 5 percentage-point band.\n15:   A full exit starts a reentry wait. A partial sell does not.\n16:   The book aims for 8 to 15 names. A per-name cap still applies. Names are not invented to fill the floor.",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 15,
+     "hunk_start": 14,
+     "context_lines": [
+      {
+       "line": 14,
+       "text": "  The sizer trades the gap between current weight and target when it exceeds the 5 percentage-point band."
+      },
+      {
+       "line": 15,
+       "text": "  A full exit starts a reentry wait. A partial sell does not."
+      },
+      {
+       "line": 16,
+       "text": "  The book aims for 8 to 15 names. A per-name cap still applies. Names are not invented to fill the floor."
+      }
+     ],
+     "anchor": "unanchored"
+    },
+    {
+     "file": "src/ta/mcp_servers/options_tools.py",
+     "line": 227,
+     "end_line": 263,
+     "text": "            return {\"status\": \"rejected\", \"reason\": \"leg side must be buy or sell\", \"gate\": gate}",
+     "function": "payoff",
+     "score": 14.8734,
+     "matched_terms": [
+      "rejected",
+      "loss",
+      "sell",
+      "status",
+      "open"
+     ],
+     "edit_line": 620,
+     "tool": "search_replace",
+     "hunk_id": "L620#137",
+     "snippet": "1: \"\"\"Defined-risk option math. The tools compute. They do not place orders.\n2: \n3: The options gate in config/risk.yaml stays shut. Every payload reports that.\n4: A synthetic chain is built from the stored underlying so the demo needs no vendor.\n5: Asking for Alpaca without keys returns a skipped payload and does not open a socket.\n6: \"\"\"\n7: \n8: from __future__ import annotations\n9: \n10: import math",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 227,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 226,
+       "text": "        else:"
+      },
+      {
+       "line": 227,
+       "text": "            return {\"status\": \"rejected\", \"reason\": \"leg side must be buy or sell\", \"gate\": gate}"
+      },
+      {
+       "line": 228,
+       "text": "    spots = [round(float(spot) * multiple, 4) for multiple in (0.8, 0.9, 1.0, 1.1, 1.2)]"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/agents/loop.py",
+     "line": 525,
+     "end_line": 533,
+     "text": "        rejected=list(screen.output.get(\"rejected\") or []),",
+     "function": "run_decision",
+     "score": 14.4313,
+     "matched_terms": [
+      "rejected",
+      "order"
+     ],
+     "edit_line": 8985,
+     "tool": "search_replace",
+     "hunk_id": "L8985#1112",
+     "snippet": "502:     skipped = bool(getattr(judgement, \"skipped\", False))\n503:     agent_rows = []\n504:     if not skipped:\n505:         for item in judgement.selected:\n506:             ref = item.fact_refs[0]\n507:             agent_rows.append(\n508:                 {\n509:                     \"ticker\": item.ticker,\n510:                     \"citation\": f\"output {ref.output_id} {ref.json_path} log {item.log_entry_id}\",\n511:                 }",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 525,
+     "hunk_start": 502,
+     "context_lines": [
+      {
+       "line": 524,
+       "text": "        rules=list(screen.output.get(\"candidates\") or []),"
+      },
+      {
+       "line": 525,
+       "text": "        rejected=list(screen.output.get(\"rejected\") or []),"
+      },
+      {
+       "line": 526,
+       "text": "        agent=agent_rows,"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "src/ta/mcp_servers/portfolio_tools.py",
+    "line": 314,
+    "end_line": 180,
+    "text": "    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"",
+    "function": "decision_checks_of",
+    "score": 26.9364,
+    "matched_terms": [
+     "stop",
+     "loss",
+     "average",
+     "cost",
+     "sell"
+    ],
+    "edit_line": 5803,
+    "tool": "search_replace",
+    "hunk_id": "L5803#746",
+    "snippet": "144: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n145:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n146:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n147:     forced: set[str] = set()\n148:     for ticker, lot in ctx.portfolio.positions.items():\n149:         price = prices.get(ticker, 0.0)\n150:         if price <= 0 or lot.qty <= 0:\n151:             continue\n152:         average = lot.cost / lot.qty\n153:         if average > 0 and price <= average * (1.0 - stop_pct):",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 145,
+    "hunk_start": 144,
+    "context_lines": [
+     {
+      "line": 144,
+      "text": "def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:"
+     },
+     {
+      "line": 145,
+      "text": "    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\""
+     },
+     {
+      "line": 146,
+      "text": "    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/ta/sim/portfolio.py",
+    "line": 84,
+    "end_line": 271,
+    "text": "    \"\"\"`ratio` is new shares per old share. Total cost basis stays put.\"\"\"",
+    "function": "half_spread",
+    "score": 25.6028,
+    "matched_terms": [
+     "order",
+     "execute",
+     "cost",
+     "basis",
+     "full",
+     "sell",
+     "fill",
+     "open"
+    ],
+    "edit_line": 106,
+    "tool": "search_replace",
+    "hunk_id": "L106#36",
+    "snippet": "1: \"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date\n7: \n8: from ta.config import CostConfig, RiskCaps\n9: from ta.models import OrderIntent\n10: ",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 76,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 75,
+      "text": "def apply_split(portfolio: Portfolio, ticker: str, ratio: float) -> None:"
+     },
+     {
+      "line": 76,
+      "text": "    \"\"\"`ratio` is new shares per old share. Total cost basis stays put.\"\"\""
+     },
+     {
+      "line": 77,
+      "text": "    lot = portfolio.positions.get(ticker)"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/ta/sim/metrics.py",
+    "line": 141,
+    "end_line": 146,
+    "text": "        elif fill.side == \"sell\" and open_buys.get(ticker, 0) > 0:",
+    "function": "_round_trips",
+    "score": 19.133,
+    "matched_terms": [
+     "sell",
+     "fill",
+     "open"
+    ],
+    "edit_line": 5635,
+    "tool": "search_replace",
+    "hunk_id": "L5635#742",
+    "snippet": "133: def _round_trips(trades: list) -> int:\n134:     \"\"\"A round trip is a buy of a name followed later by a sell of that name.\"\"\"\n135:     open_buys: dict[str, int] = {}\n136:     trips = 0\n137:     for fill in trades:\n138:         ticker = fill.ticker\n139:         if fill.side == \"buy\":\n140:             open_buys[ticker] = open_buys.get(ticker, 0) + 1\n141:         elif fill.side == \"sell\" and open_buys.get(ticker, 0) > 0:\n142:             open_buys[ticker] -= 1",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 141,
+    "hunk_start": 133,
+    "context_lines": [
+     {
+      "line": 140,
+      "text": "            open_buys[ticker] = open_buys.get(ticker, 0) + 1"
+     },
+     {
+      "line": 141,
+      "text": "        elif fill.side == \"sell\" and open_buys.get(ticker, 0) > 0:"
+     },
+     {
+      "line": 142,
+      "text": "            open_buys[ticker] -= 1"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "src/ta/mcp_servers/portfolio_tools.py",
+   "line": 314,
+   "end_line": 180,
+   "text": "    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"",
+   "function": "decision_checks_of",
+   "score": 26.9364,
+   "matched_terms": [
+    "stop",
+    "loss",
+    "average",
+    "cost",
+    "sell"
+   ],
+   "edit_line": 5803,
+   "tool": "search_replace",
+   "hunk_id": "L5803#746",
+   "snippet": "144: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n145:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n146:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n147:     forced: set[str] = set()\n148:     for ticker, lot in ctx.portfolio.positions.items():\n149:         price = prices.get(ticker, 0.0)\n150:         if price <= 0 or lot.qty <= 0:\n151:             continue\n152:         average = lot.cost / lot.qty\n153:         if average > 0 and price <= average * (1.0 - stop_pct):",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 145,
+   "hunk_start": 144,
+   "context_lines": [
+    {
+     "line": 144,
+     "text": "def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:"
+    },
+    {
+     "line": 145,
+     "text": "    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\""
+    },
+    {
+     "line": 146,
+     "text": "    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))"
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "stop.loss|stop_loss"
+     },
+     "result": "src/ta/mcp_servers/portfolio_tools.py:315: stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))"
+    },
+    {
+     "step": 2,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 300,
+      "end": 330
+     },
+     "result": "300: \n301: def _high_conviction(ctx: ToolContext, ticker: str) -> bool:\n302:     threshold = float(ctx.settings.sizing_rules.get(\"high_conviction_quality\", 0.05))\n303:     security = ctx.store.security_by_ticker(ticker)\n304:     if security is None:\n305:         return False\n306:     from ta.mcp_servers.fund import compute_ratio_block\n307: \n308:     block = compute_ratio_block(ctx.store, security, ctx.as_of, ctx.settings.screen_rules)\n309:     score = block.get(\"quality_score\")\n310:     return score is not None and float(score) >= threshold\n311: \n312: \n313: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n314:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n315:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n316:     forced: set[str] = set()\n317:     for ticker, lot in ctx.portfolio.positions.items():\n318:         price = prices.get(ticker, 0.0)\n319:         if price <= 0 or lot.qty <= 0:\n320:             continue\n321:         average = lot.cost / lot.qty\n322:         if average > 0 and price <= average * (1.0 - stop_pct):\n323:             forced.add(ticker)\n324:     return forced\n325: \n326: \n327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False"
+    },
+    {
+     "step": 3,
+     "action": "read",
+     "args": {
+      "file": "src/ta/mcp_servers/portfolio_tools.py",
+      "start": 313,
+      "end": 360
+     },
+     "result": "313: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n314:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n315:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n316:     forced: set[str] = set()\n317:     for ticker, lot in ctx.portfolio.positions.items():\n318:         price = prices.get(ticker, 0.0)\n319:         if price <= 0 or lot.qty <= 0:\n320:             continue\n321:         average = lot.cost / lot.qty\n322:         if average > 0 and price <= average * (1.0 - stop_pct):\n323:             forced.add(ticker)\n324:     return forced\n325: \n326: \n327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False\n331:     return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\n332: \n333: \n334: def _trade_reason(\n335:     side: str,\n336:     ticker: str,\n337:     reduced: set[str],\n338:     forced: set[str],\n339:     review: bool,\n340:     trims: dict[str, str] | None = None,\n341: ) -> str:\n342:     if side == \"sell\" and ticker in forced:\n343:         return \"stop\"\n344:     if side == \"sell\" and trims and ticker in trims:\n345:         return trims[ticker]\n346:     if side == \"sell\" and ticker in reduced:\n347:         return \"cap_reduction\"\n348:     if side == \"sell\" and review:\n349:         return \"drawdown\"\n350:     return \"rebalance\"\n351: \n352: \n353: def _sticky_citation(ctx: ToolContext, ticker: str) -> str:\n354:     security = ctx.store.security_by_ticker(ticker)\n355:     if security is None:\n356:         return \"\"\n357:     from ta.mcp_servers.fund import compute_ratio_block\n358: \n359:     block = compute_ratio_block(ctx.store, security, ctx.as_of, ctx.settings.screen_rules)\n360:     return str(block.get(\"sticky_citation\") or \"\")"
+    },
+    {
+     "step": 4,
+     "action": "list_edits",
+     "args": {},
+     "result": "pyproject.toml:1-66 (edit at L26, search_replace)\n  1: [project]\n  2: name = \"trading-agents\"\n  3: version = \"0.1.0\"\n  4: description = \"Long-horizon multi-agent US equity research system. Phase 0 is the simulator, point-in-time data layer, and tamper-evident action log.\"\n\nMakefile:1-15 (edit at L28, search_replace)\n  1: UV ?= $(HOME)/.local/bin/uv\n  2: export PATH := $(HOME)/.local/bin:$(PATH)\n  6: sync:\n  9: demo:\n\n.gitignore:1-13 (edit at L30, search_replace)\n  1: .venv/\n  2: __pycache__/\n  3: *.pyc\n  4: .mypy_cache/\n\n.github/workflows/ci.yml:1-22 (edit at L32, search_replace)\n  1: name: ci\n  3: on:\n  4:   push:\n  5:   pull_request:\n\nconfig/risk.yaml:1-31 (edit at L34, search_replace)\n  1: # Hard risk caps. Immutable to agents and to the guide evolver.\n  2: # Changes require an explicit user edit and a new version hash.\n  3: version: v1\n  4: caps:\n\nconfig/reward.yaml:1-12 (edit at L36, search_replace)\n  1: # Multi-objective reward weights. The scalar is for selection only.\n  2: # Components are always reported separately. A HIGH audit failure zeroes the scalar.\n  3: version: v1\n  4: weights:\n\nconfig/sim.yaml:1-28 (edit at L38, search_replace)\n  1: # Simulator defaults. Phase 0 replays the bundled fixture; it does not hit the network.\n  2: version: v1\n  3: initial_capital: 1000\n  4: contribution_amount: 100\n\nconfig/sources.yaml:1-21 (edit at L40, search_replace)\n  1: # Credentials come from the environment. Nothing in this file is a secret.\n  2: edgar:\n  3:   user_agent_env: SEC_EDGAR_USER_AGENT\n  4:   rate_limit_per_sec: 8\n\nconfig/thesis_topics.yaml:1-15 (edit at L42, search_replace)\n  1: # Scheduled-scan themes for the Thesis Investigator. The investigator itself is Phase 2.\n  2: version: v1\n  3: cadence: weekly\n  4: topics:\n\nrules/screen/v1.yaml:1-23 (edit at L44, search_replace)\n  1: version: v1\n  2: formula_version: ratios-0.1.0\n  3: min_quality_score: 0.0\n  13: require_positive_earnings: true\n\nrules/sizing/v1.yaml:1-19 (edit at L46, search_replace)\n  1: version: v1\n  2: fractional_shares: true\n  3: min_order_notional: 1.0\n  8: contribution_policy: new_cash_toward_underweights\n\nrules/exit/v1.yaml:1-11 (edit at L48, search_replace)\n  1: version: v1\n  2: discretionary_exits:\n  3:   - screen_exit\n  4:   - valuation_target\n\nrules/risk/v1.yaml:1-5 (edit at L50, search_replace)\n  1: version: v1\n  2: source: config/risk.yaml\n  3: notes: >\n  4:   This file records the rule-set version that decisions cite.\n\nrules/anomaly/v1.yaml:1-11 (edit at L52, search_replace)\n  1: version: v1\n  4: lookback_sessions: 60\n  5: return_sigma: 3.0\n  6: windows: [1, 5]\n\nguides/METASKILL.md:1-29 (edit at L54, search_replace)\n  1: # Metaskill (GSO)\n  3: This metaskill is the persistent object. A per-ticker research plan is derived from an agent guide at run time, stored in the action log for audit, and discarded. It is never promoted to a guide.\n  5: The evolver traces the first fault to exactly one section below and edits only that section. An edit is accepted only when `repairs - 2 * regressions > 0` and validation success does not fall, measured by executing `sim.run_ab` on a validation window. Held-out sectors and test windows never propose or accept edits. An LLM may rank candidate edits; it does not decide acceptance.\n  7: ## 1. Read task\n\nguides/orchestrator/v1.md:1-27 (edit at L56, search_replace)\n  1: # Orchestrator guide v1\n  3: The orchestrator produces a RunPlan and routes tasks. It does not analyse securities and it does not size orders.\n  5: ## 1. Read task\n  7: Read the trigger (contribution, schedule, anomaly, or demo), the portfolio state, and the active guide and rule versions.\n\nguides/fundamentals/v1.md:1-27 (edit at L58, search_replace)\n  1: # Fundamentals guide v1\n  3: Interpret ratios that `fund.compute_ratios` already computed. Do not calculate prices, yields, or scores.\n  5: ## 1. Read task\n  7: For the point-in-time universe, read each analysed ticker's end-of-day prices and ratio block as of the run date. Benchmarks and bond proxies are not stock-selection names.\n\nguides/risk_manager/v1.md:1-27 (edit at L60, search_replace)\n  1: # Risk manager guide v1\n  3: Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\n  5: ## 1. Read task\n  7: Read the analyst's selected names, the current portfolio, incoming contribution cash, and the option-gate status.\n\nguides/thesis/v1.md:1-45 (edit at L62, search_replace)\n  1: # Thesis investigator guide v1\n  3: Derive a cited, falsifiable thesis. This guide does not trade and does not size. Pattern notes below are the sections a later GSO loop may edit, one pattern at a time, after enough predictions have resolved.\n  5: ## 1. Read task\n  7: Read the anomaly event or the scheduled topic, the as-of date, and this guide version. If the deterministic decomposition says the move is explained, stop with no thesis.\n\nsrc/ta/data/migrations/001_initial.sql:1-398 (edit at L65, search_replace)\n  1: -- Phase 0 schema. DuckDB first; types map to Postgres\n  2: -- (VARCHAR, DATE, DOUBLE PRECISION, BIGINT). Nested payloads are JSON text\n  3: -- so the later move to JSONB is mechanical.\n  4: -- Point-in-time columns: event_time, available_at, retrieved_at.\n\nsrc/ta/__init__.py:1-3 (edit at L67, search_replace)\n  1: \"\"\"Long-horizon multi-agent investment research system (Phase 0).\"\"\"\n  3: __version__ = \"0.1.0\"\n\nsrc/ta/errors.py:1-34 (edit at L71, search_replace)\n  1: \"\"\"Project exceptions. Leakage and phase gates are control flow the gateway logs.\"\"\"\n  4: class TaError(Exception):\n  5:     \"\"\"Base error for expected failures.\"\"\"\n  8: class ConfigError(TaError):\n\nsrc/ta/ids.py:1-81 (edit at L73, search_replace)\n  1: \"\"\"Identifiers, canonical JSON, and content hashes.\n  3: Log entry hashes use canonical JSON so verify can recompute them from the\n  4: parsed object. Floats are rounded before they enter a hashed payload.\n  5: \"\"\"\n\nsrc/ta/models.py:1-290 (edit at L76, search_replace)\n  1: \"\"\"Pydantic models shared by the harness, tools, simulator, and memo.\"\"\"\n  3: from __future__ import annotations\n  5: from datetime import date, datetime\n  6: from typing import Any, Literal\n\nsrc/ta/config.py:1-255 (edit at L78, search_replace)\n  1: \"\"\"Load versioned YAML config. Secrets are read from the environment by callers.\"\"\"\n  3: from __future__ import annotations\n  5: import os\n  6: from datetime import date\n\nsrc/ta/actionlog/__init__.py:1-8 (edit at L80, search_replace)\n  1: \"\"\"Append-only hash-chained action log.\n  3: The gateway is the only writer. Agents use :class:`LogView`.\n  4: \"\"\"\n  6: from ta.actionlog.writer import ActionLog, LogView\n\nsrc/ta/actionlog/chain.py:1-13 (edit at L82, search_replace)\n  1: \"\"\"Canonical hashing helpers for the action log.\"\"\"\n  3: from __future__ import annotations\n  5: from typing import Any\n  7: from ta.ids import GENESIS, canonical_json, entry_hash, sha256_text\n\nsrc/ta/actionlog/verify.py:1-173 (edit at L85, search_replace)\n  1: \"\"\"Recompute the hash chain and check signed daily roots.\"\"\"\n  3: from __future__ import annotations\n  5: import base64\n  6: import json\n\nsrc/ta/actionlog/writer.py:1-176 (edit at L87, search_replace)\n  1: \"\"\"Harness-owned append-only log writer and the read-only view agents use.\"\"\"\n  3: from __future__ import annotations\n  5: import base64\n  6: import fcntl\n\nsrc/ta/data/__init__.py:1-1 (edit at L90, search_replace)\n  1: \"\"\"DuckDB store, migrations, and fixture seeding.\"\"\"\n\nsrc/ta/data/migrate.py:1-62 (edit at L92, search_replace)\n  1: \"\"\"Apply numbered SQL migrations. Each file may contain many statements.\"\"\"\n  3: from __future__ import annotations\n  5: from pathlib import Path\n  7: import duckdb\n\nsrc/ta/data/fixtures.py:1-430 (edit at L94, search_replace)\n  1: \"\"\"Seeded, survivorship-aware price history for offline replay.\n  3: The generator is a fixed-seed daily model. It is a data fixture, not a forecast.\n  4: The full history is stored in DuckDB; agent queries still have to pass the\n  5: point-in-time filter, which is what makes leakage tests meaningful.\n\nsrc/ta/data/store.py:1-820 (edit at L96, search_replace)\n  1: \"\"\"Thin repository over DuckDB. Agent-facing reads filter on available_at.\"\"\"\n  3: from __future__ import annotations\n  5: from datetime import date, datetime\n  6: from pathlib import Path\n\nsrc/ta/data/edgar.py:1-308 (edit at L99, search_replace)\n  1: \"\"\"SEC EDGAR client.\n  3: Fair-access policy: a declared User-Agent with a contact email is required, and\n  4: the client stays under 10 requests/second. The User-Agent comes from\n  5: ``SEC_EDGAR_USER_AGENT``. Historical replay filters on acceptance time; asking\n\nsrc/ta/data/prices.py:1-245 (edit at L101, search_replace)\n  1: \"\"\"Pluggable end-of-day price adapters.\n  3: ``fixture`` is the offline default. ``yfinance`` and ``stooq`` are free sources.\n  4: ``alpaca`` reads ``ALPACA_API_KEY`` and ``ALPACA_SECRET_KEY`` and is market data\n  5: only (GET). None of these adapters submit orders.\n\nsrc/ta/sim/__init__.py:1-1 (edit at L104, search_replace)\n  1: \"\"\"Point-in-time replay simulator.\"\"\"\n\nsrc/ta/sim/portfolio.py:1-288 (edit at L106, search_replace)\n  1: \"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\n  3: from __future__ import annotations\n  5: from dataclasses import dataclass, field\n  6: from datetime import date\n\nsrc/ta/harness/caps.py:1-293 (edit at L108, search_replace)\n  1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n  3: from __future__ import annotations\n  5: from collections import defaultdict\n  6: from dataclasses import dataclass\n\nsrc/ta/harness/context.py:1-24 (edit at L110, search_replace)\n  1: \"\"\"Per-decision context handed to deterministic tools. It cannot append the log.\"\"\"\n  3: from __future__ import annotations\n  6: from datetime import date\n  7: from pathlib import Path\n\nsrc/ta/harness/permissions.py:1-95 (edit at L112, search_replace)\n  1: \"\"\"Per-agent allow lists. The gateway rejects anything else.\"\"\"\n  3: from __future__ import annotations\n  5: ALLOWED_TOOLS: dict[str, set[str]] = {\n  6:     \"orchestrator\": {"
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 1,
+      "end": 100
+     },
+     "result": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent\n11: from ta.sim.portfolio import Portfolio\n12: \n13: \n14: @dataclass\n15: class NameMeta:\n16:     ticker: str\n17:     sleeve: str\n18:     sector: str\n19:     price: float\n20: \n21: \n22: @dataclass\n23: class CapOutcome:\n24:     ok: bool\n25:     weights: dict[str, float]\n26:     violations: list[dict[str, str]]\n27: \n28: \n29: def _name_cap(meta: NameMeta, caps: RiskCaps) -> float:\n30:     if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\n31:         return caps.single_high_risk_pct\n32:     return caps.single_core_pct\n33: \n34: \n35: def _in_sleeve(meta: NameMeta, caps: RiskCaps) -> bool:\n36:     return meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold\n37: \n38: \n39: def enforce_caps(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> CapOutcome:\n40:     \"\"\"Clip weights in place-copies. Cash is the residual and is unconstrained.\"\"\"\n41:     original = {ticker: max(0.0, float(weight)) for ticker, weight in weights.items() if weight}\n42:     adjusted = dict(original)\n43:     violations: list[dict[str, str]] = []\n44: \n45:     for ticker, weight in original.items():\n46:         if ticker not in meta:\n47:             continue\n48:         limit = _name_cap(meta[ticker], caps)\n49:         if weight > limit + 1e-9:\n50:             violations.append(\n51:                 {\n52:                     \"code\": \"single_name\",\n53:                     \"ticker\": ticker,\n54:                     \"detail\": f\"{ticker} weight {weight:.4f} exceeds {limit:.4f}\",\n55:                 }\n56:             )\n57: \n58:     sectors: dict[str, float] = defaultdict(float)\n59:     for ticker, weight in original.items():\n60:         if ticker in meta:\n61:             sectors[meta[ticker].sector] += weight\n62:     for sector, total in sectors.items():\n63:         if sector and total > caps.sector_pct + 1e-9:\n64:             violations.append(\n65:                 {\n66:                     \"code\": \"sector\",\n67:                     \"ticker\": sector,\n68:                     \"detail\": f\"{sector} weight {total:.4f} exceeds {caps.sector_pct:.4f}\",\n69:                 }\n70:             )\n71: \n72:     sleeve_total = sum(\n73:         weight for ticker, weight in original.items() if ticker in meta and _in_sleeve(meta[ticker], caps)\n74:     )\n75:     if sleeve_total > caps.high_risk_sleeve_pct + 1e-9:\n76:         violations.append(\n77:             {\n78:                 \"code\": \"high_risk_sleeve\",\n79:                 \"ticker\": \"*\",\n80:                 \"detail\": f\"high-risk sleeve {sleeve_total:.4f} exceeds {caps.high_risk_sleeve_pct:.4f}\",\n81:             }\n82:         )\n83: \n84:     penny_total = sum(\n85:         weight\n86:         for ticker, weight in original.items()\n87:         if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n88:     )\n89:     if penny_total > caps.penny_total_pct + 1e-9:\n90:         violations.append(\n91:             {\n92:                 \"code\": \"penny_total\",\n93:                 \"ticker\": \"*\",\n94:                 \"detail\": f\"penny sleeve {penny_total:.4f} exceeds {caps.penny_total_pct:.4f}\",\n95:             }\n96:         )\n97: \n98:     for _ in range(4):\n99:         for ticker in list(adjusted):\n100:             if ticker not in meta:"
+    },
+    {
+     "step": 6,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 100,
+      "end": 200
+     },
+     "result": "100:             if ticker not in meta:\n101:                 continue\n102:             limit = _name_cap(meta[ticker], caps)\n103:             if adjusted[ticker] > limit:\n104:                 adjusted[ticker] = limit\n105:         by_sector: dict[str, list[str]] = defaultdict(list)\n106:         for ticker in adjusted:\n107:             if ticker in meta:\n108:                 by_sector[meta[ticker].sector].append(ticker)\n109:         for tickers in by_sector.values():\n110:             total = sum(adjusted[ticker] for ticker in tickers)\n111:             if total > caps.sector_pct + 1e-12:\n112:                 scale = caps.sector_pct / total\n113:                 for ticker in tickers:\n114:                     adjusted[ticker] *= scale\n115:         sleeve_names = [ticker for ticker in adjusted if ticker in meta and _in_sleeve(meta[ticker], caps)]\n116:         total = sum(adjusted[ticker] for ticker in sleeve_names)\n117:         if total > caps.high_risk_sleeve_pct + 1e-12:\n118:             scale = caps.high_risk_sleeve_pct / total\n119:             for ticker in sleeve_names:\n120:                 adjusted[ticker] *= scale\n121:         penny_names = [\n122:             ticker for ticker in adjusted if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n123:         ]\n124:         total = sum(adjusted[ticker] for ticker in penny_names)\n125:         if total > caps.penny_total_pct + 1e-12:\n126:             scale = caps.penny_total_pct / total\n127:             for ticker in penny_names:\n128:                 adjusted[ticker] *= scale\n129:         gross = sum(adjusted.values())\n130:         if gross > 1 + 1e-12:\n131:             scale = 1 / gross\n132:             for ticker in adjusted:\n133:                 adjusted[ticker] *= scale\n134: \n135:     cleaned = {ticker: round(weight, 6) for ticker, weight in adjusted.items() if weight > 1e-6}\n136:     return CapOutcome(ok=not violations, weights=cleaned, violations=violations)\n137: \n138: \n139: def equal_weight_targets(\n140:     names: list[str],\n141:     meta: dict[str, NameMeta],\n142:     caps: RiskCaps,\n143: ) -> dict[str, float]:\n144:     \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n145:     priced = [name for name in names if name in meta and meta[name].price > 0]\n146:     if not priced:\n147:         return {}\n148:     share = 1.0 / len(priced)\n149:     return {name: min(share, _name_cap(meta[name], caps)) for name in priced}\n150: \n151: \n152: def sector_breach(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> str | None:\n153:     totals: dict[str, float] = defaultdict(float)\n154:     for ticker, weight in weights.items():\n155:         if ticker not in meta or weight <= 0:\n156:             continue\n157:         sector = meta[ticker].sector\n158:         if sector:\n159:             totals[sector] += weight\n160:     for sector, total in totals.items():\n161:         if total > caps.sector_pct + 1e-9:\n162:             return sector\n163:     return None\n164: \n165: \n166: def fit_book(\n167:     ranked: list[str],\n168:     meta: dict[str, NameMeta],\n169:     caps: RiskCaps,\n170:     max_names: int,\n171: ) -> dict[str, float]:\n172:     \"\"\"Keep the strongest names that fit the count and the sector cap.\n173: \n174:     ``ranked`` is strongest first. An overweight sector loses its weakest name\n175:     and the remaining names stay at equal weight. They are not scaled up to the\n176:     sector cap, and they are not scaled down after the fact.\n177:     \"\"\"\n178:     names = [ticker for ticker in ranked if ticker in meta and meta[ticker].price > 0]\n179:     if max_names > 0:\n180:         names = names[:max_names]\n181:     while names:\n182:         weights = equal_weight_targets(names, meta, caps)\n183:         sector = sector_breach(weights, meta, caps)\n184:         if sector is None:\n185:             return weights\n186:         weakest = next((ticker for ticker in reversed(names) if meta[ticker].sector == sector), None)\n187:         if weakest is None:\n188:             return weights\n189:         names = [ticker for ticker in names if ticker != weakest]\n190:     return {}\n191: \n192: \n193: def forced_trims(\n194:     kept: list[str],\n195:     held: list[str],\n196:     scores: dict[str, float],\n197:     meta: dict[str, NameMeta],\n198:     caps: RiskCaps,\n199:     max_names: int,\n200: ) -> dict[str, str]:"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 12624,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:src/ta/live.py (over budget)",
+    "related_file:src/ta/mcp_servers/portfolio_tools.py (over budget)",
+    "transcript_window:reasoning mentioning \"float\" (L102) (over budget)",
+    "transcript_window:reasoning mentioning \"float\" (L248) (over budget)",
+    "transcript_window:reasoning mentioning \"float\" (L254) (over budget)",
+    "transcript_window:reasoning mentioning \"float\" (L277) (over budget)",
+    "transcript_window:reasoning mentioning \"_forced_stops\" (L5790) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Trading desk escalation, severity critical: a stop-loss did not execute.\n\nAAA was down 30% from the desk's average cost basis. The order management system shows a full stop-loss sell order was generated for the position, but the order never reached the market — the order blotter shows it was rejected internally before submission, with status \"rejected\" and no fill. The position in AAA is still open.",
+   "edit": {
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 314,
+    "hunk": "     return score is not None and float(score) >= threshold\n \n \n+def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n+    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n+    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n+    forced: set[str] = set()\n+    for ticker, lot in ctx.portfolio.positions.items():\n+        price = prices.get(ticker, 0.0)\n+        if price <= 0 or lot.qty <= 0:\n+            continue"
+   },
+   "code_window": "294:     if check.get(\"hard_trigger\") is True:\n295:         label = \"8-K hard trigger alert\" if alert else \"8-K hard trigger\"\n296:         notes.append(f\"{label} {ticker} {_decision_phrase(check)}\")\n297:     elif check.get(\"hard_trigger\") is False:\n298:         notes.append(f\"8-K not a hard trigger {ticker} {_decision_phrase(check)}\")\n299: \n300: \n301: def _high_conviction(ctx: ToolContext, ticker: str) -> bool:\n302:     threshold = float(ctx.settings.sizing_rules.get(\"high_conviction_quality\", 0.05))\n303:     security = ctx.store.security_by_ticker(ticker)\n304:     if security is None:\n305:         return False\n306:     from ta.mcp_servers.fund import compute_ratio_block\n307: \n308:     block = compute_ratio_block(ctx.store, security, ctx.as_of, ctx.settings.screen_rules)\n309:     score = block.get(\"quality_score\")\n310:     return score is not None and float(score) >= threshold\n311: \n312: \n313: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n314:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n315:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n316:     forced: set[str] = set()\n317:     for ticker, lot in ctx.portfolio.positions.items():\n318:         price = prices.get(ticker, 0.0)\n319:         if price <= 0 or lot.qty <= 0:\n320:             continue\n321:         average = lot.cost / lot.qty\n322:         if average > 0 and price <= average * (1.0 - stop_pct):\n323:             forced.add(ticker)\n324:     return forced\n325: \n326: \n327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False\n331:     return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\n332: \n333: \n334: def _trade_reason(",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "ta/mcp_servers/portfolio_tools.py",
+     "line": 314,
+     "function": "decision_checks_of",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 26.9364,
+     "method": "deterministic_bm25",
+     "text": "309:     score = block.get(\"quality_score\")\n310:     return score is not None and float(score) >= threshold\n311: \n312: \n313: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n314:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n315:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n316:     forced: set[str] = set()\n317:     for ticker, lot in ctx.portfolio.positions.items():\n318:         price = prices.get(ticker, 0.0)\n319:         if price <= 0 or lot.qty <= 0:"
+    },
+    {
+     "label": "candidate 2",
+     "file": "ta/sim/portfolio.py",
+     "line": 84,
+     "function": "half_spread",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 25.6028,
+     "method": "deterministic_bm25",
+     "text": "79:         base *= costs.illiquid_multiplier\n80:     return base\n81: \n82: \n83: def apply_split(portfolio: Portfolio, ticker: str, ratio: float) -> None:\n84:     \"\"\"`ratio` is new shares per old share. Total cost basis stays put.\"\"\"\n85:     lot = portfolio.positions.get(ticker)\n86:     if lot is None or ratio <= 0:\n87:         return\n88:     lot.qty = round(lot.qty * ratio, 6)\n89: "
+    },
+    {
+     "label": "candidate 3",
+     "file": "ta/sim/metrics.py",
+     "line": 141,
+     "function": "_round_trips",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 19.133,
+     "method": "deterministic_bm25",
+     "text": "136:     trips = 0\n137:     for fill in trades:\n138:         ticker = fill.ticker\n139:         if fill.side == \"buy\":\n140:             open_buys[ticker] = open_buys.get(ticker, 0) + 1\n141:         elif fill.side == \"sell\" and open_buys.get(ticker, 0) > 0:\n142:             open_buys[ticker] -= 1\n143:             trips += 1\n144:     return trips\n145: \n146: "
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "Next: anti-churn fixes (user-approved). In the last Sonnet replay JNJ was bought and sold 8 times and OKE, MO, PEP, WMT, COP and LOW also flipped; the full-exit-only cooldown didn't catch partial trims and top-ups.\n1. Make portfolio rebalancing weekly (a configurable day) by default. Daily runs still do monitoring and alerts, and may only trade on hard triggers: a risk-limit breach, stop or drawdown rules, a material cited event (8-K, earnings, guidance) that changes the thesis, or a new high-conviction entry above a threshold.\n2. Cooldown of N sessions (default 10) after ANY trade on a name, in either direction, unless a hard trigger fires.\n3. Thesis-change gate: a trade on an existing holding must cite what changed since the last decision on that name (new fact_refs dated after it). Otherwise it's blocked and logged.\n4. A minimum trade size (dollars and % of book) so tiny $1 trims don't happen; the no-trade band applies to drift.\n5. Add a turnover and round-trip metric to the replay report, plus a test that recreates the JNJ flip pattern and asserts it's blocked.\nAlso, EIA is skipped permanently (the user can't register); make it a silent optional skip rather than a warn. FRED_API_KEY and CENSUS_API_KEY are now set on the box. Make sure the FRED and Census refreshes write dated point-in-time rows and that data-audit reports them. Pick a sensible default series set relevant to the AI supply chain (power and electricity, industrial production, semis, construction, rates, inflation, labor). Tests and ruff must pass; export the tarball. No paid replay.",
+    "understood": "The cooldown and thesis gates are in place. Next I’ll apply them in the sizer, stamp decisions after planning, and wire the dated FRED and Census rows.",
+    "happened": "Trading desk escalation, severity critical: a stop-loss did not execute.\n\nAAA was down 30% from the desk's average cost basis. The order management system shows a full stop-loss sell order was generated for the position, but the order never reached the market — the order blotter shows it was rejected internally before submission, with status \"rejected\" and no fill. The position in AAA is still open.\n\n  at decision_checks_of (src/ta/mcp_servers/portfolio_tools.py:314)\n  314: \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n\nWritten by transcript edit L5803 (search_replace):\n     return score is not None and float(score) >= threshold\n \n \n+def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n+    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n+    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n+    forced: set[str] = set()\n+    for ticker, lot in ctx.portfolio.positions.items():\n+        price = prices.get(ticker, 0.0)\n+        if price <= 0 or lot.qty <= 0:\n+            continue"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L5803)",
+     "text": "L5800 [assistant] (empty message)\nL5801 [tool] TOOL: search_replace\nL5801| CODE_WRITTEN: \nL5801| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/src/ta/sim/portfolio.py\nL5801| +++ b//workspace/src/ta/sim/portfolio.py\nL5801| @@ -268,10 +268,10 @@\nL5801|          if reason != \"delisting\":\nL5801|              portfolio.exit_sessions[ticker] = session\nL5801|          del portfolio.positions[ticker]\nL5801| -    portfolio.last_trade_session[ticker] = session\nL5801|      else:\nL5801|          lot.qty = remaining\nL5801|          lot.cost = max(0.0, lot.cost - avg * qty)\nL5801| +    portfolio.last_trade_session[ticker] = session\nL5801|      fill = FillRecord(\nL5801|          ticker=ticker,\nL5801|          side=\"sell\",\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":1,\"linesAdded\":1}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL5802 [assistant] (empty message)\nL5803 [tool] TOOL: search_replace\nL5803| CODE_WRITTEN: \nL5803| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- a//workspace/src/ta/mcp_servers/portfolio_tools.py\nL5803| +++ b//workspace/src/ta/mcp_servers/portfolio_tools.py\nL5803| @@ -141,6 +141,43 @@\nL5803|      return score is not None and float(score) >= threshold\nL5803|  \nL5803|  \nL5803| +def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\nL5803| +    \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\nL5803| +    stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\nL5803| +    forced: set[str] = set()\nL5803| +    for ticker, lot in ctx.portfolio.positions.items():\nL5803| +        price = prices.get(ticker, 0.0)\nL5803| +        if price <= 0 or lot.qty <= 0:\nL5803| +            continue\nL5803| +        average = lot.cost / lot.qty\nL5803| +        if average > 0 and price <= average * (1.0 - stop_pct):\nL5803| +            forced.add(ticker)\nL5803| +    return forced\nL5803| +\nL5803| +\nL5803| +def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\nL5803| +    peak = ctx.portfolio.peak_equity\nL5803| +    if peak <= 0:\nL5803| +        return False\nL5803| +    return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\nL5803| +\nL5803| +\nL5803| +def _trade_reason(\nL5803| +    side: str,\nL5803| +    ticker: str,\nL5803| +    reduced: set[str],\nL5803| +    forced: set[str],\nL5803| +    review: bool,\nL5803| +) -> str:\nL5803| +    if side == \"sell\" and ticker in forced:\nL5803| +        return \"stop\"\nL5803| +    if side == \"sell\" and ticker in reduced:\nL5803| +        return \"cap_reduction\"\nL5803| +    if side == \"sell\" and review:\nL5803| +        return \"drawdown\"\nL5803| +    return \"rebalance\"\nL5803| +\nL5803| +\nL5803|  def remember_decisions(ctx: ToolContext, selected: l\nL5804 [assistant] (empty message)\nL5805 [tool] TOOL: search_replace\nL5806 [assistant] (empty message)"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that checking if a ticker is in the forced stops set is sufficient to trigger a stop-loss, but did not verify that the stop-loss check is actually called before order rejection logic.",
+  "why_it_breaks": "The agent created the _forced_stops function to identify positions that should be stopped out, but the function is never called in the order generation or validation flow. The stop-loss order was generated but rejected because the hard trigger check that should exempt stop-losses from cooldown or thesis-change gates was not properly wired to call _forced_stops, causing the order to be blocked by the newly added anti-churn rules.",
+  "confidence": "medium",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5803,
+    "quote": "+def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:",
+    "verified": true
+   },
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 5803,
+    "quote": "+    if side == \"sell\" and ticker in forced:",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 314,
+    "quote": "\"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/mcp_servers/portfolio_tools.py",
+    "line": 322,
+    "quote": "if average > 0 and price <= average * (1.0 - stop_pct):",
+    "verified": true
+   }
+  ],
+  "status": "verified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 2
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "src/ta/mcp_servers/portfolio_tools.py",
+  "line": 314,
+  "hunk_id": "L5803#746"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "medium",
+  "capped": "medium",
+  "margin": 0.049509214297382004,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": true
+ }
+}

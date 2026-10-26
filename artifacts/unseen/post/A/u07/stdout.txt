@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:32
+stage: ok
+provider: nemotron
+frame: src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs:32
+status: unverified (code quotes 0, transcript quotes 0)
+overlooked_assumption: The agent assumed that a non-empty FrameworkPattern string would always be a valid glob pattern to match against asset RelativePaths, without considering that the pattern might be syntactically invalid or empty after trimming, causing the matcher to silently fail or produce no matches.
+report: /workspace/open-agent/wt-fix/artifacts/unseen/post/A/u07/report.html

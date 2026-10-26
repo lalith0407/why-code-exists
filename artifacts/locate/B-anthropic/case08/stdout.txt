@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> tests/test_guarded_kinds.py:111
+stage: ok
+provider: anthropic
+frame: tests/test_guarded_kinds.py:111
+status: verified (code quotes 2, transcript quotes 1)
+overlooked_assumption: The agent assumed that the customers table has no scheduler/BI dependents and therefore the schema change would not affect any application constraints, but overlooked that the customers table has a unique email constraint enforced by an index that gets dropped and recreated during the ALTER TYPE migration plan.
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-anthropic/case08/report.html

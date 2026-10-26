@@ -1,0 +1,39 @@
+{
+ "overlooked_assumption": "The agent assumed that mentioning 'a drawdown review' as a hard trigger in the documentation meant the drawdown halt logic was actually implemented in the code, when in fact it only documented the thesis-change gate for existing holdings.",
+ "why_it_breaks": "The edit added logic for the Decisions API thesis-change gate to block trades on existing holdings, but it explicitly allows 'a hard trigger still goes through'. The documentation lists 'a drawdown review' as one of the hard triggers, but no actual drawdown halt enforcement was implemented - the agent only documented what triggers should exist, not the halt mechanism itself. When portfolio drawdown reached -30%, the new buy of FALN was treated as a hard trigger scenario (new name with high conviction quality score) and went through unchecked because no code actually blocks ALL trades during a drawdown halt.",
+ "confidence": "high",
+ "evidence": [
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 7051,
+   "quote": "It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05).",
+   "verified": true
+  },
+  {
+   "kind": "transcript",
+   "file": "",
+   "line": 7051,
+   "quote": "Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through.",
+   "verified": false,
+   "reason": "quote is not a substring of the cited line"
+  },
+  {
+   "kind": "code",
+   "file": "README.md",
+   "line": 184,
+   "quote": "It trades only on a hard trigger: a risk-cap cut, a stop (`stop_loss_pct` 0.20) or a drawdown review, a cited 8-K, earnings, or guidance item dated after the last decision on that name, or a new name whose quality score clears `high_conviction_quality` (0.05).",
+   "verified": true
+  },
+  {
+   "kind": "code",
+   "file": "README.md",
+   "line": 184,
+   "quote": "Drift in a name that stays selected does not, unless the Decisions API is on: then a thesis-change probability below 0.7 blocks that trade, and a hard trigger still goes through.",
+   "verified": true
+  }
+ ],
+ "status": "verified",
+ "verified_code_quotes": 2,
+ "verified_transcript_quotes": 1
+}

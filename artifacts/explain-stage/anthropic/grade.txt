@@ -1,0 +1,18 @@
+case      grounded  quotes_ok  transcript  code  proximity errors
+case01    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case01.json
+case02    True      True       True        True  True      
+case03    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case03.json
+case04    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case04.json
+case05    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case05.json
+case06    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case06.json
+case07    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case07.json
+case08    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case08.json
+case09    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case09.json
+case10    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case10.json
+case11    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case11.json
+case12    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case12.json
+case13    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case13.json
+case14    True      True       True        True  True      
+case15    False     False      False       False False     missing answer file: artifacts/explain-stage/anthropic/graded-answers/case15.json
+
+Grounded (mechanical): 2/15

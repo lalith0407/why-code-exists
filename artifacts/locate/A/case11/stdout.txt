@@ -1,0 +1,7 @@
+locate: layer1_deterministic -> src/ta/mcp_servers/portfolio_tools.py:145
+stage: ok
+provider: nemotron
+frame: src/ta/mcp_servers/portfolio_tools.py:314
+status: verified (code quotes 3, transcript quotes 1)
+overlooked_assumption: _forced_stops assumes price > 0 is sufficient to compute a meaningful stop-loss check, but does not guard against price being exactly 0.0 after the early continue, which causes a division-by-zero or degenerate comparison when average cost is also 0 or when price is 0 and the stop condition price <= average * (1 - stop_pct) evaluates incorrectly
+report: /workspace/open-agent/why-code-exists/artifacts/locate/A/case11/report.html

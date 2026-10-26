@@ -1,0 +1,920 @@
+{
+ "schema": "why-code-exists/explain-why@1",
+ "provider": "anthropic",
+ "three_piece": {
+  "schema": "why-code-exists/three-piece@1",
+  "error_id": "case04",
+  "complete": true,
+  "notes": [
+   "function fit_book was introduced at L8931; the frame line itself was written at L108"
+  ],
+  "frame": {
+   "file": "src/ta/harness/caps.py",
+   "line": 276,
+   "function": "fit_book"
+  },
+  "asked": {
+   "text": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L1 (user message)",
+   "valid": true,
+   "full_length": 2870
+  },
+  "understood": {
+   "text": "The next components to build are caps, portfolio, gateway, and tools.\n\nToolContext is being designed as the central context object for tool execution. The build order is portfolio and costs first, then caps, then tools, then gateway. Portfolio will use a Lot dataclass to track quantity and total cost.\n\nPortfolio is being defined with cash, positions, peak equity, friction, swing exits, holding samples, closed PnLs, an equity curve, contributions, and trades. A Fill dataclass tracks individual trade details including ticker, side, quantity, price, fees, and session. The Portfolio class also includes a market_value method to compute total value from current prices.\n\nThe half_spread pricing function is being drafted in sim/costs.py. It applies tiered spreads based on price and liquidity thresholds, then adjusts for low trading volume. A check_caps function is also being sketched.\n\nThe check_caps algorithm is being defined. It takes proposed weights, metadata, equity, peak, options premium, and day-trade orders as input. A CapResult model will return whether the allocation passes, any violations, adjusted weights, and notes. The algorithm clips individual names to their single-name caps, then scales sectors, high-risk sleeves, and penny names if they exceed limits. If the total exceeds 1, all weights are scaled proportionally.\n\nThe caps algorithm repeats twice and records violations where original weights exceeded limits. Day-trade and minimum-hold guards are order-level, not weight-level, so they will live in a separate `apply_order_guards` function. That function identifies buys by ticker across the order list, then blocks any sell orders on tickers that were just bought in the same session.\n\nThe `apply_order_guards` function now also enforces minimum hold periods. It checks the gap between the current session and the position entry session, and blocks sells that fall below the minimum hold window. Cap-reduction sells are marked with a special reason so they can be excluded from day-trade detection. The sizing logic will compare pre-cap and post-cap target weights to identify when a sell is triggered by a cap clip rather than a rebalance.\n\nThe sizing algorithm will build equal weights among selected names first, then enforce sector and sleeve caps. Any weight reduction from that step triggers a cap_reduction sell.\n\nA drawdown halt is being added: new high-risk buys are blocked once equity falls 20% or more below peak, and a de-risk review is recommended at 30%.\n\nAn option gate function is also being drafted.\n\nThe option gate will open only when options are enabled and equity meets the minimum threshold. The sizer tool will accept a selected ticker list and read caps and rules internally, keeping all sizing math inside the tool.\n\nThe `size_position` implementation is being drafted. It computes equity from the portfolio state and incoming cash, then builds raw equal weights across the selected tickers capped by their single-name limits. Those raw weights are passed to `enforce_caps` along with metadata and risk settings. Current positions not in the selection are forced to zero weight. The function then iterates over the adjusted weights to generate orders.\n\nThe sizer tool now computes each ticker's current position value and compares it to the target weight scaled by equity. A rebalance band skips small gaps that fall below a minimum notional threshold or a percentage of equity. Buys are issued when the gap exceeds the minimum notional, while sells use a \"cap_reduction\" reason for tickers whose weights were clipped by caps and a \"rebalance\" reason otherwise.\n\nThe `size_position` tool will return orders, adjusted weights, violations, equity, and incoming cash. A rebalance band skips trades when the gap between target and current weight is small; new names start at zero so they are always traded. The `check_caps` tool will validate weights without generating orders, and the risk manager will call it after sizing. Allowed tools will be listed in `harness/permissions.py`, and `ToolContext` will live in `harness/context.py` so tools can import it without depending on the gateway.\n\nToolContext is being defined with fields for the current date, store, portfolio, settings, incoming cash, session index, and log directory. A registry decorator is being added to `registry.py` so tools can register themselves by name, version, description, and phase.\n\nThe registry module will define the `tool` decorator and `REGISTRY` dictionary at the top, then import tool modules at the bottom to populate the registry. Tool modules will import only the `tool` decorator from registry, avoiding a circular dependency with `REGISTRY`. A `load()` function may be added to finalize registration after all modules are imported.\n\nThe gateway `call` method will look up tools by name in the registry, validate permissions, and raise a configuration error if the tool is missing. The registry import pattern is confirmed safe: tools import the decorator at module level while the registry imports them at load time.\n\nThe gateway `call` method now handles tool execution with explicit exception branches. It raises `PermissionDenied` for blocked tools, records `LeakageAttempt` as a leakage event and increments the counter, and maps `PhaseNotImplemented` to an error status.\n\nThe gateway call method now rounds floats in tool outputs and serializes them to canonical JSON. It hashes the output and arguments to generate IDs, then logs the call before storing the result.\n\nThe gateway call method now returns a ToolResult object. Leakage and blocked exceptions propagate upward so the agent loop aborts trading. Phase-not-implemented errors return a result instead of raising, preventing catalog probes from crashing. A future-date check is being drafted to reject arguments dated after the current simulation date.\n\nThe future-date check now scans arguments for `end`, `end_date`, and `as_of` keys. It rejects any date that falls after the current simulation date.\n\nA `prices_eod` tool is being drafted to fetch point-in-time end-of-day bars. It validates the ticker against the security store and parses the requested start and end dates.\n\nThe `prices_eod` tool now fetches point-in-time bars from the store and returns the ticker, security ID, sleeve, sector, date range, bar count, and raw bar data. Returning the full history may be excessive for ratio calculations, so the output might be trimmed to only the tail needed.\n\nThe `prices_eod` tool will return only a summary of the fetched range, including the first and last dates, last close, and last open. The full bar series is unnecessary because the ratio tool reads the store directly. This keeps the output small while still providing enough data to cite the last close.\n\nThe ratio tool will recompute metrics deterministically from the store using adjusted close, avoiding LLM reliance and keeping log size small. It will read 200 days of point-in-time prices and fundamentals to compute volatility, multi-period returns, drawdown, liquidity, valuation ratios, and a quality score.\n\nA universe tool is being drafted to return the current security universe with ticker, security ID, sleeve, sector, and exchange.\n\nA `guides.get_active` tool will read guide files from disk and compare their versions against `settings.guide_versions`. A `write_observation` tool will persist observations to the store and return an observation ID. The `verify.citations` tool will delegate to a pure function, and the `audit.diff` tool will call the reconciler using log entries and outputs.\n\nThe `audit.diff` tool will read prior log entries and outputs from the store and log directory, with memo text and claims passed as arguments. A `verify_chain` tool will run `LogView(ctx.log_dir).verify()` and return the status; it sees only prior entries because the current call has not yet been appended. A `broker.render_ticket` tool is being drafted to format a list of orders into ticket lines.\n\n`broker.render_ticket` returns formatted order lines and a venue label without network access. `broker.alpaca_paper_submit` is gated to the broker agent only, so the risk manager cannot accidentally trigger paper trades; it returns skipped when keys are missing and is tested directly and through the gateway. `thesis.validate` and `thesis.write` are fully implemented. Remaining tools are left as stubs.\n\nPhase 0 tool inventory is now complete. The real tools cover EDGAR filings, market data, risk checks, portfolio sizing, observations, guides, citations, audit diffs, logging, broker tickets, paper submission, and thesis validation. Stubs remain for EDGAR section extraction and XBRL fact retrieval.\n\nA thin XBRL facts reader will be implemented since the underlying data exists. A lightweight corporate actions tool is also planned. DCF and peer multiples remain stubs, while the quality score stays inside compute_ratios. The screen.run tool will be a real wrapper that applies screening rules to ratio outputs, reusing the existing ratio function to avoid double math.\n\nThe scope is being narrowed to the tools the agent loop actually needs. News.fetch_events and news.classify_event will remain stubs that raise PhaseNotImplemented. The real tools are now EDGAR filings, thesis validation and writing, minimal prediction scoring, XBRL facts reading, option gating, ticket rendering, and paper submission.\n\nAnomaly detection, graph traversal, industry transcripts, and simulation tools are being added to the real tool set. A real `verify.lookup_fact` will read prior tool outputs by ID from the database. `reopen_source` and `match_quote` remain phase two stubs. The thesis scoring logic will live in `mcp_servers/thesis_tools.py`.\n\nA pure-function citation validator is being drafted. It uses regex to strip bracketed citations, then scans the remaining text for unquoted numbers and marks them as removed.\n\nThe citation validator is finalized. It uses regex to replace citations with spaces of identical length, preserving text spans so the uncited-number scanner can safely strip unquoted numbers from the original text. A `validate_claims` function is being drafted to iterate over claims, apply this stripping, and separate kept claims from dropped ones.\n\nThe `validate_claims` function now enforces claim integrity. It drops fact claims that lack `fact_refs` or a `log_entry_id`, and rejects any fact whose referenced output IDs are missing from the known set. Forecast claims without references are also being filtered out.\n\nThe citation validator now preserves fact claims that carry references even when unquoted numbers are stripped from the prose. A reconciler is being drafted.\n\nThe reconciler is being implemented as a `reconcile` function that returns an `AuditReport`. It defines regex patterns to extract counts of stocks analysed and filings read from log entries. It tallies successful tool calls per run ID and compares them against the plan's expected tools, flagging any tool that was called fewer times than its minimum required.\n\nThe reconciler assigns severity levels to discrepancies. Missing expected tools are marked high if they have a minimum call count of one or more, otherwise medium. Excess calls and unplanned broker tool invocations are also flagged, with broker calls carrying higher severity. The function then extracts activity counts from the memo text and prior outputs.\n\nThe reconciler now validates claim fact references. It checks that every referenced output ID exists in the prior outputs and flags a high-severity discrepancy if any reference is missing. It also verifies that the stored output JSON matches its SHA256 hash, raising a high severity alert for tampered or corrupted outputs.\n\nThe reconciler now validates the security universe size against the plan and checks guide versions against the active set. It flags a high-severity discrepancy if either check fails. The audit status is fail for any high severity, warn for any medium severity, and pass otherwise. The tool wrapper adds chain status to the output. Log entries are filtered by run_id so prior runs do not interfere with the current audit.\n\nThe citation validator will query the store for known output IDs. Claims are passed as lists of dictionaries and parsed into Claim models. Tool arguments are stored by hash only; the audit tool receives memo text and returns discrepancies without echoing the full memo.\n\nThe simulation layer will be split into three files: `src/ta/sim/portfolio.py`, `src/ta/sim/fills.py`, and `src/ta/sim/env.py`. Caps will be written as testable units that do not depend on the gateway. The `size_position` tool will insert decisions directly into the portfolio, using security IDs from the store and rule versions from settings. Position snapshots will be handled inside the environment rather than inside a tool.\n\nDuckDB date comparisons in the universe filter and price inserts are being verified. The generate_bars shock logic was simplified to avoid an unpredictable branch, though it remains deterministic.\n\nThe simulation's random number consumption is now fully deterministic. A single market shock vector is drawn once per ticker, and each ticker's idiosyncratic shock is drawn before its loop begins. Delisted tickers simply iterate fewer times, so they consume fewer extra draws without affecting the sequence for later tickers.\n\nA quick sanity check on the SMLL quality score shows that with earnings of 4e7, a market cap of 5e7, and a price near 12, the earnings yield calculates to roughly 6.7%.\n\nThe SMLL quality score correctly excludes PENY because its negative earnings yield is penalized below zero. Cores with positive yields are selected, and the agent caps picks at three names; XOM should consistently appear due to its high yield. JNJ was assigned a net income of 18e9 to keep its yield reasonable. The 180-day volatility lookback has sufficient history within the demo window.\n\nThe agent will request 180 days of historical prices ending on the as_of date. If a ticker was listed after that window, the query simply returns fewer bars.\n\nThe orchestrator plan expects price calls for every core and high-risk security in the universe. The agent will iterate the universe tool output and skip benchmarks to match this count exactly.\n\nGONE was delisted before 2024, so it is excluded from the late demo window.\n\nThe demo universe contains eight tickers: six analysed plus SPY and AGG. The orchestrator plan expects one `prices_eod` and one `compute_ratios` call per security, plus a single call each for guides, portfolio state, universe lookup, observation writes, sizing, caps, option gate, ticket rendering, citations, and audit. A missing or failed price call will cause the tool count to diverge from expectations, triggering an audit failure that blocks order execution.\n\nThe agent loop will read the security universe and filter for core and high-risk tickers to build the plan. It will insert the run plan into the store before any tool calls begin. Every analysed security gets a `write_observation` entry, even if it is not selected for trading.\n\nThe agent loop is being drafted as a concrete sequence: call guides and portfolio state, query the security universe, then iterate over each analysed ticker to fetch prices, compute ratios, and write observations. After gathering all ratio results, an LLM judge evaluates them against screen rules. The loop also validates that selection fact references exist before proceeding to risk checks.\n\nThe agent loop now completes the sizing and risk phase. It calls `size_position` with the selected tickers, then validates weights against caps, checks the option gate, writes a risk observation, and renders a ticket from the resulting orders. Claims are built from the LLM judgement and ratio results, passed to the citation verifier, and then to the auditor for discrepancy review. If the audit fails or citations are rejected, the order list is cleared; otherwise execution proceeds.\n\nThe agent will filter the universe tool output to match the precomputed plan count, ensuring tool call expectations remain aligned. The orchestrator plan is generated by the harness before any tool calls begin; the orchestrator agent merely confirms it by querying portfolio state and active guides.\n\nThe orchestrator plan is deterministic code in `agents/orchestrator.py` that reads the store to build the RunPlan. A comment will note that the plan hash is stored before the logged tool calls begin. The citation verifier and audit tools are included in the same run and execute after the analyst phase, so their call counts are already reflected in the expected tool totals.\n\nA flaw was found in the audit tool: when it runs, it counts log entries already written, but its own expected call has not yet been appended. This would cause the audit to flag itself as missing. The fix is either to exclude tail tools from the count or to set the audit call’s minimum to zero so the harness validates the returned output directly.\n\nThe reconciler will treat `audit.diff` as an in-flight tool by passing it in the `in_flight_tools` set. This lets the audit count its own expected call without a separate special case.\n\nThe reconciler will accept an `in_progress` list of tool names and count each as already present. The harness will pass `[\"audit.diff\"]` during the audit call so its own expected entry is not flagged as missing. A second reconcile run without that list would see the stored audit result.\n\nThe in-flight tool workaround is abandoned. The plan will omit `verify.citations` and `audit.diff` from its expected tools. Those tail calls will be logged after the agent loop and flagged as unplanned MEDIUM severity.\n\nFlagging tail tools as unplanned would produce a WARN status, which is undesirable for a clean demo. The chosen approach is to include `verify.citations`, `audit.diff`, and `log.verify_chain` in the orchestrator plan and use the `in_progress` reconciler flag so the audit tool counts its own expected call without special-case logic.\n\nThe audit tool will append its own log entry immediately upon return. The harness will then run a second reconcile without the in-flight flag to confirm counts match. If the post-check reveals discrepancies, the audit status upgrades to fail.\n\nThe harness will compute the final audit report after all tool calls complete, including audit.diff. The audit tool will run the same pure function with in_progress so its logged output matches. verify.citations is already in the log before audit.diff runs, so only audit.diff needs in-flight accounting. Claims are built before verification and passed to the verifier, which drops some and returns the kept set.\n\nThe audit tool receives a memo built from the kept claims returned by the verifier. The memo's stock count reflects the distinct securities in the ratio results. Dropped facts are excluded from the memo, so the audit checks only the retained content. Citation accuracy is judged by comparing dropped and kept fact counts.\n\nThe memo will use British spelling: \"Analysed {n} stocks.\" The demo skips filings, so that sentence is omitted. The word \"analysed\" appears only once with a number. Risk observation text contains no digits.\n\nFact claims for weights and quality scores are rendered as FACT lines in the memo, substituting placeholders like [F-2] rather than embedding raw numbers. The option gate boolean is also cited without a bare number. This keeps the audit text free of digits that could trigger the fact stripper.\n\nThe audit tool scans the rendered memo, which displays resolved numbers next to citation IDs. The reconciler only checks activity claims and fact references, not that the memo contains zero digits. The citation validator strips uncited numbers from claim text before rendering, so bare numbers in the final output do not trigger audit failures.\n\nThe audit tool will scan the rendered memo for uncited numbers. It will ignore values immediately followed by a FactRef marker or those embedded in dates. This keeps the audit lightweight while still catching free-text numbers that lack proper citations.\n\nThe audit tool will not scan the rendered memo for uncited numbers. The citation validator strips claim prose before rendering, and the memo template uses only those claims plus structured fields. A dedicated test will cover the stripper, while the reconciler checks structured activity sentences and fact references.\n\nThe fact stripper serves as the regex/NER pass required by the spec. It runs on every claim and on any freeform opinion string before the memo is assembled. Activity claims are intentionally numeric and are verified against the log separately from fact claims, so they are not stripped.\n\nA `strike_activity_claims` helper will replace unbacked activity claims with a placeholder when audit discrepancies reach HIGH severity. The simulation environment will use a shared `simulate_orders` function and a `Book` class to track portfolio state, mark prices, and handle contributions.\n\nThe `Book` class will track cash, contributions, and apply corporate actions like splits and delistings. Split quantities scale by ratio while cost basis stays unchanged. The simulation fixture does not include splits, so unit tests will exercise this logic on a minimal book.\n\nDelisting will trigger a full exit at the last known close with standard sell slippage, ensuring exact test outcomes. The simulation environment's `step` method will return a `StepResult` and mark the session complete once no more trading days remain.\n\nThe `step` method advances the day index and marks prices. It contributes cash at month boundaries and applies corporate actions. Orders are filtered, filled, and trades recorded. Portfolio equity is updated before advancing to the next day.\n\nThe simulation environment will set the gateway's as-of date to the current day after each step so subsequent decisions reflect the latest state. Observations will use the latest bar for each security rather than execution bars. Incoming cash is computed as the monthly contribution only when a new month begins. A `decision_due` method will determine whether the agent should submit orders at the current step.\n\nThe gateway as-of date is set from the environment at each decision. The equity curve records initial cash before any step. Baselines reuse the same date loop and fill logic but use their own Book and skip the gateway. They see only current prices via prices_asof. A simple SPY buy-and-hold baseline needs no ratio data.\n\nThe baseline policy will receive the incoming cash amount as a parameter. Because the simulation environment applies monthly contributions before executing orders inside each step, the policy must account for that cash when computing order notional. This ensures the baseline invests the full available balance rather than leaving it idle until the next decision.\n\nThe agent sizer will also receive the incoming cash amount in its context. On the first trading day, the policy buys roughly one thousand dollars of SPY because no contribution is due yet. When a month boundary arrives, the sizer includes the incoming contribution before the step adds it and fills the order.\n\nThe equal-weight baseline will allocate each security a 1/n fraction of total equity plus incoming cash. It computes a target value for each holding and only submits buy orders to reach that target, never selling unless a delisting forces an exit.\n\nThe baseline policies will use a simple buy-and-hold strategy with monthly contribution top-ups. Underweight holdings receive new cash, while overweight positions remain untouched. A 60/40 SPY and AGG split is also planned. A rules-only baseline will select names with positive earnings yield from core or high-risk sleeves, equal-weight them, cap allocations, and rebalance without the agent’s max_names limit or volatility penalty.\n\nA shared `compute_ratio_block` helper in fund.py will let baselines compute earnings yield directly without gateway side effects. The Book will track friction and swing. A pure metrics module will derive reward from equity curve data, contributions, audit statistics, and weights.\n\nA pure walk-forward split helper will be added to splits.py. A paper broker module is planned for sim/paper.py before building the agents, memo, CLI, tests, and README.\n\nDuckDB schema migrations will be excluded from table name checks. Duplicate insert guards are already in place for sync operations. The demo wipes the database before seeding fresh data. Tests use isolated databases to avoid unique constraint violations.\n\nAn `analysed_names` helper will centralize the logic for retrieving names that have been analyzed.\n\nThe `is_analysed` helper will live in `ta/data/universe.py` so agents avoid fixture imports. The gateway needs a `set_as_of` method, and the portfolio must be created before the gateway and shared between them.\n\nThe fill math is being refined to prevent negative cash. A buy order is rejected if the notional is below the minimum or the open price is non-positive. The filled quantity is computed from the available cash budget, accounting for slippage and commission per share, then rounded to six decimals.\n\nBuy fills are clamped to the available cash budget so the book never goes negative. Sell fills are capped at the held quantity and use a discounted price for slippage plus per-share commission.\n\nSell fills update the book’s cash balance and record closed PnL. The position is fully exited if the sold quantity matches the held lot, or partially reduced otherwise. A day-trade guard runs before every fill, and the environment rechecks weight caps after orders are submitted to drop any noncompliant buys.\n\nThe environment will implement `orders_respect_caps` to enforce weight limits. Peak equity will be tracked on every mark so drawdown can be computed from the equity curve. A high-risk buy halt will drop those orders when equity falls within a threshold of its peak. The order filter will carry sleeve information and live in `caps.py` as `guard_orders`. A `_std` helper is being added for volatility calculations.\n\nA `_std` helper will compute sample standard deviation from a list of numbers. Returns will be derived as log differences between consecutive adjusted closes. Max drawdown will be measured over the last 63 trading days. The output will include a `fundamentals_available_at` timestamp to indicate when ratio inputs are available. The MCP server will be implemented after inspecting the mcp package API, likely using FastMCP's `add_tool`.\n\nThe MCP server will use FastMCP 1.9+ dynamic registration. A `@mcp.tool()` decorator and `add_tool` method will expose the gateway tools. The server will be named \"ta-gateway\".\n\nThe MCP server will register tools by wrapping each spec and replacing dots with underscores in tool names. The wrapper reads environment variables such as TA_DB, TA_LOG_DIR, and TA_AS_OF because the stdio server runs as a separate process. Phase 0 uses an in-process gateway as the authoritative source of truth. A subprocess MCP server cannot share the simulation’s portfolio state in memory.\n\nThe SDK will be checked for in-process MCP support. If the package exposes a dict of callables, the gateway will run inside the simulation process. Otherwise the subprocess MCP server will answer data queries against the shared DuckDB file, but portfolio state must be passed in the prompt because the subprocess cannot hold the Book. This limitation will be documented honestly.\n\nAn `agents/sdk.py` module will wrap the in-process gateway for the Claude Agent SDK. It imports `tool` and `create_sdk_mcp_server`, then builds a list of tools that close over the shared gateway instance. If the SDK is unavailable, it returns None.\n\nIf the Claude Agent SDK is missing, the code will raise a ConfigError with install instructions. The `make_tool` wrapper will be written against the documented decorator, and tests can mock it without requiring the extra to be installed. A small stdio MCP entry point will also be added so data tools can run as a standalone process using environment variables.\n\nA lightweight in-process test helper will invoke gateway tools directly by name and arguments, bypassing stdio entirely. The MCP server itself is the FastMCP wrapper. Tests will verify that the registry keys match the expected tool names and that `build_server()` returns a valid object with tools attached.\n\nThe beta shock formula is being simplified to avoid a numpy bug. The 80-day delisting window is confirmed feasible given roughly 370 business days of history. A manual portfolio test for corporate splits will be added, separate from the fixture-based tests.\n\nA new `apply_actions` method will be added to the portfolio book to process corporate actions such as splits. It will accept an `id_to_ticker` resolver because actions are keyed by security ID while positions are keyed by ticker. Delisting events will sell held shares at the previous close price, since no bar exists on the delist date.\n\nThe universe module will drop a name from the active set on its delist date. A focused unit test will buy a GONE security before its 80-day delisting window and step across the ex-date to verify liquidation. The environment must run for at least 81 steps to cover that gap.\n\nThe test will use manual orders instead of the agent to buy GONE on day zero, then step through the 81-day delisting window with empty orders to hold the position. DuckDB queries are fast enough for this approach.\n\nThe delisting test will verify that GONE is absent from the portfolio after the 80-day window. The liquidation logic must run before fills on the ex-date, and it will bypass minimum-hold rules because delisting is mandatory. The README will be written only after tests pass so it can reference real commands.\n\nThe gateway will use canonical JSON serialization for date arguments. OrderIntent objects will be converted to dictionaries via model_dump. If an audit check fails, the agent returns empty orders but the simulation still records the audit and holds the position.\n\nA `harness/caps.py` module will hold pure weight-enforcement functions. The `name_cap` helper will return the high-risk percentage for high-risk or penny-price names, and the core percentage otherwise. Episode-level rule compliance will count any order drops that the guard orders step makes.\n\nAny core name priced below the penny threshold will be treated as a penny security and counted toward the 10% penny total cap, regardless of its sleeve. Sector caps will group positions by sector and scale any group that exceeds its percentage limit.\n\nAn `in_high_risk_sleeve` helper will flag any security priced below the penny threshold as high-risk, so small, micro, speculative, and penny names all count toward the 30% high-risk sleeve cap. Options premiums are zero in phase 0. The `enforce` algorithm normalizes weights to non-negative floats and collects violations.\n\nThe enforcement loop iterates up to four times. Each pass clips individual ticker weights to their single-name cap and records violations. After that, weights are grouped by sector and any sector total exceeding its cap is flagged.\n\nSector and high-risk sleeve caps are scaled by the ratio of the allowed percentage to the current total weight. The algorithm then computes the penny total across all names priced below the threshold.\n\nThe enforcement loop now scales the penny total cap and normalizes all weights to sum to one. Violations are deduplicated by ticker and name so that only the original excess is recorded, even if multiple iterations trigger the same cap.\n\nThe `ok` flag is set to False whenever the original weights already violate a cap, ensuring adjusted weights must pass a second validation. Concrete test cases are being designed to exercise each enforcement layer: a single core name at 50% will be clipped to 15%, two tech names at 20% each will trigger sector scaling, and seven high-risk names at 5% each will exceed the 30% sleeve limit.\n\nUnit tests will use fake metadata because the fixture only contains two high-risk names. A day-trade test will drop a sell order when its ticker is also bought in the same order list. Minimum-hold logic will reject rebalance exits that fall short of the required session count, but cap-reduction exits are allowed. The guard_orders implementation will enforce these rules. Swing exits will be tracked per calendar quarter; if a security is held for fewer than the required swing sessions and the current quarter already has too many swings, the exit is blocked.\n\nPartial rebalance trims are not counted as swing trades and do not increment the swing counter or trigger the swing cap. Only full discretionary exits qualify as swings. A partial trim of a position younger than the minimum hold period will still be blocked by the minimum-hold rule.\n\nThe first rebalance at session 5 is allowed because the position has reached the minimum hold of 5 sessions. Entry session is defined as the fill date index, so a fill on step 1 sets entry_session to 1.\n\nCash weight is implicitly set to one minus the sum of all security weights, so it is never constrained by caps. The guard_orders step will use the upcoming fill session as current index plus one.\n\nWeight outputs will be rounded to six decimals to prevent tiny float noise from triggering churn. The rebalance band is set to 0.01. Notional amounts and limit prices are rounded to two decimals for ticket formatting. Simulated fills execute at the open rather than at the limit price.",
+   "citation": "bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L102 (assistant, 5251 words, 6 line(s) before the edit at L108)",
+   "valid": true,
+   "full_length": 33605
+  },
+  "happened": {
+   "text": "Risk review flagged a trade that should not have gone through during a drawdown halt.\n\nObserved: portfolio drawdown was -30.0% from its peak at the time (the halt threshold is -20%). A new buy of FALN at $2.10 per share was placed and filled anyway. No rejection or warning was logged for this order.\n\n  at fit_book (src/ta/harness/caps.py:276)\n  276: if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n\nWritten by transcript edit L108 (search_replace):\n+    for order in orders:\n+        if order.side == \"hold\" or order.notional <= 0:\n+            continue\n+        if order.side == \"sell\" and order.ticker in buys:\n+            notes.append(f\"day trade blocked for {order.ticker}\")\n+            continue\n+        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n+            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n+            continue\n+        if order.side == \"sell\" and order.reason != \"cap_reduction\":\n+            lot = portfolio.positions.get(order.ticker)\n+            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n+                notes.append(f\"min hold blocked sell of {order.ticker}\")",
+   "citation": "error case04 frame src/ta/harness/caps.py:276; bc-a98b50df-6392-5e8e-b2f6-d2a0d4998e28.jsonl#L108",
+   "valid": true,
+   "later_edits": []
+  }
+ },
+ "repair": {
+  "attempted": true,
+  "failed_quotes": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 108,
+    "quote": "+        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+    "reason": "quote is not a substring of the cited line"
+   }
+  ],
+  "outcome": "still_unverified"
+ },
+ "calls": [
+  {
+   "label": "explain_why",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  },
+  {
+   "label": "explain_why:repair",
+   "model": "claude-sonnet-4-5",
+   "ok": true
+  }
+ ],
+ "locate": {
+  "schema": "why-code-exists/locate@1",
+  "report": "Risk review flagged a trade that should not have gone through during a drawdown halt.\n\nObserved: portfolio drawdown was -30.0% from its peak at the time (the halt threshold is -20%). A new buy of FALN at $2.10 per share was placed and filled anyway. No rejection or warning was logged for this order.\n",
+  "terms": [
+   "risk review flagged a",
+   "a new buy of",
+   "faln at",
+   "no rejection or warning",
+   "30.0",
+   "20",
+   "2.10",
+   "risk",
+   "review",
+   "flagged",
+   "trade",
+   "gone",
+   "through",
+   "drawdown",
+   "halt",
+   "observed",
+   "portfolio",
+   "peak",
+   "time",
+   "threshold",
+   "faln",
+   "share",
+   "placed",
+   "filled",
+   "anyway",
+   "rejection",
+   "warning",
+   "logged",
+   "order"
+  ],
+  "layer1": {
+   "symbols_indexed": 8422,
+   "edited_hunks_indexed": 1147,
+   "candidates": [
+    {
+     "file": "src/ta/harness/caps.py",
+     "line": 276,
+     "end_line": 201,
+     "text": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+     "function": "fit_book",
+     "score": 31.8091,
+     "matched_terms": [
+      "risk",
+      "buy",
+      "trade",
+      "drawdown",
+      "halt",
+      "portfolio",
+      "peak",
+      "threshold",
+      "order"
+     ],
+     "edit_line": 108,
+     "tool": "search_replace",
+     "hunk_id": "L108#37",
+     "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 184,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 183,
+       "text": "            continue"
+      },
+      {
+       "line": 184,
+       "text": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":"
+      },
+      {
+       "line": 185,
+       "text": "            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 331,
+     "end_line": 180,
+     "text": "    return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)",
+     "function": "_decision_phrase",
+     "score": 31.0437,
+     "matched_terms": [
+      "risk",
+      "review",
+      "trade",
+      "drawdown",
+      "portfolio",
+      "peak"
+     ],
+     "edit_line": 5803,
+     "tool": "search_replace",
+     "hunk_id": "L5803#746",
+     "snippet": "144: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n145:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n146:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n147:     forced: set[str] = set()\n148:     for ticker, lot in ctx.portfolio.positions.items():\n149:         price = prices.get(ticker, 0.0)\n150:         if price <= 0 or lot.qty <= 0:\n151:             continue\n152:         average = lot.cost / lot.qty\n153:         if average > 0 and price <= average * (1.0 - stop_pct):",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 162,
+     "hunk_start": 144,
+     "context_lines": [
+      {
+       "line": 161,
+       "text": "        return False"
+      },
+      {
+       "line": 162,
+       "text": "    return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)"
+      },
+      {
+       "line": 163,
+       "text": ""
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "config/risk.yaml",
+     "line": 20,
+     "end_line": 30,
+     "text": "  drawdown_halt_high_risk: -0.20",
+     "score": 30.9888,
+     "matched_terms": [
+      "risk",
+      "review",
+      "new",
+      "drawdown",
+      "halt",
+      "threshold",
+      "order"
+     ],
+     "edit_line": 34,
+     "tool": "search_replace",
+     "hunk_id": "L34#4",
+     "snippet": "1: # Hard risk caps. Immutable to agents and to the guide evolver.\n2: # Changes require an explicit user edit and a new version hash.\n3: version: v1\n4: caps:\n5:   high_risk_sleeve_pct: 0.30\n6:   option_premium_per_position_pct: 0.02\n7:   option_premium_total_pct: 0.10\n8:   options_gate_min_equity: 10000\n9:   options_enabled: false\n10:   single_core_pct: 0.15",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 19,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 18,
+       "text": "  swing_hold_sessions: 20"
+      },
+      {
+       "line": 19,
+       "text": "  drawdown_halt_high_risk: -0.20"
+      },
+      {
+       "line": 20,
+       "text": "  drawdown_derisk_review: -0.30"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "rules/sizing/v1.yaml",
+     "line": 21,
+     "end_line": 29,
+     "text": "  a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name",
+     "score": 22.2411,
+     "matched_terms": [
+      "review",
+      "new",
+      "trade",
+      "drawdown",
+      "order"
+     ],
+     "edit_line": 5830,
+     "tool": "search_replace",
+     "hunk_id": "L5830#759",
+     "snippet": "12: rebalance_weekday: monday\n13: trade_cooldown_sessions: 10\n14: min_trade_dollars: 50\n15: min_trade_pct: 0.01\n16: high_conviction_quality: 0.05\n17: stop_loss_pct: 0.20\n20:   The book is rebalanced on rebalance_weekday. Other sessions only trade a hard trigger:\n21:   a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name\n22:   whose quality score clears high_conviction_quality.\n23:   The sizer trades the gap between current weight and target when it exceeds the 5 percentage-point band",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 21,
+     "hunk_start": 12,
+     "context_lines": [
+      {
+       "line": 20,
+       "text": "  The book is rebalanced on rebalance_weekday. Other sessions only trade a hard trigger:"
+      },
+      {
+       "line": 21,
+       "text": "  a cap cut, a stop, a drawdown review, a cited 8-K or earnings item, or a new name"
+      },
+      {
+       "line": 22,
+       "text": "  whose quality score clears high_conviction_quality."
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/memo/render.py",
+     "line": 241,
+     "end_line": 161,
+     "text": "        placed = [item for item in result.decisions if item.orders]",
+     "function": "render_episode",
+     "score": 21.581,
+     "matched_terms": [
+      "flagged",
+      "placed",
+      "order"
+     ],
+     "edit_line": 1893,
+     "tool": "search_replace",
+     "hunk_id": "L1893#297",
+     "snippet": "144:         placed = [item for item in result.decisions if item.orders]\n145:         lines.extend([\"\", \"## Orders in this window\", \"\"])\n146:         if not placed:\n147:             lines.append(\"No order was sized on a decision date.\")\n148:         else:\n149:             lines.append(\"Each line is a sized ticket. Fills, when they happen, are at the next open.\")\n150:             lines.append(\"\")\n151:             for item in result.decisions:\n152:                 if not item.orders:\n153:                     continue",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 144,
+     "hunk_start": 144,
+     "context_lines": [
+      {
+       "line": 144,
+       "text": "        placed = [item for item in result.decisions if item.orders]"
+      },
+      {
+       "line": 145,
+       "text": "        lines.extend([\"\", \"## Orders in this window\", \"\"])"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/sim/portfolio.py",
+     "line": 84,
+     "end_line": 271,
+     "text": "    \"\"\"`ratio` is new shares per old share. Total cost basis stays put.\"\"\"",
+     "function": "half_spread",
+     "score": 20.0601,
+     "matched_terms": [
+      "risk",
+      "new",
+      "buy",
+      "portfolio",
+      "peak",
+      "threshold",
+      "share",
+      "order"
+     ],
+     "edit_line": 106,
+     "tool": "search_replace",
+     "hunk_id": "L106#36",
+     "snippet": "1: \"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from dataclasses import dataclass, field\n6: from datetime import date\n7: \n8: from ta.config import CostConfig, RiskCaps\n9: from ta.models import OrderIntent\n10: ",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 76,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 75,
+       "text": "def apply_split(portfolio: Portfolio, ticker: str, ratio: float) -> None:"
+      },
+      {
+       "line": 76,
+       "text": "    \"\"\"`ratio` is new shares per old share. Total cost basis stays put.\"\"\""
+      },
+      {
+       "line": 77,
+       "text": "    lot = portfolio.positions.get(ticker)"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/fund.py",
+     "line": 252,
+     "end_line": 103,
+     "text": "    \"Compute point-in-time valuation and risk ratios from stored prices and XBRL facts.\",",
+     "function": "shares_for_period",
+     "score": 19.8731,
+     "matched_terms": [
+      "risk",
+      "20",
+      "drawdown",
+      "peak",
+      "time",
+      "share"
+     ],
+     "edit_line": 146,
+     "tool": "search_replace",
+     "hunk_id": "L146#50",
+     "snippet": "1: \"\"\"Deterministic ratio math. Agents cite the result; they do not recompute it.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import math\n6: from datetime import timedelta\n7: from typing import Any\n8: \n9: from ta.data.store import Store\n10: from ta.harness.context import ToolContext",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 97,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 96,
+       "text": "    \"0.1.0\","
+      },
+      {
+       "line": 97,
+       "text": "    \"Compute point-in-time valuation and risk ratios from stored prices and XBRL facts.\","
+      },
+      {
+       "line": 98,
+       "text": ")"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 483,
+     "end_line": 211,
+     "text": "        last_trade = ctx.portfolio.last_trade_session.get(ticker)",
+     "function": "_ask_or_skip",
+     "score": 18.8306,
+     "matched_terms": [
+      "risk",
+      "buy",
+      "trade",
+      "drawdown",
+      "portfolio",
+      "threshold",
+      "order"
+     ],
+     "edit_line": 5643,
+     "tool": "search_replace",
+     "hunk_id": "L5643#744",
+     "snippet": "68: def _rebalance_weekday(ctx: ToolContext) -> str:\n69:     name = str(ctx.settings.sizing_rules.get(\"rebalance_weekday\") or \"monday\").strip().lower()\n70:     if name in _WEEKDAYS:\n71:         return name\n72:     short = {day[:3]: day for day in _WEEKDAYS}\n73:     return short.get(name[:3], \"monday\")\n74: \n75: \n76: def _is_rebalance_day(ctx: ToolContext) -> bool:\n77:     return ctx.as_of.weekday() == _WEEKDAYS.index(_rebalance_weekday(ctx))",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 201,
+     "hunk_start": 68,
+     "context_lines": [
+      {
+       "line": 200,
+       "text": "                continue"
+      },
+      {
+       "line": 201,
+       "text": "        last_trade = ctx.portfolio.last_trade_session.get(ticker)"
+      },
+      {
+       "line": 202,
+       "text": "        if last_trade is not None and fill_session - last_trade < cooldown and not _hard(order):"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/mcp_servers/portfolio_tools.py",
+     "line": 55,
+     "end_line": 158,
+     "text": "        \"peak_equity\": round(ctx.portfolio.peak_equity, 6),",
+     "function": "snapshot_state",
+     "score": 18.0622,
+     "matched_terms": [
+      "risk",
+      "buy",
+      "portfolio",
+      "peak",
+      "threshold",
+      "share",
+      "order"
+     ],
+     "edit_line": 153,
+     "tool": "search_replace",
+     "hunk_id": "L153#53",
+     "snippet": "1: \"\"\"Portfolio state and sizing. Sizes are computed here, never by the model.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from typing import Any\n6: \n7: from ta.harness.caps import NameMeta, enforce_caps\n8: from ta.harness.context import ToolContext\n9: from ta.ids import canonical_json\n10: from ta.mcp_servers.registry import tool",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 50,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 49,
+       "text": "        \"positions\": positions,"
+      },
+      {
+       "line": 50,
+       "text": "        \"peak_equity\": round(ctx.portfolio.peak_equity, 6),"
+      },
+      {
+       "line": 51,
+       "text": "    }"
+      }
+     ],
+     "anchor": "exact"
+    },
+    {
+     "file": "src/ta/sim/baselines.py",
+     "line": 34,
+     "end_line": 102,
+     "text": "def _buy_cash(book: Portfolio, incoming: float, weights: dict[str, float]) -> list[OrderIntent]:",
+     "function": "_run",
+     "score": 18.0579,
+     "matched_terms": [
+      "risk",
+      "buy",
+      "portfolio",
+      "share",
+      "order"
+     ],
+     "edit_line": 232,
+     "tool": "search_replace",
+     "hunk_id": "L232#82",
+     "snippet": "1: \"\"\"Mandatory baselines. They share the agent's costs, calendar, and contributions.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections.abc import Callable\n6: \n7: from ta.config import Settings\n8: from ta.data.store import Store\n9: from ta.harness.context import ToolContext\n10: from ta.mcp_servers.fund import compute_ratio_block",
+     "method": "deterministic_bm25",
+     "role": "source",
+     "role_weight": 1,
+     "edit_time_line": 32,
+     "hunk_start": 1,
+     "context_lines": [
+      {
+       "line": 31,
+       "text": ""
+      },
+      {
+       "line": 32,
+       "text": "def _buy_cash(book: Portfolio, incoming: float, weights: dict[str, float]) -> list[OrderIntent]:"
+      },
+      {
+       "line": 33,
+       "text": "    budget = book.cash + incoming"
+      }
+     ],
+     "anchor": "exact"
+    }
+   ]
+  },
+  "shortlist": [
+   {
+    "file": "src/ta/harness/caps.py",
+    "line": 276,
+    "end_line": 201,
+    "text": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+    "function": "fit_book",
+    "score": 31.8091,
+    "matched_terms": [
+     "risk",
+     "buy",
+     "trade",
+     "drawdown",
+     "halt",
+     "portfolio",
+     "peak",
+     "threshold",
+     "order"
+    ],
+    "edit_line": 108,
+    "tool": "search_replace",
+    "hunk_id": "L108#37",
+    "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 184,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 183,
+      "text": "            continue"
+     },
+     {
+      "line": 184,
+      "text": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":"
+     },
+     {
+      "line": 185,
+      "text": "            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")"
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "src/ta/mcp_servers/portfolio_tools.py",
+    "line": 331,
+    "end_line": 180,
+    "text": "    return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)",
+    "function": "_decision_phrase",
+    "score": 31.0437,
+    "matched_terms": [
+     "risk",
+     "review",
+     "trade",
+     "drawdown",
+     "portfolio",
+     "peak"
+    ],
+    "edit_line": 5803,
+    "tool": "search_replace",
+    "hunk_id": "L5803#746",
+    "snippet": "144: def _forced_stops(ctx: ToolContext, prices: dict[str, float]) -> set[str]:\n145:     \"\"\"Names whose mark is at or below the stop, measured from average cost.\"\"\"\n146:     stop_pct = float(ctx.settings.sizing_rules.get(\"stop_loss_pct\", 0.20))\n147:     forced: set[str] = set()\n148:     for ticker, lot in ctx.portfolio.positions.items():\n149:         price = prices.get(ticker, 0.0)\n150:         if price <= 0 or lot.qty <= 0:\n151:             continue\n152:         average = lot.cost / lot.qty\n153:         if average > 0 and price <= average * (1.0 - stop_pct):",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 162,
+    "hunk_start": 144,
+    "context_lines": [
+     {
+      "line": 161,
+      "text": "        return False"
+     },
+     {
+      "line": 162,
+      "text": "    return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)"
+     },
+     {
+      "line": 163,
+      "text": ""
+     }
+    ],
+    "anchor": "exact"
+   },
+   {
+    "file": "config/risk.yaml",
+    "line": 20,
+    "end_line": 30,
+    "text": "  drawdown_halt_high_risk: -0.20",
+    "score": 30.9888,
+    "matched_terms": [
+     "risk",
+     "review",
+     "new",
+     "drawdown",
+     "halt",
+     "threshold",
+     "order"
+    ],
+    "edit_line": 34,
+    "tool": "search_replace",
+    "hunk_id": "L34#4",
+    "snippet": "1: # Hard risk caps. Immutable to agents and to the guide evolver.\n2: # Changes require an explicit user edit and a new version hash.\n3: version: v1\n4: caps:\n5:   high_risk_sleeve_pct: 0.30\n6:   option_premium_per_position_pct: 0.02\n7:   option_premium_total_pct: 0.10\n8:   options_gate_min_equity: 10000\n9:   options_enabled: false\n10:   single_core_pct: 0.15",
+    "method": "deterministic_bm25",
+    "role": "source",
+    "role_weight": 1,
+    "edit_time_line": 19,
+    "hunk_start": 1,
+    "context_lines": [
+     {
+      "line": 18,
+      "text": "  swing_hold_sessions: 20"
+     },
+     {
+      "line": 19,
+      "text": "  drawdown_halt_high_risk: -0.20"
+     },
+     {
+      "line": 20,
+      "text": "  drawdown_derisk_review: -0.30"
+     }
+    ],
+    "anchor": "exact"
+   }
+  ],
+  "picked": {
+   "file": "src/ta/harness/caps.py",
+   "line": 276,
+   "end_line": 201,
+   "text": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+   "function": "fit_book",
+   "score": 31.8091,
+   "matched_terms": [
+    "risk",
+    "buy",
+    "trade",
+    "drawdown",
+    "halt",
+    "portfolio",
+    "peak",
+    "threshold",
+    "order"
+   ],
+   "edit_line": 108,
+   "tool": "search_replace",
+   "hunk_id": "L108#37",
+   "snippet": "1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from collections import defaultdict\n6: from dataclasses import dataclass\n7: from datetime import date\n8: \n9: from ta.config import RiskCaps\n10: from ta.models import OrderIntent",
+   "method": "deterministic_bm25",
+   "role": "source",
+   "role_weight": 1,
+   "edit_time_line": 184,
+   "hunk_start": 1,
+   "context_lines": [
+    {
+     "line": 183,
+     "text": "            continue"
+    },
+    {
+     "line": 184,
+     "text": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":"
+    },
+    {
+     "line": 185,
+     "text": "            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")"
+    }
+   ],
+   "anchor": "exact"
+  },
+  "method": "layer1_deterministic",
+  "layer2": {
+   "attempted": true,
+   "ran": true,
+   "provider": "anthropic",
+   "reason": "exhausted 6 tool steps without a confirmed answer",
+   "steps": [
+    {
+     "step": 1,
+     "action": "grep",
+     "args": {
+      "pattern": "drawdown.*halt|halt.*drawdown"
+     },
+     "result": "src/ta/config.py:53: drawdown_halt_high_risk: float = -0.20\nsrc/ta/harness/caps.py:253: \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\nsrc/ta/harness/caps.py:261: halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\nsrc/ta/harness/caps.py:277: notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")"
+    },
+    {
+     "step": 2,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 250,
+      "end": 285
+     },
+     "result": "250:     prices: dict[str, float],\n251:     equity: float,\n252: ) -> tuple[list[OrderIntent], list[str]]:\n253:     \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n254: \n255:     Cap-driven sells are allowed inside the minimum hold. The weight cap itself is\n256:     applied by :func:`enforce_caps` before orders are built.\n257:     \"\"\"\n258:     notes: list[str] = []\n259:     buys = {order.ticker for order in orders if order.side == \"buy\"}\n260:     drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n261:     halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n262:     quarter = _quarter(fill_date)\n263:     swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n264:     kept: list[OrderIntent] = []\n265:     for order in orders:\n266:         if order.side == \"hold\" or order.notional <= 0:\n267:             continue\n268:         if order.side == \"sell\" and order.ticker in buys:\n269:             notes.append(f\"day trade blocked for {order.ticker}\")\n270:             continue\n271:         if order.side == \"buy\":\n272:             exited = portfolio.exit_sessions.get(order.ticker)\n273:             if exited is not None and fill_session - exited < caps.reentry_sessions:\n274:                 notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n275:                 continue\n276:         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n277:             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n278:             continue\n279:         if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n280:             lot = portfolio.positions.get(order.ticker)\n281:             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n282:                 notes.append(f\"min hold blocked sell of {order.ticker}\")\n283:                 continue\n284:             if (\n285:                 lot is not None"
+    },
+    {
+     "step": 3,
+     "action": "grep",
+     "args": {
+      "pattern": "sleeve.*=|\"sleeve\":|sleeve:"
+     },
+     "result": "src/ta/config.py:38: high_risk_sleeve_pct: float = 0.30\nsrc/ta/models.py:59: sleeve: str\nsrc/ta/models.py:89: sleeve: str = \"core\"\nsrc/ta/replay.py:494: \"sleeve\": spec.sleeve,\nsrc/ta/sim/baselines.py:43: OrderIntent(ticker=ticker, side=\"buy\", notional=notional, sleeve=\"core\", reason=\"baseline\")\nsrc/ta/sim/engine.py:56: meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nsrc/ta/mcp_servers/fund.py:225: \"sleeve\": security.sleeve,\nsrc/ta/mcp_servers/market.py:23: \"sleeve\": row.sleeve,\nsrc/ta/mcp_servers/market.py:44: \"sleeve\": security.sleeve,\nsrc/ta/mcp_servers/portfolio_tools.py:45: \"sleeve\": None if security is None else security.sleeve,\nsrc/ta/mcp_servers/portfolio_tools.py:542: sleeves: dict[str, str] = {}\nsrc/ta/mcp_servers/portfolio_tools.py:554: sleeves[ticker] = security.sleeve\nsrc/ta/mcp_servers/portfolio_tools.py:556: meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nsrc/ta/mcp_servers/portfolio_tools.py:610: \"sleeve\": sleeves.get(ticker, \"core\"),\nsrc/ta/mcp_servers/portfolio_tools.py:644: sleeves: dict[str, str] = {}\nsrc/ta/mcp_servers/portfolio_tools.py:656: sleeves[ticker] = security.sleeve\nsrc/ta/mcp_servers/portfolio_tools.py:658: meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nsrc/ta/mcp_servers/portfolio_tools.py:697: \"sleeve\": sleeves.get(ticker, \"core\"),\nsrc/ta/mcp_servers/risk_tools.py:23: meta[ticker] = NameMeta(ticker=ticker, sleeve=security.sleeve, sector=security.sector, price=price)\nsrc/ta/mcp_servers/screen_tools.py:97: \"sleeve\": security.sleeve,\nsrc/ta/harness/caps.py:17: sleeve: str\nsrc/ta/harness/caps.py:30: if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\nsrc/ta/harness/caps.py:36: return meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold\nsrc/ta/harness/caps.py:72: sleeve_total = sum(\nsrc/ta/harness/caps.py:115: sleeve_names = [ticker for ticker in adjusted if ticker in meta and _in_sleeve(meta[ticker], caps)]"
+    },
+    {
+     "step": 4,
+     "action": "list_edits",
+     "args": {},
+     "result": "pyproject.toml:1-66 (edit at L26, search_replace)\n  1: [project]\n  2: name = \"trading-agents\"\n  3: version = \"0.1.0\"\n  4: description = \"Long-horizon multi-agent US equity research system. Phase 0 is the simulator, point-in-time data layer, and tamper-evident action log.\"\n\nMakefile:1-15 (edit at L28, search_replace)\n  1: UV ?= $(HOME)/.local/bin/uv\n  2: export PATH := $(HOME)/.local/bin:$(PATH)\n  6: sync:\n  9: demo:\n\n.gitignore:1-13 (edit at L30, search_replace)\n  1: .venv/\n  2: __pycache__/\n  3: *.pyc\n  4: .mypy_cache/\n\n.github/workflows/ci.yml:1-22 (edit at L32, search_replace)\n  1: name: ci\n  3: on:\n  4:   push:\n  5:   pull_request:\n\nconfig/risk.yaml:1-31 (edit at L34, search_replace)\n  1: # Hard risk caps. Immutable to agents and to the guide evolver.\n  2: # Changes require an explicit user edit and a new version hash.\n  3: version: v1\n  4: caps:\n\nconfig/reward.yaml:1-12 (edit at L36, search_replace)\n  1: # Multi-objective reward weights. The scalar is for selection only.\n  2: # Components are always reported separately. A HIGH audit failure zeroes the scalar.\n  3: version: v1\n  4: weights:\n\nconfig/sim.yaml:1-28 (edit at L38, search_replace)\n  1: # Simulator defaults. Phase 0 replays the bundled fixture; it does not hit the network.\n  2: version: v1\n  3: initial_capital: 1000\n  4: contribution_amount: 100\n\nconfig/sources.yaml:1-21 (edit at L40, search_replace)\n  1: # Credentials come from the environment. Nothing in this file is a secret.\n  2: edgar:\n  3:   user_agent_env: SEC_EDGAR_USER_AGENT\n  4:   rate_limit_per_sec: 8\n\nconfig/thesis_topics.yaml:1-15 (edit at L42, search_replace)\n  1: # Scheduled-scan themes for the Thesis Investigator. The investigator itself is Phase 2.\n  2: version: v1\n  3: cadence: weekly\n  4: topics:\n\nrules/screen/v1.yaml:1-23 (edit at L44, search_replace)\n  1: version: v1\n  2: formula_version: ratios-0.1.0\n  3: min_quality_score: 0.0\n  13: require_positive_earnings: true\n\nrules/sizing/v1.yaml:1-19 (edit at L46, search_replace)\n  1: version: v1\n  2: fractional_shares: true\n  3: min_order_notional: 1.0\n  8: contribution_policy: new_cash_toward_underweights\n\nrules/exit/v1.yaml:1-11 (edit at L48, search_replace)\n  1: version: v1\n  2: discretionary_exits:\n  3:   - screen_exit\n  4:   - valuation_target\n\nrules/risk/v1.yaml:1-5 (edit at L50, search_replace)\n  1: version: v1\n  2: source: config/risk.yaml\n  3: notes: >\n  4:   This file records the rule-set version that decisions cite.\n\nrules/anomaly/v1.yaml:1-11 (edit at L52, search_replace)\n  1: version: v1\n  4: lookback_sessions: 60\n  5: return_sigma: 3.0\n  6: windows: [1, 5]\n\nguides/METASKILL.md:1-29 (edit at L54, search_replace)\n  1: # Metaskill (GSO)\n  3: This metaskill is the persistent object. A per-ticker research plan is derived from an agent guide at run time, stored in the action log for audit, and discarded. It is never promoted to a guide.\n  5: The evolver traces the first fault to exactly one section below and edits only that section. An edit is accepted only when `repairs - 2 * regressions > 0` and validation success does not fall, measured by executing `sim.run_ab` on a validation window. Held-out sectors and test windows never propose or accept edits. An LLM may rank candidate edits; it does not decide acceptance.\n  7: ## 1. Read task\n\nguides/orchestrator/v1.md:1-27 (edit at L56, search_replace)\n  1: # Orchestrator guide v1\n  3: The orchestrator produces a RunPlan and routes tasks. It does not analyse securities and it does not size orders.\n  5: ## 1. Read task\n  7: Read the trigger (contribution, schedule, anomaly, or demo), the portfolio state, and the active guide and rule versions.\n\nguides/fundamentals/v1.md:1-27 (edit at L58, search_replace)\n  1: # Fundamentals guide v1\n  3: Interpret ratios that `fund.compute_ratios` already computed. Do not calculate prices, yields, or scores.\n  5: ## 1. Read task\n  7: For the point-in-time universe, read each analysed ticker's end-of-day prices and ratio block as of the run date. Benchmarks and bond proxies are not stock-selection names.\n\nguides/risk_manager/v1.md:1-27 (edit at L60, search_replace)\n  1: # Risk manager guide v1\n  3: Set size bands inside the hard caps. The caps in `config/risk.yaml` are not yours to edit. A failed cap check downsizes the order in code.\n  5: ## 1. Read task\n  7: Read the analyst's selected names, the current portfolio, incoming contribution cash, and the option-gate status.\n\nguides/thesis/v1.md:1-45 (edit at L62, search_replace)\n  1: # Thesis investigator guide v1\n  3: Derive a cited, falsifiable thesis. This guide does not trade and does not size. Pattern notes below are the sections a later GSO loop may edit, one pattern at a time, after enough predictions have resolved.\n  5: ## 1. Read task\n  7: Read the anomaly event or the scheduled topic, the as-of date, and this guide version. If the deterministic decomposition says the move is explained, stop with no thesis.\n\nsrc/ta/data/migrations/001_initial.sql:1-398 (edit at L65, search_replace)\n  1: -- Phase 0 schema. DuckDB first; types map to Postgres\n  2: -- (VARCHAR, DATE, DOUBLE PRECISION, BIGINT). Nested payloads are JSON text\n  3: -- so the later move to JSONB is mechanical.\n  4: -- Point-in-time columns: event_time, available_at, retrieved_at.\n\nsrc/ta/__init__.py:1-3 (edit at L67, search_replace)\n  1: \"\"\"Long-horizon multi-agent investment research system (Phase 0).\"\"\"\n  3: __version__ = \"0.1.0\"\n\nsrc/ta/errors.py:1-34 (edit at L71, search_replace)\n  1: \"\"\"Project exceptions. Leakage and phase gates are control flow the gateway logs.\"\"\"\n  4: class TaError(Exception):\n  5:     \"\"\"Base error for expected failures.\"\"\"\n  8: class ConfigError(TaError):\n\nsrc/ta/ids.py:1-81 (edit at L73, search_replace)\n  1: \"\"\"Identifiers, canonical JSON, and content hashes.\n  3: Log entry hashes use canonical JSON so verify can recompute them from the\n  4: parsed object. Floats are rounded before they enter a hashed payload.\n  5: \"\"\"\n\nsrc/ta/models.py:1-290 (edit at L76, search_replace)\n  1: \"\"\"Pydantic models shared by the harness, tools, simulator, and memo.\"\"\"\n  3: from __future__ import annotations\n  5: from datetime import date, datetime\n  6: from typing import Any, Literal\n\nsrc/ta/config.py:1-255 (edit at L78, search_replace)\n  1: \"\"\"Load versioned YAML config. Secrets are read from the environment by callers.\"\"\"\n  3: from __future__ import annotations\n  5: import os\n  6: from datetime import date\n\nsrc/ta/actionlog/__init__.py:1-8 (edit at L80, search_replace)\n  1: \"\"\"Append-only hash-chained action log.\n  3: The gateway is the only writer. Agents use :class:`LogView`.\n  4: \"\"\"\n  6: from ta.actionlog.writer import ActionLog, LogView\n\nsrc/ta/actionlog/chain.py:1-13 (edit at L82, search_replace)\n  1: \"\"\"Canonical hashing helpers for the action log.\"\"\"\n  3: from __future__ import annotations\n  5: from typing import Any\n  7: from ta.ids import GENESIS, canonical_json, entry_hash, sha256_text\n\nsrc/ta/actionlog/verify.py:1-173 (edit at L85, search_replace)\n  1: \"\"\"Recompute the hash chain and check signed daily roots.\"\"\"\n  3: from __future__ import annotations\n  5: import base64\n  6: import json\n\nsrc/ta/actionlog/writer.py:1-176 (edit at L87, search_replace)\n  1: \"\"\"Harness-owned append-only log writer and the read-only view agents use.\"\"\"\n  3: from __future__ import annotations\n  5: import base64\n  6: import fcntl\n\nsrc/ta/data/__init__.py:1-1 (edit at L90, search_replace)\n  1: \"\"\"DuckDB store, migrations, and fixture seeding.\"\"\"\n\nsrc/ta/data/migrate.py:1-62 (edit at L92, search_replace)\n  1: \"\"\"Apply numbered SQL migrations. Each file may contain many statements.\"\"\"\n  3: from __future__ import annotations\n  5: from pathlib import Path\n  7: import duckdb\n\nsrc/ta/data/fixtures.py:1-430 (edit at L94, search_replace)\n  1: \"\"\"Seeded, survivorship-aware price history for offline replay.\n  3: The generator is a fixed-seed daily model. It is a data fixture, not a forecast.\n  4: The full history is stored in DuckDB; agent queries still have to pass the\n  5: point-in-time filter, which is what makes leakage tests meaningful.\n\nsrc/ta/data/store.py:1-820 (edit at L96, search_replace)\n  1: \"\"\"Thin repository over DuckDB. Agent-facing reads filter on available_at.\"\"\"\n  3: from __future__ import annotations\n  5: from datetime import date, datetime\n  6: from pathlib import Path\n\nsrc/ta/data/edgar.py:1-308 (edit at L99, search_replace)\n  1: \"\"\"SEC EDGAR client.\n  3: Fair-access policy: a declared User-Agent with a contact email is required, and\n  4: the client stays under 10 requests/second. The User-Agent comes from\n  5: ``SEC_EDGAR_USER_AGENT``. Historical replay filters on acceptance time; asking\n\nsrc/ta/data/prices.py:1-245 (edit at L101, search_replace)\n  1: \"\"\"Pluggable end-of-day price adapters.\n  3: ``fixture`` is the offline default. ``yfinance`` and ``stooq`` are free sources.\n  4: ``alpaca`` reads ``ALPACA_API_KEY`` and ``ALPACA_SECRET_KEY`` and is market data\n  5: only (GET). None of these adapters submit orders.\n\nsrc/ta/sim/__init__.py:1-1 (edit at L104, search_replace)\n  1: \"\"\"Point-in-time replay simulator.\"\"\"\n\nsrc/ta/sim/portfolio.py:1-288 (edit at L106, search_replace)\n  1: \"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\n  3: from __future__ import annotations\n  5: from dataclasses import dataclass, field\n  6: from datetime import date\n\nsrc/ta/harness/caps.py:1-293 (edit at L108, search_replace)\n  1: \"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\n  3: from __future__ import annotations\n  5: from collections import defaultdict\n  6: from dataclasses import dataclass\n\nsrc/ta/harness/context.py:1-24 (edit at L110, search_replace)\n  1: \"\"\"Per-decision context handed to deterministic tools. It cannot append the log.\"\"\"\n  3: from __future__ import annotations\n  6: from datetime import date\n  7: from pathlib import Path\n\nsrc/ta/harness/permissions.py:1-95 (edit at L112, search_replace)\n  1: \"\"\"Per-agent allow lists. The gateway rejects anything else.\"\"\"\n  3: from __future__ import annotations\n  5: ALLOWED_TOOLS: dict[str, set[str]] = {\n  6:     \"orchestrator\": {"
+    },
+    {
+     "step": 5,
+     "action": "read",
+     "args": {
+      "file": "src/ta/harness/caps.py",
+      "start": 108,
+      "end": 293
+     },
+     "result": "108:                 by_sector[meta[ticker].sector].append(ticker)\n109:         for tickers in by_sector.values():\n110:             total = sum(adjusted[ticker] for ticker in tickers)\n111:             if total > caps.sector_pct + 1e-12:\n112:                 scale = caps.sector_pct / total\n113:                 for ticker in tickers:\n114:                     adjusted[ticker] *= scale\n115:         sleeve_names = [ticker for ticker in adjusted if ticker in meta and _in_sleeve(meta[ticker], caps)]\n116:         total = sum(adjusted[ticker] for ticker in sleeve_names)\n117:         if total > caps.high_risk_sleeve_pct + 1e-12:\n118:             scale = caps.high_risk_sleeve_pct / total\n119:             for ticker in sleeve_names:\n120:                 adjusted[ticker] *= scale\n121:         penny_names = [\n122:             ticker for ticker in adjusted if ticker in meta and meta[ticker].price < caps.penny_price_threshold\n123:         ]\n124:         total = sum(adjusted[ticker] for ticker in penny_names)\n125:         if total > caps.penny_total_pct + 1e-12:\n126:             scale = caps.penny_total_pct / total\n127:             for ticker in penny_names:\n128:                 adjusted[ticker] *= scale\n129:         gross = sum(adjusted.values())\n130:         if gross > 1 + 1e-12:\n131:             scale = 1 / gross\n132:             for ticker in adjusted:\n133:                 adjusted[ticker] *= scale\n134: \n135:     cleaned = {ticker: round(weight, 6) for ticker, weight in adjusted.items() if weight > 1e-6}\n136:     return CapOutcome(ok=not violations, weights=cleaned, violations=violations)\n137: \n138: \n139: def equal_weight_targets(\n140:     names: list[str],\n141:     meta: dict[str, NameMeta],\n142:     caps: RiskCaps,\n143: ) -> dict[str, float]:\n144:     \"\"\"Equal weight, clipped to the single-name cap. The sector cap is not filled by scaling.\"\"\"\n145:     priced = [name for name in names if name in meta and meta[name].price > 0]\n146:     if not priced:\n147:         return {}\n148:     share = 1.0 / len(priced)\n149:     return {name: min(share, _name_cap(meta[name], caps)) for name in priced}\n150: \n151: \n152: def sector_breach(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> str | None:\n153:     totals: dict[str, float] = defaultdict(float)\n154:     for ticker, weight in weights.items():\n155:         if ticker not in meta or weight <= 0:\n156:             continue\n157:         sector = meta[ticker].sector\n158:         if sector:\n159:             totals[sector] += weight\n160:     for sector, total in totals.items():\n161:         if total > caps.sector_pct + 1e-9:\n162:             return sector\n163:     return None\n164: \n165: \n166: def fit_book(\n167:     ranked: list[str],\n168:     meta: dict[str, NameMeta],\n169:     caps: RiskCaps,\n170:     max_names: int,\n171: ) -> dict[str, float]:\n172:     \"\"\"Keep the strongest names that fit the count and the sector cap.\n173: \n174:     ``ranked`` is strongest first. An overweight sector loses its weakest name\n175:     and the remaining names stay at equal weight. They are not scaled up to the\n176:     sector cap, and they are not scaled down after the fact.\n177:     \"\"\"\n178:     names = [ticker for ticker in ranked if ticker in meta and meta[ticker].price > 0]\n179:     if max_names > 0:\n180:         names = names[:max_names]\n181:     while names:\n182:         weights = equal_weight_targets(names, meta, caps)\n183:         sector = sector_breach(weights, meta, caps)\n184:         if sector is None:\n185:             return weights\n186:         weakest = next((ticker for ticker in reversed(names) if meta[ticker].sector == sector), None)\n187:         if weakest is None:\n188:             return weights\n189:         names = [ticker for ticker in names if ticker != weakest]\n190:     return {}\n191: \n192: \n193: def forced_trims(\n194:     kept: list[str],\n195:     held: list[str],\n196:     scores: dict[str, float],\n197:     meta: dict[str, NameMeta],\n198:     caps: RiskCaps,\n199:     max_names: int,\n200: ) -> dict[str, str]:\n201:     \"\"\"Held names that cannot stay without breaking the count or the sector cap.\n202: \n203:     Extras are tried strongest first. A name that still fits is left on the\n204:     discretionary path. A name that does not fit is a hard sell: ``holdings_cap``\n205:     when the book is already full, ``cap_reduction`` when its sector would be.\n206:     \"\"\"\n207:     survivors = [ticker for ticker in kept if ticker in meta and meta[ticker].price > 0]\n208:     survivor_set = set(survivors)\n209:     extras = [ticker for ticker in held if ticker not in survivor_set and ticker in meta and meta[ticker].price > 0]\n210:     extras.sort(key=lambda ticker: (-float(scores.get(ticker, -1e9)), ticker))\n211:     reasons: dict[str, str] = {}\n212:     for ticker in extras:\n213:         trial = survivors + [ticker]\n214:         if max_names > 0 and len(trial) > max_names:\n215:             reasons[ticker] = \"holdings_cap\"\n216:             continue\n217:         if sector_breach(equal_weight_targets(trial, meta, caps), meta, caps):\n218:             reasons[ticker] = \"cap_reduction\"\n219:             continue\n220:         survivors.append(ticker)\n221:     return reasons\n222: \n223: \n224: def option_gate_status(equity: float, caps: RiskCaps) -> dict:\n225:     threshold = caps.options_gate_min_equity\n226:     open_gate = bool(caps.options_enabled and equity >= threshold)\n227:     return {\n228:         \"open\": open_gate,\n229:         \"options_enabled\": caps.options_enabled,\n230:         \"equity\": round(equity, 2),\n231:         \"threshold\": threshold,\n232:         \"reason\": None\n233:         if open_gate\n234:         else \"options stay off until the flag is on and equity clears the threshold\",\n235:     }\n236: \n237: \n238: def _quarter(day: date) -> tuple[int, int]:\n239:     return day.year, (day.month - 1) // 3\n240: \n241: \n242: def guard_orders(\n243:     orders: list[OrderIntent],\n244:     portfolio: Portfolio,\n245:     meta: dict[str, NameMeta],\n246:     caps: RiskCaps,\n247:     *,\n248:     fill_session: int,\n249:     fill_date: date,\n250:     prices: dict[str, float],\n251:     equity: float,\n252: ) -> tuple[list[OrderIntent], list[str]]:\n253:     \"\"\"Drop day trades, immature discretionary sells, and high-risk buys in a drawdown halt.\n254: \n255:     Cap-driven sells are allowed inside the minimum hold. The weight cap itself is\n256:     applied by :func:`enforce_caps` before orders are built.\n257:     \"\"\"\n258:     notes: list[str] = []\n259:     buys = {order.ticker for order in orders if order.side == \"buy\"}\n260:     drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n261:     halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n262:     quarter = _quarter(fill_date)\n263:     swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n264:     kept: list[OrderIntent] = []\n265:     for order in orders:\n266:         if order.side == \"hold\" or order.notional <= 0:\n267:             continue\n268:         if order.side == \"sell\" and order.ticker in buys:\n269:             notes.append(f\"day trade blocked for {order.ticker}\")\n270:             continue\n271:         if order.side == \"buy\":\n272:             exited = portfolio.exit_sessions.get(order.ticker)\n273:             if exited is not None and fill_session - exited < caps.reentry_sessions:\n274:                 notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n275:                 continue\n276:         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n277:             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n278:             continue\n279:         if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n280:             lot = portfolio.positions.get(order.ticker)\n281:             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n282:                 notes.append(f\"min hold blocked sell of {order.ticker}\")\n283:                 continue\n284:             if (\n285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue\n292:         kept.append(order)\n293:     return kept, notes"
+    },
+    {
+     "step": 6,
+     "action": "read",
+     "args": {
+      "file": "src/ta/models.py",
+      "start": 85,
+      "end": 95
+     },
+     "result": "85:     ticker: str\n86:     side: Literal[\"buy\", \"sell\", \"hold\"]\n87:     notional: float = 0.0\n88:     limit_price: float | None = None\n89:     sleeve: str = \"core\"\n90:     reason: str = \"rebalance\"\n91:     security_id: str | None = None\n92:     citation: str | None = None\n93: \n94: \n95: class ToolResult(BaseModel):"
+    }
+   ],
+   "calls": [
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step:invalid_json_retry",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    },
+    {
+     "label": "locate_step",
+     "model": "claude-sonnet-4-5",
+     "ok": true
+    }
+   ]
+  }
+ },
+ "stage": "ok",
+ "context": {
+  "budget": {
+   "max_chars": 16000,
+   "used_chars": 18550,
+   "truncated": true,
+   "dropped_sections": [
+    "related_file:src/ta/harness/caps.py (over budget)",
+    "related_file:src/ta/mcp_servers/portfolio_tools.py (over budget)",
+    "related_file:tests/test_grade_and_books.py (over budget)",
+    "transcript_window:reasoning mentioning \"fit_book\" (L8827) (over budget)",
+    "transcript_window:reasoning mentioning \"fit_book\" (L8766) (over budget)",
+    "transcript_window:reasoning mentioning \"fit_book\" (L8753) (over budget)",
+    "transcript_window:reasoning mentioning \"fit_book\" (L8711) (over budget)",
+    "transcript_window:reasoning mentioning \"fit_book\" (L8681) (over budget)"
+   ]
+  },
+  "prompt_user": {
+   "symptom": "Risk review flagged a trade that should not have gone through during a drawdown halt.\n\nObserved: portfolio drawdown was -30.0% from its peak at the time (the halt threshold is -20%). A new buy of FALN at $2.10 per share was placed and filled anyway. No rejection or warning was logged for this order.",
+   "edit": {
+    "file": "ta/harness/caps.py",
+    "line": 276,
+    "hunk": "+    for order in orders:\n+        if order.side == \"hold\" or order.notional <= 0:\n+            continue\n+        if order.side == \"sell\" and order.ticker in buys:\n+            notes.append(f\"day trade blocked for {order.ticker}\")\n+            continue\n+        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n+            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n+            continue\n+        if order.side == \"sell\" and order.reason != \"cap_reduction\":\n+            lot = portfolio.positions.get(order.ticker)\n+            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n+                notes.append(f\"min hold blocked sell of {order.ticker}\")"
+   },
+   "code_window": "256:     applied by :func:`enforce_caps` before orders are built.\n257:     \"\"\"\n258:     notes: list[str] = []\n259:     buys = {order.ticker for order in orders if order.side == \"buy\"}\n260:     drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1\n261:     halt_high_risk = drawdown <= caps.drawdown_halt_high_risk\n262:     quarter = _quarter(fill_date)\n263:     swings_this_quarter = sum(1 for day in portfolio.swing_exits if _quarter(day) == quarter)\n264:     kept: list[OrderIntent] = []\n265:     for order in orders:\n266:         if order.side == \"hold\" or order.notional <= 0:\n267:             continue\n268:         if order.side == \"sell\" and order.ticker in buys:\n269:             notes.append(f\"day trade blocked for {order.ticker}\")\n270:             continue\n271:         if order.side == \"buy\":\n272:             exited = portfolio.exit_sessions.get(order.ticker)\n273:             if exited is not None and fill_session - exited < caps.reentry_sessions:\n274:                 notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n275:                 continue\n276:         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n277:             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n278:             continue\n279:         if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n280:             lot = portfolio.positions.get(order.ticker)\n281:             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n282:                 notes.append(f\"min hold blocked sell of {order.ticker}\")\n283:                 continue\n284:             if (\n285:                 lot is not None\n286:                 and order.notional >= lot.qty * prices.get(order.ticker, 0.0) - 1e-6\n287:                 and fill_session - lot.entry_session < caps.swing_hold_sessions\n288:                 and swings_this_quarter >= caps.swing_trades_per_quarter\n289:             ):\n290:                 notes.append(f\"swing-trade cap blocked exit of {order.ticker}\")\n291:                 continue\n292:         kept.append(order)\n293:     return kept, notes\n294: ",
+   "candidate_locations": [
+    {
+     "label": "candidate 1",
+     "file": "ta/harness/caps.py",
+     "line": 276,
+     "function": "fit_book",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 31.8091,
+     "method": "deterministic_bm25",
+     "text": "271:         if order.side == \"buy\":\n272:             exited = portfolio.exit_sessions.get(order.ticker)\n273:             if exited is not None and fill_session - exited < caps.reentry_sessions:\n274:                 notes.append(f\"reentry wait blocked buy of {order.ticker}\")\n275:                 continue\n276:         if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n277:             notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n278:             continue\n279:         if order.side == \"sell\" and order.reason not in {\"cap_reduction\", \"holdings_cap\"}:\n280:             lot = portfolio.positions.get(order.ticker)\n281:             if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:"
+    },
+    {
+     "label": "candidate 2",
+     "file": "ta/mcp_servers/portfolio_tools.py",
+     "line": 331,
+     "function": "_decision_phrase",
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 31.0437,
+     "method": "deterministic_bm25",
+     "text": "326: \n327: def _drawdown_review(ctx: ToolContext, equity: float) -> bool:\n328:     peak = ctx.portfolio.peak_equity\n329:     if peak <= 0:\n330:         return False\n331:     return equity / peak - 1.0 <= float(ctx.settings.risk.drawdown_derisk_review)\n332: \n333: \n334: def _trade_reason(\n335:     side: str,\n336:     ticker: str,"
+    },
+    {
+     "label": "candidate 3",
+     "file": "config/risk.yaml",
+     "line": 20,
+     "role": "source",
+     "role_weight": 1,
+     "anchor": "exact",
+     "score": 30.9888,
+     "method": "deterministic_bm25",
+     "text": "15:   day_trades: 0\n16:   swing_trades_per_quarter: 2\n17:   min_hold_sessions: 5\n18:   swing_hold_sessions: 20\n19:   reentry_sessions: 5\n20:   drawdown_halt_high_risk: -0.20\n21:   drawdown_derisk_review: -0.30\n22:   min_order_notional: 1.0\n23: allowed_option_structures:\n24:   - long_call\n25:   - long_put"
+    }
+   ],
+   "related_files": [],
+   "three_piece": {
+    "asked": "Phase 0 goal: a working foundation that can run the agents in a simulated environment. Deliver:\n1. Repo layout as in the spec (Python, uv, typed with pydantic, pytest), README with setup and architecture overview, the spec copied into docs/.\n2. Data layer: DuckDB schema for the spec's data model (trades, prices, filings, observations, arguments, theses, thesis_links, predictions, anomaly_events, graph nodes/edges, guide versions, run plans, etc.) with migrations.\n3. Append-only, hash-chained action log written only by the harness/tool gateway; agents get read-only access; tamper detection verify command; plan-vs-actual reconciler that flags claims not backed by log entries.\n4. Tool gateway: deterministic tools exposed via MCP, every call logged, point-in-time enforcement (blocks data dated after the simulated 'as-of' date), risk-cap enforcement hooks. Start with SEC EDGAR fetch (requires User-Agent from env var), a price data adapter (pluggable; ship a free/default source such as yfinance or Stooq plus an Alpaca adapter stub reading ALPACA_API_KEY/ALPACA_SECRET_KEY env vars), ratio computation.\n5. Citation model: numbers in agent output must reference tool-output IDs; validator that drops uncited claims.\n6. Historical replay simulator framed as an RL-style env (observation = point-in-time state, actions = buy/sell/hold/size, multi-objective reward per spec), with costs/slippage, walk-forward splits, held-out sectors, and buy-and-hold/SPY baselines. Paper-trading runner interface for Alpaca (works when keys are present, cleanly skips otherwise).\n7. Minimal Claude Agent SDK wiring: an orchestrator plus one or two simple agents (e.g. fundamentals analyst and risk manager) that run a full loop in the simulator end-to-end using the MCP tools; ANTHROPIC_API_KEY from env; if absent, a deterministic mock-LLM mode so tests and the demo still run.\n8. Guide/skill versioning stubs for the GSO self-evolution loop (metaskill with the six sections, versioned guides, proposal records) — implementation of evolution can be a stub but schema and interfaces should be real.\n9. Tests covering the log hash chain, point-in-time blocking, citation validator, reconciler, and a short simulator run. Make `make demo` (or equivalent) run a short offline simulation in mock mode and print a report.",
+    "understood": "The next components to build are caps, portfolio, gateway, and tools.\n\nToolContext is being designed as the central context object for tool execution. The build order is portfolio and costs first, then caps, then tools, then gateway. Portfolio will use a Lot dataclass to track quantity and total cost.\n\nPortfolio is being defined with cash, positions, peak equity, friction, swing exits, holding samples, closed PnLs, an equity curve, contributions, and trades. A Fill dataclass tracks individual trade details including ticker, side, quantity, price, fees, and session. The Portfolio class also includes a market_value method to compute total value from current prices.\n\nThe half_spread pricing function is being drafted in sim/costs.py. It applies tiered spreads based on price and liquidity thresholds, then adjusts for low trading volume. A check_caps function is also being sketched.\n\nThe check_caps algorithm is being defined. It takes proposed weights, metadata, equity, peak, options premium, and day-trade orders as input. A CapResult model will return whether the allocation passes, any violations, adjusted weights, and notes. The algorithm clips individual names to their single-name caps, then scales sectors, high-risk sleeves, and penny names if they exceed limits. If the total exceeds 1, all weights are scaled proportionally.\n\nThe caps algorithm repeats twice and records violations where original weights exceeded limits. Day-trade and minimum-hold guards are order-level, not weight-level, so they will live in a separate `apply_order_guards` function. That function identifies buys by ticker across the order list, then blocks any sell orders on tickers that were just bought in the same session.\n\nThe `apply_order_guards` function now also enforces minimum hold periods. It checks the gap between the current session and the position entry session, and blocks sells that fall below the minimum hold window. Cap-reduction sells are marked with a special reason so they can be excluded from day-trade detection. The sizing logic will compare pre-cap and post-cap target weights to identify when a sell is triggered by a cap clip rather than a rebalance.\n\nThe sizing algorithm will build equal weights among selected names first, then enforce sector and sleeve caps. Any weight reduction from that step triggers a cap_reduction sell.\n\nA drawdown halt is being added: new high-risk buys are blocked once equity falls 20% or more below peak, and a de-risk review is recommended at 3",
+    "happened": "Risk review flagged a trade that should not have gone through during a drawdown halt.\n\nObserved: portfolio drawdown was -30.0% from its peak at the time (the halt threshold is -20%). A new buy of FALN at $2.10 per share was placed and filled anyway. No rejection or warning was logged for this order.\n\n  at fit_book (src/ta/harness/caps.py:276)\n  276: if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n\nWritten by transcript edit L108 (search_replace):\n+    for order in orders:\n+        if order.side == \"hold\" or order.notional <= 0:\n+            continue\n+        if order.side == \"sell\" and order.ticker in buys:\n+            notes.append(f\"day trade blocked for {order.ticker}\")\n+            continue\n+        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":\n+            notes.append(f\"high-risk buy halted for {order.ticker}; drawdown {drawdown:.3f}\")\n+            continue\n+        if order.side == \"sell\" and order.reason != \"cap_reduction\":\n+            lot = portfolio.positions.get(order.ticker)\n+            if lot is not None and fill_session - lot.entry_session < caps.min_hold_sessions:\n+                notes.append(f\"min hold blocked sell of {order.ticker}\")"
+   },
+   "transcript_windows": [
+    {
+     "label": "around the edit (L108)",
+     "text": "L105 [assistant] (empty message)\nL106 [tool] TOOL: search_replace\nL106| CODE_WRITTEN: \nL106| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL106| +++ b//workspace/src/ta/sim/portfolio.py\nL106| @@ -1,0 +1,271 @@\nL106| +\"\"\"Mutable paper portfolio. Fills, splits, and delistings live here, not in an agent.\"\"\"\nL106| +\nL106| +from __future__ import annotations\nL106| +\nL106| +from dataclasses import dataclass, field\nL106| +from datetime import date\nL106| +\nL106| +from ta.config import CostConfig, RiskCaps\nL106| +from ta.models import OrderIntent\nL106| +\nL106| +\nL106| +@dataclass\nL106| +class Lot:\nL106| +    qty: float\nL106| +    cost: float\nL106| +    entry_session: int\nL106| +\nL106| +\nL106| +@dataclass\nL106| +class FillRecord:\nL106| +    ticker: str\nL106| +    side: str\nL106| +    qty: float\nL106| +    price: float\nL106| +    fees: float\nL106| +    notional: float\nL106| +    session: int\nL106| +    bar_date: date\nL106| +    reason: str\nL106| +    security_id: str | None = None\nL106| +\nL106| +\nL106| +@dataclass\nL106| +class Portfolio:\nL106| +    cash: float\nL106| +    positions: dict[str, Lot] = field(default_factory=dict)\nL106| +    peak_equity: float = 0.0\nL106| +    friction: float = 0.0\nL106| +    swing_exits: list[date] = field(default_factory=list)\nL106| +    holding_samples: list[int] = field(default_factory=list)\nL106| +    closed_pnls: list[float] = field(default_factory=list)\nL106| +    equity_curve: list[tuple[date, float]] = field(default_factory=list)\nL106| +    contributions: list[tuple[date, float]] = field(default_factory=list)\nL106| +    trades: list[FillRecord] = field(default_factory=list)\nL106| +\nL106| +    def equity(self, prices: dict[str, float]) -> float:\nL106| +        total = self.cash\nL106| +        for ticker, lot in self.positions.items():\nL106| +            total += lot.qty * prices.get(ticker, 0.0)\nL106| +   \nL107 [assistant] (empty message)\nL108 [tool] TOOL: search_replace\nL108| CODE_WRITTEN: \nL108| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL108| +++ b//workspace/src/ta/harness/caps.py\nL108| @@ -1,0 +1,201 @@\nL108| +\"\"\"Hard risk caps. Deterministic, outside the LLM and outside guide evolution.\"\"\"\nL108| +\nL108| +from __future__ import annotations\nL108| +\nL108| +from collections import defaultdict\nL108| +from dataclasses import dataclass\nL108| +from datetime import date\nL108| +\nL108| +from ta.config import RiskCaps\nL108| +from ta.models import OrderIntent\nL108| +from ta.sim.portfolio import Portfolio\nL108| +\nL108| +\nL108| +@dataclass\nL108| +class NameMeta:\nL108| +    ticker: str\nL108| +    sleeve: str\nL108| +    sector: str\nL108| +    price: float\nL108| +\nL108| +\nL108| +@dataclass\nL108| +class CapOutcome:\nL108| +    ok: bool\nL108| +    weights: dict[str, float]\nL108| +    violations: list[dict[str, str]]\nL108| +\nL108| +\nL108| +def _name_cap(meta: NameMeta, caps: RiskCaps) -> float:\nL108| +    if meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold:\nL108| +        return caps.single_high_risk_pct\nL108| +    return caps.single_core_pct\nL108| +\nL108| +\nL108| +def _in_sleeve(meta: NameMeta, caps: RiskCaps) -> bool:\nL108| +    return meta.sleeve == \"high_risk\" or meta.price < caps.penny_price_threshold\nL108| +\nL108| +\nL108| +def enforce_caps(weights: dict[str, float], meta: dict[str, NameMeta], caps: RiskCaps) -> CapOutcome:\nL108| +    \"\"\"Clip weights in place-copies. Cash is the residual and is unconstrained.\"\"\"\nL108| +    original = {ticker: max(0.0, float(weight)) for ticker, weight in weights.items() if weight}\nL108| +    adjusted = dict(original)\nL108| +    violations: list[dict[str, str]] = []\nL108| +\nL108| +    for ticker, weight in original.items():\nL108| +        if ticker not in meta:\nL108| +  \nL109 [assistant] (empty message)\nL110 [tool] TOOL: search_replace\nL110| CODE_WRITTEN: \nL110| {\"resultType\":\"editFileResult\",\"value\":{\"diff\":{\"chunks\":[{\"diffString\":\"--- /dev/null\nL110| +++ b//workspace/src/ta/harness/context.py\nL110| @@ -1,0 +1,23 @@\nL110| +\"\"\"Per-decision context handed to deterministic tools. It cannot append the log.\"\"\"\nL110| +\nL110| +from __future__ import annotations\nL110| +\nL110| +from dataclasses import dataclass\nL110| +from datetime import date\nL110| +from pathlib import Path\nL110| +\nL110| +from ta.config import Settings\nL110| +from ta.data.store import Store\nL110| +from ta.sim.portfolio import Portfolio\nL110| +\nL110| +\nL110| +@dataclass\nL110| +class ToolContext:\nL110| +    run_id: str\nL110| +    as_of: date\nL110| +    store: Store\nL110| +    portfolio: Portfolio\nL110| +    settings: Settings\nL110| +    incoming_cash: float\nL110| +    session_index: int\nL110| +    log_dir: Path\",\"oldStart\":0,\"newStart\":0,\"oldLines\":0,\"newLines\":0,\"linesRemoved\":0,\"linesAdded\":23}],\"editor\":\"EDITOR_AI\",\"hitTimeout\":false},\"isApplied\":true,\"applyFailed\":false,\"linterErrors\":[]}}\nL111 [assistant] (empty message)"
+    }
+   ]
+  }
+ },
+ "answer": {
+  "overlooked_assumption": "The agent assumed that all orders would have a 'sleeve' attribute, but did not handle the case where an order might lack this attribute or have it set to None.",
+  "why_it_breaks": "When order.sleeve is None or missing, the condition 'order.sleeve == \"high_risk\"' evaluates to False even during a drawdown halt (halt_high_risk=True), allowing the buy order to proceed unchecked instead of being blocked.",
+  "confidence": "low",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 108,
+    "quote": "+        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 276,
+    "quote": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 261,
+    "quote": "    halt_high_risk = drawdown <= caps.drawdown_halt_high_risk",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 0
+ },
+ "repair_answer": {
+  "overlooked_assumption": "The agent assumed that all OrderIntent objects would have a 'sleeve' attribute, but the order for FALN did not have this attribute set.",
+  "why_it_breaks": "The drawdown halt check at line 276 only blocks buys when order.sleeve equals 'high_risk', but if the OrderIntent for FALN lacks a sleeve attribute or has a different value (like None or 'core'), the condition fails and the buy proceeds despite the -30% drawdown exceeding the -20% halt threshold.",
+  "confidence": "high",
+  "evidence": [
+   {
+    "kind": "transcript",
+    "file": "",
+    "line": 108,
+    "quote": "+        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+    "verified": false,
+    "reason": "quote is not a substring of the cited line"
+   },
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 276,
+    "quote": "        if order.side == \"buy\" and halt_high_risk and order.sleeve == \"high_risk\":",
+    "verified": true
+   },
+   {
+    "kind": "code",
+    "file": "ta/harness/caps.py",
+    "line": 260,
+    "quote": "    drawdown = 0.0 if portfolio.peak_equity <= 0 else equity / portfolio.peak_equity - 1",
+    "verified": true
+   }
+  ],
+  "status": "unverified",
+  "verified_code_quotes": 2,
+  "verified_transcript_quotes": 0
+ },
+ "used_candidate": {
+  "label": "candidate 1",
+  "index": 0,
+  "file": "src/ta/harness/caps.py",
+  "line": 276,
+  "hunk_id": "L108#37"
+ },
+ "confidence_cap": {
+  "model": "high",
+  "computed": "low",
+  "capped": "low",
+  "margin": 0.024062296638383343,
+  "layer2_confirmed": false,
+  "anchor": "exact",
+  "quotes_verified": false
+ }
+}

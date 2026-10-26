@@ -1,0 +1,6 @@
+locate: layer1_deterministic -> README.md:144
+stage: no_edit (no transcript edit wrote the frame line)
+provider: nemotron
+frame: README.md:144
+
+report: /workspace/open-agent/why-code-exists/artifacts/locate/B-nemotron/case06/report.html
