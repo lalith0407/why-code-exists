@@ -1,0 +1,1 @@
+Bug report: a Blazor WebAssembly app built with the .NET 11 Preview 6 SDK fails to boot. The browser requests _framework/blazor.webassembly.<fingerprint>.js and gets HTTP 404, so Blazor never starts. dotnet.<fingerprint>.js is served fine; only blazor.webassembly.js returns 404.

@@ -1,0 +1,11 @@
+{
+  "id": "pulseboard-link-preview",
+  "timestamp": "2026-10-22T23:05:00.000Z",
+  "severity": "high",
+  "service": "pulseboard",
+  "message": "Egress alert: link preview service made a request to http://127.0.0.1:8080/admin while creating a feedback card, and the response title was shown to the user",
+  "frames": [
+    { "file": "lib/link-preview.ts", "line": 53, "function": "fetchLinkPreview" },
+    { "file": "lib/actions/feedback.ts", "line": 48, "function": "createFeedbackAction" }
+  ]
+}

@@ -1,0 +1,384 @@
+diff --git a/src/StaticWebAssetsSdk/Tasks/ReadPackageAssetsManifest.cs b/src/StaticWebAssetsSdk/Tasks/ReadPackageAssetsManifest.cs
+index eede445e8e8b..ce5c5f598b63 100644
+--- a/src/StaticWebAssetsSdk/Tasks/ReadPackageAssetsManifest.cs
++++ b/src/StaticWebAssetsSdk/Tasks/ReadPackageAssetsManifest.cs
+@@ -46,7 +46,6 @@ public override bool Execute()
+         foreach (var manifestItem in PackageManifests)
+         {
+             var manifestPath = manifestItem.ItemSpec;
+-            var sourceId = manifestItem.GetMetadata("SourceId");
+             var packageRoot = manifestItem.GetMetadata("PackageRoot");
+             var contentRoot = manifestItem.GetMetadata("ContentRoot");
+ 
+@@ -83,7 +82,7 @@ public override bool Execute()
+             var endpointGroups = StaticWebAssetEndpointGroup.CreateEndpointGroups(manifest.Endpoints ?? []);
+             var (_, includedEndpoints) = StaticWebAssetEndpointGroup.ComputeFilteredEndpoints(endpointGroups, excludedPaths);
+ 
+-            if (!ResolveAssetsAndEndpoints(includedAssets, includedEndpoints, sourceId, packageRoot, contentRoot))
++            if (!ResolveAssetsAndEndpoints(includedAssets, includedEndpoints, packageRoot, contentRoot))
+             {
+                 return false;
+             }
+@@ -105,11 +104,9 @@ public override bool Execute()
+     private bool ResolveAssetsAndEndpoints(
+         List<StaticWebAsset> assets,
+         List<StaticWebAssetEndpoint> endpoints,
+-        string sourceId,
+         string packageRoot,
+         string contentRoot)
+     {
+-        var fxDir = Path.Combine(IntermediateOutputPath, "fx", sourceId);
+         var frameworkPaths = new Dictionary<string, string>(OSPath.PathComparer);
+         var normalizedContentRoot = StaticWebAsset.NormalizeContentRootPath(contentRoot);
+ 
+@@ -117,14 +114,19 @@ private bool ResolveAssetsAndEndpoints(
+         {
+             if (StaticWebAsset.SourceTypes.IsFramework(asset.SourceType))
+             {
+-                var resolvedRelativePath = StaticWebAssetPathPattern.PathWithoutTokens(asset.RelativePath);
+-                var destPath = Path.GetFullPath(Path.Combine(fxDir, resolvedRelativePath));
+-                frameworkPaths[asset.Identity] = destPath;
+-                MaterializeFrameworkAsset(asset, packageRoot, fxDir, destPath);
+-                if (Log.HasLoggedErrors)
++                // Materialize framework assets into the fx intermediate folder using the shared
++                // routine so they are transformed identically across all consumption paths
++                // (package manifest, P2P, and project). This clears AssetGroups so endpoint
++                // generation does not skip the materialized asset, and normalizes it.
++                var originalIdentity = asset.Identity;
++                asset.Identity = ResolvePath(packageRoot, asset.Identity);
++                var (materialized, _, _) = StaticWebAsset.MaterializeFrameworkAsset(
++                    asset, IntermediateOutputPath, ProjectPackageId, ProjectBasePath, Log);
++                if (materialized is null || Log.HasLoggedErrors)
+                 {
+                     return false;
+                 }
++                frameworkPaths[originalIdentity] = materialized.Identity;
+             }
+             else
+             {
+@@ -187,36 +189,6 @@ private StaticWebAssetPackageManifest ReadManifest(string manifestPath)
+         return manifest;
+     }
+ 
+-    private void MaterializeFrameworkAsset(
+-        StaticWebAsset asset,
+-        string packageRoot,
+-        string fxDir,
+-        string destPath)
+-    {
+-        var sourcePath = ResolvePath(packageRoot, asset.Identity);
+-
+-        if (!File.Exists(sourcePath))
+-        {
+-            Log.LogError("Source file '{0}' does not exist for framework asset materialization.", sourcePath);
+-            return;
+-        }
+-
+-        Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+-
+-        if (!File.Exists(destPath) || File.GetLastWriteTimeUtc(sourcePath) > File.GetLastWriteTimeUtc(destPath))
+-        {
+-            File.Copy(sourcePath, destPath, overwrite: true);
+-        }
+-
+-        asset.Identity = destPath;
+-        asset.OriginalItemSpec = destPath;
+-        asset.SourceType = StaticWebAsset.SourceTypes.Discovered;
+-        asset.SourceId = ProjectPackageId;
+-        asset.ContentRoot = StaticWebAsset.NormalizeContentRootPath(fxDir);
+-        asset.BasePath = ProjectBasePath;
+-        asset.AssetMode = StaticWebAsset.AssetModes.CurrentProject;
+-    }
+-
+     private static string ResolvePath(string packageRoot, string relativePath)
+     {
+         return Path.GetFullPath(Path.Combine(packageRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+diff --git a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/GroupedFrameworkAssetsIntegrationTest.cs b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/GroupedFrameworkAssetsIntegrationTest.cs
+new file mode 100644
+index 000000000000..a1f9ce7d7aa4
+--- /dev/null
++++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/GroupedFrameworkAssetsIntegrationTest.cs
+@@ -0,0 +1,110 @@
++// Licensed to the .NET Foundation under one or more agreements.
++// The .NET Foundation licenses this file to you under the MIT license.
++
++#nullable disable
++
++using System.Xml.Linq;
++using Microsoft.AspNetCore.StaticWebAssets.Tasks;
++
++namespace Microsoft.NET.Sdk.StaticWebAssets.Tests
++{
++    public class GroupedFrameworkAssetsIntegrationTest(ITestOutputHelper log)
++        : IsolatedNuGetPackageFolderAspNetSdkBaselineTest(log, nameof(GroupedFrameworkAssetsIntegrationTest))
++    {
++        // Regression coverage for the blazor.webassembly.js 404. A package ships an asset that is both a
++        // framework asset and a member of a group (as Microsoft.AspNetCore.Components.WebAssembly does for
++        // blazor.webassembly.js). The scenario is Package -> Library -> App:
++        //  * The group is opt-in via the IncludeGroupedFrameworkAssets property set by the library, so
++        //    inclusion is conditional.
++        //  * When the library enables the group, the framework asset materializes into the library under the
++        //    library base path (_content/<Library>) with its AssetGroups cleared. If AssetGroups is not
++        //    cleared during materialization, downstream endpoint generation skips the asset and it 404s.
++        //  * The materialized framework asset is a current-project asset of the library, so the app (which
++        //    does not enable the group) does not include it at the root.
++        [Theory]
++        [InlineData(true)]
++        [InlineData(false)]
++        public void Build_PackageToLibraryToApp_GroupedFrameworkAsset_IsConditionalAndMaterializedIntoLibrary(bool includeGroupedFrameworkAssets)
++        {
++            ProjectDirectory = CreateAspNetSdkTestAsset("GroupedFrameworkAssetsSample", identifier: includeGroupedFrameworkAssets.ToString())
++                .WithProjectChanges((path, document) =>
++                {
++                    if (Path.GetFileName(path) == "GroupedFrameworkLibrary.csproj")
++                    {
++                        // Only the library opts into the group, so the app does not re-include the asset.
++                        var propertyGroup = document.Root.Descendants("TargetFramework").First().Parent;
++                        propertyGroup.Add(
++                            new XElement("IncludeGroupedFrameworkAssets", includeGroupedFrameworkAssets.ToString()));
++                    }
++                });
++
++            var pack = CreatePackCommand(ProjectDirectory, "GroupedFrameworkPackage");
++            ExecuteCommand(pack).Should().Pass();
++            ClearCachedPackage("groupedframeworkpackage");
++
++            var build = CreateBuildCommand(ProjectDirectory, "GroupedFrameworkApp");
++            ExecuteCommand(build).Should().Pass();
++
++            var libraryManifest = LoadBuildManifest(
++                Path.Combine(ProjectDirectory.TestRoot, "GroupedFrameworkLibrary", "obj", "Debug", DefaultTfm));
++            var appManifest = LoadBuildManifest(build.GetIntermediateDirectory(DefaultTfm, "Debug").ToString());
++
++            // The materialized asset lives under fx\<originalSourceId> (the originating framework
++            // package), but is owned by the consuming library (SourceId, BasePath are remapped).
++            var libraryMaterializedJs = libraryManifest.Assets
++                .Where(a => a.RelativePath.Contains(".js")
++                    && a.Identity.Contains(Path.Combine("fx", "GroupedFrameworkPackage")))
++                .ToList();
++
++            if (includeGroupedFrameworkAssets)
++            {
++                libraryMaterializedJs.Should().NotBeEmpty(
++                    "the grouped JS framework asset should be materialized into the library when the group is enabled");
++
++                foreach (var asset in libraryMaterializedJs)
++                {
++                    // Materialized into the library, under the library base path.
++                    asset.SourceId.Should().Be("GroupedFrameworkLibrary",
++                        $"materialized framework asset {asset.RelativePath} should belong to the library");
++                    asset.BasePath.Should().Be("_content/GroupedFrameworkLibrary",
++                        $"materialized framework asset {asset.RelativePath} should be under the library base path");
++
++                    // AssetGroups must be cleared, otherwise endpoint generation skips the asset (the 404).
++                    asset.AssetGroups.Should().BeNullOrEmpty(
++                        $"materialized framework asset {asset.RelativePath} must have its AssetGroups cleared");
++                }
++
++                // The framework asset is a current-project asset of the library, so the app does not
++                // include it at the root.
++                appManifest.Assets
++                    .Where(a => a.RelativePath.Contains("feature") && a.BasePath == "/")
++                    .Should().BeEmpty("the app should not include the library's framework asset at the root");
++            }
++            else
++            {
++                // The group is not enabled, so the grouped framework asset is excluded entirely.
++                libraryMaterializedJs.Should().BeEmpty(
++                    "the grouped JS framework asset should be excluded when the group is not enabled");
++            }
++        }
++
++        private static StaticWebAssetsManifest LoadBuildManifest(string intermediateOutputPath)
++        {
++            var path = Path.Combine(intermediateOutputPath, "staticwebassets.build.json");
++            new FileInfo(path).Should().Exist();
++            var manifest = StaticWebAssetsManifest.FromJsonBytes(File.ReadAllBytes(path));
++            manifest.Should().NotBeNull();
++            return manifest;
++        }
++
++        // Clear the cached package so NuGet re-extracts from the freshly-packed nupkg.
++        private void ClearCachedPackage(string packageId)
++        {
++            var cached = Path.Combine(GetNuGetCachePath(), packageId);
++            if (Directory.Exists(cached))
++            {
++                Directory.Delete(cached, recursive: true);
++            }
++        }
++    }
++}
+diff --git a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ReadPackageAssetsManifestTest.cs b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ReadPackageAssetsManifestTest.cs
+index 1bc26855d0a1..1ce7486112fb 100644
+--- a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ReadPackageAssetsManifestTest.cs
++++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ReadPackageAssetsManifestTest.cs
+@@ -232,6 +232,31 @@ public void FrameworkAssets_MaterializedToIntermediateDirectory()
+         emitted.GetMetadata("SourceId").Should().Be("ConsumerApp");
+     }
+ 
++    [Fact]
++    public void GroupedFrameworkAsset_HasAssetGroupsClearedAfterMaterialization()
++    {
++        // A framework asset that belongs to a group (e.g. blazor.webassembly.js in the
++        // BlazorWebAssembly group) passes group filtering when the group is declared, but
++        // must have its AssetGroups cleared once it is materialized as a current-project
++        // asset. Otherwise downstream endpoint generation treats it as a still-grouped
++        // asset, skips it, and the fingerprinted asset 404s at runtime.
++        var packageRoot = SetupPackageRoot("Microsoft.AspNetCore.Components.WebAssembly",
++            CreateManifestAsset("staticwebassets/_framework/blazor.webassembly.js", "_framework/blazor.webassembly.js", "/", "BlazorWebAssembly=enabled", "Framework"));
++
++        var manifestItem = CreateManifestItem(packageRoot, "Microsoft.AspNetCore.Components.WebAssembly");
++
++        var task = CreateReadManifestTask(
++            new[] { manifestItem },
++            new[] { CreateGroup("BlazorWebAssembly", "enabled", "Microsoft.AspNetCore.Components.WebAssembly") });
++        task.Execute().Should().BeTrue();
++
++        task.Assets.Should().HaveCount(1);
++
++        var emitted = task.Assets[0];
++        emitted.GetMetadata("SourceType").Should().Be("Discovered");
++        emitted.GetMetadata("AssetGroups").Should().BeEmpty("materialized framework assets must not retain group membership or endpoint generation will skip them");
++    }
++
+     [Fact]
+     public void InvalidManifestVersion_LogsError()
+     {
+diff --git a/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkApp/GroupedFrameworkApp.csproj b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkApp/GroupedFrameworkApp.csproj
+new file mode 100644
+index 000000000000..cb7453b55eb3
+--- /dev/null
++++ b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkApp/GroupedFrameworkApp.csproj
+@@ -0,0 +1,27 @@
++<Project Sdk="Microsoft.NET.Sdk.Web">
++
++  <PropertyGroup>
++    <TargetFramework>$(AspNetTestTfm)</TargetFramework>
++  </PropertyGroup>
++
++  <PropertyGroup>
++    <UseRazorBuildServer>false</UseRazorBuildServer>
++  </PropertyGroup>
++
++  <Target Name="EnsurePackagesExist" BeforeTargets="Restore">
++    <ItemGroup>
++      <LocalPackages Include="$(AspNetTestPackageSource)\GroupedFrameworkPackage.1.0.0.nupkg" />
++    </ItemGroup>
++
++    <Error Condition="!Exists('%(LocalPackages.Identity)')"
++      Text="Package %(LocalPackages.Identity) does not exist. Ensure the test calls CreatePackCommand(ProjectDirectory, &quot;GroupedFrameworkPackage&quot;)" />
++
++    <Error Condition="'$(RestorePackagesPath)' != '$(AspNetNugetIsolationPath)'"
++      Text="Packages are not being restored into the expected directory. Ensure that NUGET_PACKAGES and AspNetNugetIsolationPath are set as environment variables. The test should extend IsolatedNuGetPackageFolderAspNetSdkBaselineTest. RestorePackagesPath = '$(RestorePackagesPath)', AspNetNugetIsolationPath = '$(AspNetNugetIsolationPath)'" />
++  </Target>
++
++  <ItemGroup>
++    <ProjectReference Include="..\GroupedFrameworkLibrary\GroupedFrameworkLibrary.csproj" />
++  </ItemGroup>
++
++</Project>
+diff --git a/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkApp/Program.cs b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkApp/Program.cs
+new file mode 100644
+index 000000000000..0441593deead
+--- /dev/null
++++ b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkApp/Program.cs
+@@ -0,0 +1,7 @@
++using Microsoft.AspNetCore.Builder;
++
++var builder = WebApplication.CreateBuilder(args);
++var app = builder.Build();
++app.MapStaticAssets();
++app.MapGet("/", () => "Hello World!");
++app.Run();
+diff --git a/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkLibrary/GroupedFrameworkLibrary.csproj b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkLibrary/GroupedFrameworkLibrary.csproj
+new file mode 100644
+index 000000000000..d1e73bcd2732
+--- /dev/null
++++ b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkLibrary/GroupedFrameworkLibrary.csproj
+@@ -0,0 +1,17 @@
++<Project Sdk="Microsoft.NET.Sdk.Razor">
++
++  <PropertyGroup>
++    <TargetFramework>$(AspNetTestTfm)</TargetFramework>
++    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
++    <DeterministicSourcePaths>false</DeterministicSourcePaths>
++  </PropertyGroup>
++
++  <PropertyGroup>
++    <UseRazorBuildServer>false</UseRazorBuildServer>
++  </PropertyGroup>
++
++  <ItemGroup>
++    <PackageReference Include="GroupedFrameworkPackage" Version="1.0.0" />
++  </ItemGroup>
++
++</Project>
+diff --git a/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkLibrary/wwwroot/library-asset.txt b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkLibrary/wwwroot/library-asset.txt
+new file mode 100644
+index 000000000000..fac4e09056d4
+--- /dev/null
++++ b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkLibrary/wwwroot/library-asset.txt
+@@ -0,0 +1 @@
++<div>library content</div>
+diff --git a/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkPackage/GroupedFrameworkPackage.csproj b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkPackage/GroupedFrameworkPackage.csproj
+new file mode 100644
+index 000000000000..301fc5bc4620
+--- /dev/null
++++ b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkPackage/GroupedFrameworkPackage.csproj
+@@ -0,0 +1,34 @@
++<Project Sdk="Microsoft.NET.Sdk.Razor">
++
++  <PropertyGroup>
++    <TargetFramework>$(AspNetTestTfm)</TargetFramework>
++    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
++    <Copyright>© Microsoft</Copyright>
++    <Product>Grouped Framework Assets Test</Product>
++    <Company>Microsoft</Company>
++    <Description>Package shipping an asset that is both a framework asset and a group member (mirrors blazor.webassembly.js)</Description>
++    <DeterministicSourcePaths>false</DeterministicSourcePaths>
++
++    <!-- Mark all .js assets as Framework. Combined with the conditional group below this produces
++         an asset that is *both* framework and grouped, the shape that regressed blazor.webassembly.js. -->
++    <StaticWebAssetFrameworkPattern>**/*.js</StaticWebAssetFrameworkPattern>
++
++    <PackageOutputPath>$(AspNetTestPackageSource)</PackageOutputPath>
++    <PackageVersion>1.0.0</PackageVersion>
++  </PropertyGroup>
++
++  <PropertyGroup>
++    <UseRazorBuildServer>false</UseRazorBuildServer>
++  </PropertyGroup>
++
++  <ItemGroup>
++    <StaticWebAssetGroupDefinition Include="GroupedFramework" Value="enabled" Order="0" SourceId="$(PackageId)" IncludePattern="**" RelativePathPattern="**" />
++  </ItemGroup>
++
++  <ItemGroup>
++    <FrameworkReference Include="Microsoft.AspNetCore.App" />
++  </ItemGroup>
++
++  <Import Project="StaticWebAssets.Groups.targets" />
++
++</Project>
+diff --git a/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkPackage/StaticWebAssets.Groups.targets b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkPackage/StaticWebAssets.Groups.targets
+new file mode 100644
+index 000000000000..f130ef02633e
+--- /dev/null
++++ b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkPackage/StaticWebAssets.Groups.targets
+@@ -0,0 +1,7 @@
++<Project>
++  <!-- Group membership is opt-in: only consumers that set IncludeGroupedFrameworkAssets=true
++       include the grouped (framework) asset. This lets the test validate conditional inclusion. -->
++  <ItemGroup Condition="'$(IncludeGroupedFrameworkAssets)' == 'true'">
++    <StaticWebAssetGroup Include="GroupedFramework" Value="enabled" SourceId="GroupedFrameworkPackage" />
++  </ItemGroup>
++</Project>
+diff --git a/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkPackage/wwwroot/feature.js b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkPackage/wwwroot/feature.js
+new file mode 100644
+index 000000000000..e08c9d05f45e
+--- /dev/null
++++ b/test/TestAssets/TestProjects/GroupedFrameworkAssetsSample/GroupedFrameworkPackage/wwwroot/feature.js
+@@ -0,0 +1,2 @@
++// Framework bootstrapper script (grouped + framework asset, mirrors blazor.webassembly.js).
++export function start() { }

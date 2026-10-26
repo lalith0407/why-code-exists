@@ -1,0 +1,13 @@
+{
+  "id": "ta-citation-leaf-substring",
+  "service": "trading-agent-system",
+  "severity": "high",
+  "lang": "python",
+  "stubs": [],
+  "setup": "loop = app(\"src/ta/agents/loop.py\")\nimport json\nfrom datetime import date\nfrom types import SimpleNamespace as NS\nfrom ta.models import Claim, FactRef, SourceRef\nfrom ta.verify.quotes import match_quote_text\npayload = json.dumps({\"weights\": {\"MSFT\": 0.05}, \"notes\": \"AAPL dropped by risk caps\"})\nclass ToolGateway:  # boundary stand-in for the tool gateway: returns one stored tool output and runs the real quote matcher\n    ctx = NS(use_decisions=False)\n    def call(self, agent, tool, args):\n        if tool == \"verify.reopen_source\":\n            return NS(output={\"payload_text\": payload, \"hash_match\": True})\n        return NS(output=match_quote_text(args[\"quote\"], args[\"text\"]))",
+  "body": "claim = Claim(text=\"AAPL target weight is cited\", kind=\"fact\", fact_refs=[FactRef(output_id=\"out-1\", json_path=\"weights.AAPL\")], source=SourceRef(tool=\"portfolio.size_position\", publisher=\"portfolio.size_position\"), log_entry_id=\"log-1\", as_of=date(2024, 1, 5))\nkept = loop._keep_after_reopen(ToolGateway(), [claim])\nweights = json.loads(payload)[\"weights\"]\ncheck(len(kept) == 1 and \"AAPL\" not in weights, \"citation dropped\")\nrecord(\"kept\", len(kept)); record(\"path\", claim.fact_refs[0].json_path); record(\"weights\", weights)",
+  "symptom": {
+    "message": "Citation check kept a fact claim whose cited path does not exist: the claim cites {{path}} in a portfolio.size_position output whose weights are {{weights}}, and the reopen-and-match step kept {{kept}} of 1 claims.",
+    "frames": [ { "file": "src/ta/agents/loop.py", "line": 0, "function": "_keep_after_reopen" } ]
+  }
+}

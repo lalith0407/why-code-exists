@@ -1,0 +1,10 @@
+{
+  "NOT_ENGINE_INPUT": true,
+  "introducing_pr": "https://github.com/BerriAI/litellm/pull/42354",
+  "introducing_merge": "12f79308cf4dfbcc6e3b9a612a464e1a35c0d705",
+  "introducing_edit": "litellm/types/utils.py: CallTypes gains video_generation / avideo_generation (via _CALL_TYPE_ENUM_MAP gate in litellm/utils.py this routes video results into async_post_call_success_deployment_hook)",
+  "fix_pr": "https://github.com/BerriAI/litellm/pull/42535",
+  "fix_commit": "944f44d82be735616448f92b534dee1f063008b7",
+  "fix_location": "litellm/utils.py async_post_call_success_deployment_hook: wrap each callback call in try/except, log and skip (re-raise for CustomGuardrail)",
+  "fix_stated_cause": "#42354 routed video_generation through the async success deployment hook; a chat-shaped hook reading response.choices raises on VideoObject; exception turned a completed video job into HTTP 400; router retried 3 times"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "litellm-video-hook",
+  "kind": "text_only",
+  "message": "Invalid request format: 'VideoObject' object has no attribute 'choices'",
+  "behaviour": "POST /v1/videos with {\"model\": \"sora-2\", \"prompt\": \"a cat\", \"seconds\": \"4\", \"size\": \"720x1280\"} returns HTTP 400 {\"error\": {\"message\": \"Invalid request format: 'VideoObject' object has no attribute 'choices'\", \"type\": \"invalid_request_error\", \"code\": \"400\"}}. The provider dashboard shows three queued video jobs for that one request.",
+  "frames": [],
+  "observed_at": "2026-09-22T19:10:35Z",
+  "source_url": "https://github.com/BerriAI/litellm/pull/42535",
+  "source_note": "Error text and observed behaviour copied verbatim from the 'User Flow / Before' section and the 'Before (9d299d016a)' curl output of the fix PR. Only the symptom is used; the PR's diagnosis lines ('#42354 routed...', 'A chat-shaped hook...'), its proxy log line (which names the call type) and its diff are NOT given to the engine.",
+  "repo": { "url": "https://github.com/BerriAI/litellm", "commit": "a80379baf8910f5aa72990cd1bdbd8088d5e6b2c", "commit_note": "parent of the fix commit 944f44d8 on main" }
+}

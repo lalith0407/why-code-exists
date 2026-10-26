@@ -1,0 +1,19 @@
+{
+  "id": "pulseboard-webhook-blocks-submit",
+  "service": "pulseboard",
+  "severity": "warning",
+  "lang": "ts",
+  "stubs": [],
+  "setup": "const { prisma } = await app(\"lib/prisma.ts\");\nconst admin = await prisma.user.create({ data: { email: \"admin@example.com\", name: \"Admin\", passwordHash: \"x\" } });\nconst w = await prisma.workspace.create({ data: { name: \"Acme\", slug: \"acme\", webhookSecret: \"whsec-test\" } });\nawait prisma.membership.create({ data: { userId: admin.id, workspaceId: w.id, role: \"ADMIN\" } });\nset_session({ user: { id: admin.id, email: admin.email, name: admin.name } });\nconst http = await import(\"node:http\");\nconst slow = http.createServer((req, res) => { setTimeout(() => { try { res.end(\"ok\"); } catch {} }, 8000).unref(); });\nawait new Promise((r) => slow.listen(0, \"127.0.0.1\", r)); slow.unref();\nawait prisma.workspace.update({ where: { id: w.id }, data: { webhookUrl: `http://127.0.0.1:${slow.address().port}/hook` } });\nconst { createFeedbackAction } = await app(\"lib/actions/feedback.ts\");",
+  "body": "const fd = new FormData(); fd.set(\"title\", \"Dark mode please\"); fd.set(\"body\", \"Would love a dark theme\");\nconst t0 = Date.now();\nconst r = await settle(createFeedbackAction(\"acme\", {}, fd));\nconst ms = Date.now() - t0;\ncheck(ms >= 3000, \"submission was fast\");\nrecord(\"ms\", ms); record(\"result\", JSON.stringify(r.ok ? r.value : String(r.error)));",
+  "symptom": {
+    "message": "Users report 'Submit feedback' spins for ~5 seconds whenever the workspace's webhook receiver is slow. Measured createFeedbackAction latency: {{ms}} ms (result {{result}}) with a webhook endpoint that answers after 8s.",
+    "frames": [
+      {
+        "file": "lib/actions/feedback.ts",
+        "line": 0,
+        "function": "createFeedbackAction"
+      }
+    ]
+  }
+}

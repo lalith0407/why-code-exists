@@ -1,0 +1,18 @@
+{
+  "id": "pulseboard-webhook-blocks-submit",
+  "timestamp": "2026-10-25T03:37:47.416Z",
+  "severity": "warning",
+  "service": "pulseboard",
+  "message": "Users report 'Submit feedback' spins for ~5 seconds whenever the workspace's webhook receiver is slow. Measured createFeedbackAction latency: 5036 ms (result {\"success\":true}) with a webhook endpoint that answers after 8s.",
+  "frames": [
+    {
+      "file": "lib/actions/feedback.ts",
+      "line": 15,
+      "function": "createFeedbackAction"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout2-webhook-block/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "transcript_replay"
+  }
+}

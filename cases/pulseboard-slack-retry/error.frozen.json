@@ -1,0 +1,11 @@
+{
+  "id": "pulseboard-slack-events",
+  "timestamp": "2026-10-23T18:00:00.000Z",
+  "severity": "high",
+  "service": "pulseboard",
+  "message": "Data integrity alert: 3 identical feedback rows were created from one Slack message; Slack request log shows the same event_id delivered 3 times (X-Slack-Retry-Num: absent, 1, 2), each answered 200",
+  "frames": [
+    { "file": "app/api/slack/events/[slug]/route.ts", "line": 79, "function": "POST" }
+  ],
+  "context": { "source": "observed by pulseboard-repro/slack-retry/repro.ts running the agent-written route" }
+}

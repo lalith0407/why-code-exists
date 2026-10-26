@@ -1,0 +1,40 @@
+{
+  "id": "pulseboard-invite-accept",
+  "service": "pulseboard",
+  "severity": "critical",
+  "lang": "ts",
+  "stubs": [
+    {
+      "module": "next/cache",
+      "code": "export function revalidatePath(){}\nexport function revalidateTag(){}",
+      "why": "Next.js request-scoped cache API; needs a running Next server"
+    },
+    {
+      "module": "next/navigation",
+      "code": "export function notFound(){ const e = new Error('NEXT_NOT_FOUND'); e.digest = 'NEXT_NOT_FOUND'; throw e }\nexport function redirect(u){ const e = new Error('NEXT_REDIRECT ' + u); e.digest = 'NEXT_REDIRECT'; throw e }",
+      "why": "Next.js navigation throws control-flow errors the framework catches"
+    },
+    {
+      "module": "next-auth",
+      "code": "export default function NextAuth(){ return { auth: async () => globalThis.__session ?? null, handlers: {}, signIn: async () => {}, signOut: async () => {} } }",
+      "why": "session provider: the signed-in user normally comes from the request cookie"
+    },
+    {
+      "module": "next-auth/providers/credentials",
+      "code": "export default function Credentials(o){ return o }",
+      "why": "auth provider config object"
+    }
+  ],
+  "setup": "const { prisma } = await app(\"lib/prisma.ts\");\nconst alice = await prisma.user.create({ data: { email: \"alice@example.com\", name: \"Alice\", passwordHash: \"x\" } });\nconst bob = await prisma.user.create({ data: { email: \"bob@example.com\", name: \"Bob\", passwordHash: \"x\" } });\nconst w = await prisma.workspace.create({ data: { name: \"Acme\", slug: \"acme\", webhookSecret: \"whsec-test\", slackSigningSecret: \"slack-signing-test\" } });\nawait prisma.membership.create({ data: { userId: alice.id, workspaceId: w.id, role: \"ADMIN\" } });\nconst inv = await prisma.invite.create({ data: { email: \"carol@example.com\", role: \"ADMIN\", token: \"tok-1\", expiresAt: new Date(Date.now() + 864e5), workspaceId: w.id, invitedById: alice.id } });\nconst { acceptInviteForExistingUserAction } = await app(\"lib/actions/invites.ts\");",
+  "body": "globalThis.__session = { user: { id: bob.id, email: bob.email } };\ntry { await acceptInviteForExistingUserAction(\"tok-1\"); } catch (e) { if (!String(e.message).startsWith(\"NEXT_REDIRECT\")) throw e; }\nconst m = await prisma.membership.findFirst({ where: { userId: bob.id, workspaceId: w.id } });\ncheck(m, \"no membership created\");\nrecord(\"member_email\", bob.email); record(\"role\", m.role); record(\"invite_email\", inv.email); record(\"slug\", w.slug);",
+  "symptom": {
+    "message": "Security alert: user {{member_email}} became {{role}} of workspace '{{slug}}' by accepting an invite that was addressed to {{invite_email}}",
+    "frames": [
+      {
+        "file": "lib/actions/invites.ts",
+        "line": 0,
+        "function": "acceptInviteForExistingUserAction"
+      }
+    ]
+  }
+}

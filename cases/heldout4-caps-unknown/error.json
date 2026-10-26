@@ -1,0 +1,18 @@
+{
+  "id": "ta-caps-unknown-ticker",
+  "timestamp": "2026-10-25T04:09:43.136Z",
+  "severity": "critical",
+  "service": "trading-agent-system",
+  "message": "Hard-cap breach: risk.check_caps was asked for a 95% weight in ZZZZ, a ticker with no row in the securities table, and returned ok=true with weights {\"ZZZZ\":0.95} and violations []; the single-name cap is 0.15.",
+  "frames": [
+    {
+      "file": "src/ta/harness/caps.py",
+      "line": 39,
+      "function": "enforce_caps"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout4-caps-unknown/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "repo"
+  }
+}

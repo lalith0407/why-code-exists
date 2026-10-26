@@ -1,0 +1,1 @@
+Bug report: in the simple file dialog (folder picker) connected to a Windows host with a second drive, replacing the path by typing Q:\ one character at a time does not show the second drive's folders. The picker shows no matching entries for Q:\. Pasting the complete path works.

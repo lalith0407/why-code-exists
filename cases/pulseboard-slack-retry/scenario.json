@@ -1,0 +1,40 @@
+{
+  "id": "pulseboard-slack-events",
+  "service": "pulseboard",
+  "severity": "high",
+  "lang": "ts",
+  "stubs": [
+    {
+      "module": "next/cache",
+      "code": "export function revalidatePath(){}\nexport function revalidateTag(){}",
+      "why": "Next.js request-scoped cache API; needs a running Next server"
+    },
+    {
+      "module": "next/navigation",
+      "code": "export function notFound(){ const e = new Error('NEXT_NOT_FOUND'); e.digest = 'NEXT_NOT_FOUND'; throw e }\nexport function redirect(u){ const e = new Error('NEXT_REDIRECT ' + u); e.digest = 'NEXT_REDIRECT'; throw e }",
+      "why": "Next.js navigation throws control-flow errors the framework catches"
+    },
+    {
+      "module": "next-auth",
+      "code": "export default function NextAuth(){ return { auth: async () => globalThis.__session ?? null, handlers: {}, signIn: async () => {}, signOut: async () => {} } }",
+      "why": "session provider: the signed-in user normally comes from the request cookie"
+    },
+    {
+      "module": "next-auth/providers/credentials",
+      "code": "export default function Credentials(o){ return o }",
+      "why": "auth provider config object"
+    }
+  ],
+  "setup": "const { prisma } = await app(\"lib/prisma.ts\");\nconst alice = await prisma.user.create({ data: { email: \"alice@example.com\", name: \"Alice\", passwordHash: \"x\" } });\nconst bob = await prisma.user.create({ data: { email: \"bob@example.com\", name: \"Bob\", passwordHash: \"x\" } });\nconst w = await prisma.workspace.create({ data: { name: \"Acme\", slug: \"acme\", webhookSecret: \"whsec-test\", slackSigningSecret: \"slack-signing-test\" } });\nawait prisma.membership.create({ data: { userId: alice.id, workspaceId: w.id, role: \"ADMIN\" } });\nconst crypto = await import(\"node:crypto\");\nconst { POST } = await app(\"app/api/slack/events/[slug]/route.ts\");\nconst { NextRequest } = await import(\"next/server\");\nconst deliver = async (payload, headers = {}) => {\n  const body = JSON.stringify(payload), ts = String(Math.floor(Date.now() / 1000));\n  const sig = \"v0=\" + crypto.createHmac(\"sha256\", \"slack-signing-test\").update(`v0:${ts}:${body}`).digest(\"hex\");\n  const req = new NextRequest(\"http://localhost/api/slack/events/acme\", { method: \"POST\", body, headers: { \"content-type\": \"application/json\", \"x-slack-request-timestamp\": ts, \"x-slack-signature\": sig, ...headers } });\n  const res = await POST(req, { params: Promise.resolve({ slug: \"acme\" }) });\n  return res.status;\n};",
+  "body": "const ev = { type: \"event_callback\", event_id: \"Ev01\", event: { type: \"message\", text: \"/pulse feedback Export button is broken\", user: \"U1\" } };\nconst statuses = [await deliver(ev), await deliver(ev, { \"x-slack-retry-num\": \"1\", \"x-slack-retry-reason\": \"http_timeout\" }), await deliver(ev, { \"x-slack-retry-num\": \"2\", \"x-slack-retry-reason\": \"http_timeout\" })];\nconst n = await prisma.feedback.count({ where: { workspaceId: w.id, source: \"SLACK\" } });\ncheck(n > 1, \"duplicates not created\");\nrecord(\"rows\", n); record(\"statuses\", statuses.join(\", \"));",
+  "symptom": {
+    "message": "Data integrity alert: {{rows}} identical feedback rows were created from one Slack message; the request log shows the same event_id delivered 3 times (X-Slack-Retry-Num: absent, 1, 2), answered {{statuses}}",
+    "frames": [
+      {
+        "file": "app/api/slack/events/[slug]/route.ts",
+        "line": 0,
+        "function": "POST"
+      }
+    ]
+  }
+}

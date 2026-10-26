@@ -1,0 +1,18 @@
+{
+  "id": "pulseboard-link-preview",
+  "timestamp": "2026-10-25T02:59:38.835Z",
+  "severity": "high",
+  "service": "pulseboard",
+  "message": "Egress alert: link preview service made a request to http://127.0.0.1:8080/admin while creating a feedback card; the preview title returned was Internal admin console",
+  "frames": [
+    {
+      "file": "lib/link-preview.ts",
+      "line": 48,
+      "function": "fetchLinkPreview"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/pulseboard-ssrf/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "transcript_replay"
+  }
+}

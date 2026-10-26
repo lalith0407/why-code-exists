@@ -1,0 +1,18 @@
+{
+  "id": "pulseboard-slack-dropped-command",
+  "timestamp": "2026-10-25T02:59:43.178Z",
+  "severity": "warning",
+  "service": "pulseboard",
+  "message": "Support ticket: a Slack message starting with '/pulse feedback' did not create feedback. The Slack event log shows the event arrived (HTTP 200) with createdFeedbackId = null and text \"/pulse feedback Export is slow\\nIt takes 2 minutes for 10k rows\".",
+  "frames": [
+    {
+      "file": "app/api/slack/events/[slug]/route.ts",
+      "line": 31,
+      "function": "POST"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout-slack-multiline/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "transcript_replay"
+  }
+}

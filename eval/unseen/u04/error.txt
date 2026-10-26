@@ -1,0 +1,1 @@
+Production report: after upgrading the proxy, virtual keys that have no team and were created with models=["all-team-models"] are now denied for every model. Listing models for the key returns nothing usable, and chat/batch calls with the key are rejected with a model-access error. Before the upgrade, these teamless keys could call any model.

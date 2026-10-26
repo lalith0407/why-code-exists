@@ -1,0 +1,13 @@
+{
+  "id": "br-sqlite-retype-drops-unique",
+  "service": "blast-radius",
+  "severity": "error",
+  "lang": "python",
+  "stubs": [],
+  "setup": "import sqlite3\ndbm = app(\"world/db.py\")\nconn = sqlite3.connect(\":memory:\")\nconn.execute(\"CREATE TABLE customers (id INTEGER PRIMARY KEY, email TEXT NOT NULL, tier INTEGER)\")\nconn.execute(\"CREATE UNIQUE INDEX customers_email_key ON customers(email)\")\nconn.execute(\"INSERT INTO customers VALUES (1, 'ana@example.com', 1)\")\nconn.commit()",
+  "body": "dbm._sqlite_script(conn, \"ALTER TABLE customers ALTER COLUMN tier SET DATA TYPE BIGINT\")\nidx = [r[1] for r in conn.execute(\"PRAGMA index_list(customers)\").fetchall()]\nconn.execute(\"INSERT INTO customers VALUES (2, 'ana@example.com', 2)\")\nn = conn.execute(\"SELECT count(*) FROM customers WHERE email = 'ana@example.com'\").fetchone()[0]\nrecord(\"indexes\", idx)\nrecord(\"n\", n)\ncheck(n == 2, \"duplicate email rejected\")",
+  "symptom": {
+    "message": "After the guard ran a signed 'ALTER TABLE customers ALTER COLUMN tier SET DATA TYPE BIGINT' on the SQLite backend, customers lost its unique index on email (indexes now: {{indexes}}); a second row with the same email was accepted ({{n}} rows for ana@example.com).",
+    "frames": [{ "file": "world/db.py", "line": 0, "function": "_sqlite_script" }]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "pulseboard-link-preview",
+  "service": "pulseboard",
+  "severity": "high",
+  "lang": "ts",
+  "stubs": [],
+  "setup": "const http = await import(\"node:http\");\nconst hits = [];\nconst srv = http.createServer((req, res) => { hits.push(req.url); res.writeHead(200, { \"content-type\": \"text/html\" }); res.end(\"<html><head><title>Internal admin console</title></head></html>\"); });\nawait new Promise((r) => srv.listen(8080, \"127.0.0.1\", r));\nconst { fetchLinkPreview } = await app(\"lib/link-preview.ts\");",
+  "body": "const p = await fetchLinkPreview(\"http://127.0.0.1:8080/admin\");\nsrv.close();\ncheck(hits.length > 0, \"no request reached the internal address\");\nrecord(\"url\", \"http://127.0.0.1:8080\" + hits[0]); record(\"title\", p?.title ?? null);",
+  "symptom": {
+    "message": "Egress alert: link preview service made a request to {{url}} while creating a feedback card; the preview title returned was {{title}}",
+    "frames": [
+      {
+        "file": "lib/link-preview.ts",
+        "line": 0,
+        "function": "fetchLinkPreview"
+      }
+    ]
+  }
+}

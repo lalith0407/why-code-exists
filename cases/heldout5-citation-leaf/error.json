@@ -1,0 +1,18 @@
+{
+  "id": "ta-citation-leaf-substring",
+  "timestamp": "2026-10-25T05:27:16.704Z",
+  "severity": "high",
+  "service": "trading-agent-system",
+  "message": "Citation check kept a fact claim whose cited path does not exist: the claim cites weights.AAPL in a portfolio.size_position output whose weights are {\"MSFT\":0.05}, and the reopen-and-match step kept 1 of 1 claims.",
+  "frames": [
+    {
+      "file": "src/ta/agents/loop.py",
+      "line": 230,
+      "function": "_keep_after_reopen"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout5-citation-leaf/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "repo"
+  }
+}

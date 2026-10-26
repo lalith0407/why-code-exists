@@ -1,0 +1,229 @@
+{
+ "positives": [
+  {
+   "repo": "Vexorterminal0111/vexor-terminal",
+   "pr": 32,
+   "fix": 33,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-05-20T18:04:38Z",
+   "code_lines": 46,
+   "other_lines": 0,
+   "total": 70,
+   "merge_sha": "361c2c1d194d5354b7244cf0f6d27510af8fc0b8",
+   "base": "ca96bed110e1e305c39276f6a8cdc51a7b0e5e81",
+   "head": "82871c9877cd2484a476ee2f75a35f7b479634fd",
+   "fix_title": "fix(next.config): scope chat-api guard to production builds only",
+   "fix_body": "## Summary\n\nHot-fix for a real regression Devin Review flagged on the merged PR #32: my `assertSafeChatApiUrl()` ran unconditionally at config-load time, so it also fired during `next dev` \u2014 crashing `pnpm dev` for anyone following the documented local-dev setup.\n\nThe README explicitly tells developers to set `NEXT_PUBLIC_CHAT_API_URL=http://localhost:8000` in `.env.local` for local development (see `README.md:234`). Combined with my guard, that meant the moment a dev followed the docs, their dev server would refuse to start with a \"localhost URL rejected\" error.\n\nFix is a one-line gate:\n```ts\nif (process.env.NODE_ENV === \"production\") assertSafeChatApiUrl();\n```\nNext.js automatically sets `NODE_ENV=production` during `next build` and `NODE_ENV=development` during `next dev`, so this is the canonical way to scope to prod builds only.\n\n### Test matrix re-verified locally\n\n| NODE_ENV | `NEXT_PUBLIC_CHAT_API_URL` | Expected | Result |\n|---|---|---|---|\n| development | `http://localhost:8000` | ALLOW | ALLOWED \u2713 (regression fix) |\n| development | `https://x.trycloudflare.com` | ALLOW | ALLOWED \u2713 |\n| production | `https://x.trycloudflare.com` | REJECT | REJECTED \u2713 |\n| production | `http://localhost:8000` | REJECT | REJECTED \u2713 |\n| production | `` (blank) | ALLOW | ALLOWED \u2713 |\n| production | `https://vexorterminal.com` | ALLOW | ALLOWED \u2713 |\n\n`npm run build` succeeds with the current blank `.env.local`. `eslint next.config.ts` clean.\n\n## Review & Testing Checklist for Human\n\nRisk: green (one-line scope fix; production protection preserved).\n\n- [ ] Try `pnpm dev` with `NEXT_PUBLIC_CHAT_API_URL=http://localhost:8000` in `.env.local` \u2014 should now start the dev server normally.\n- [ ] Optionally re-confirm prod build still rejects: temporarily set `.env.local` to `NEXT_PUBLIC_CHAT_API_URL=https://anything.trycloudflare.com` and run `npm run build` \u2014 should exit non-zero with the actionable error.\n\n### Notes\n\n- Tied to PR #32. That PR is correct in intent; this just narrows when the guard runs.\n- Devin Review finding citation: `next.config.ts:47`, comment id `3276106590`.\n- After merge: manual `pnpm build --webpack && npx wrangler deploy` per the usual ritual (Cloudflare auto-deploy still not wired). The previous deploy (`815416ee-59a9-413e-a87c-c2e1f1b14181`, 2026-05-20T18:05:43Z) is already running the unconditional guard but never breaks prod builds because production `.env.local` has the var blank.\n\n\nLink to Devin session: https://app.devin.ai/sessions/837064b149764eec8679057bbcb96e7c\nRequested by: @Vexorterminal0111\n<!-- devin-review-badge-begin -->\n\n---\n\n<a href=\"https://app.devin.ai/review/vexorterminal0111/vexor-terminal/pull/33\" target=\"_blank\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://static.devin.ai/assets/gh-open-in-devin-review-dark.svg?v=1\">\n    <img src=\"https://static.devin.ai/assets/gh-open-in-devin-review-light.svg?v=1\" alt=\"Open in Devin Review\">\n  </picture>\n</a>\n<!-- devin-review-badge-end -->",
+   "fix_merged": "2026-05-20T18:10:45Z",
+   "fix_files": [
+    "next.config.ts"
+   ]
+  },
+  {
+   "repo": "jotamano/fluxocaixa",
+   "pr": 19,
+   "fix": 20,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-04-30T12:06:25Z",
+   "code_lines": 73,
+   "other_lines": 156,
+   "total": 229,
+   "merge_sha": "11f6a08ba625ebfc69fb98b93b43a5164a4ab562",
+   "base": "7402e08067eaaa4b6a165afc7620b73180c92bae",
+   "head": "5e4848c9b7700a30af7a5162c4151742ef8daf79",
+   "fix_title": "fix(newinvoice): re-infer line frequency on every date edit",
+   "fix_body": "## Summary\n\nFollow-up to #19 fixing the regression Devin Review caught.\n\n**Bug**: once `inferFrequencyFromRange` auto-filled `item.frequency`, subsequent date edits no longer re-triggered inference because the `!item.frequency` guard saw the (now-truthy) pre-update value. A user who entered a 1-year range and later shortened `endDate` to 3 months would still submit a yearly subscription. There was also no way for the user to clear a stuck value back to \"auto\".\n\n**Fix**: stop stamping inferred values onto `item.frequency`. Treat that field as the **manual override only** \u2014 keep it empty unless the user explicitly picks something from the dropdown. Compute the displayed and submitted frequency live from the current dates whenever the user hasn't overridden.\n\nConcretely:\n- `updateItem` no longer mutates `frequency` when dates change.\n- The `<Select>` displays `item.frequency` (override) \u2192 live `inferFrequencyFromRange(startDate, endDate)` \u2192 `FREQUENCY_AUTO` sentinel (\"Autom\u00e1tica\"), in that order.\n- A new \"Autom\u00e1tica (datas / por defeito)\" option lets the user clear an override and return to date-driven / global-fallback behaviour.\n- Submit-time resolution unchanged in spirit (`line.frequency || inferred || global`), but inference is now always run from current values \u2014 no more stale state short-circuit.\n- The helper text under the picker reflects which mode is active so the user knows whether changing the dates will (auto) or won't (override) move the frequency.\n\n## Review & Testing Checklist for Human\n\n- [ ] Linha sem datas e sem override: dropdown mostra \"Autom\u00e1tica (datas / por defeito)\" \u2014 submete usa a frequ\u00eancia por defeito\n- [ ] Preencher 30/04/2026 \u2192 30/04/2027: dropdown passa a mostrar \"Anual\"; submeter cria yearly\n- [ ] Mudar `endDate` para 30/07/2026 (sem mexer no dropdown): dropdown passa a \"Trimestral\"; submeter cria quarterly **(este era o bug)**\n- [ ] Escolher manualmente \"Mensal\" no dropdown e depois mudar as datas: dropdown fica fixo em \"Mensal\"; submeter cria monthly\n- [ ] Voltar a escolher \"Autom\u00e1tica\" depois de override: dropdown volta a refletir as datas / por defeito\n- [ ] Comportamento global fora do submit (formato da fatura, cria\u00e7\u00e3o de itens, etc.) inalterado\n\n### Notes\n\nMudan\u00e7a limitada a `src/pages/NewInvoice.tsx`. Sem migration, sem altera\u00e7\u00f5es de schema. N\u00e3o toca em #19 que j\u00e1 est\u00e1 em main.\n\n\nLink to Devin session: https://app.devin.ai/sessions/18ba972286a54691a959dd5b77001161\nRequested by: @jotamano\n<!-- devin-review-badge-begin -->\n\n---\n\n<a href=\"https://app.devin.ai/review/jotamano/marketing-billing-buddy/pull/20\" target=\"_blank\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://static.devin.ai/assets/gh-open-in-devin-review-dark.svg?v=1\">\n    <img src=\"https://static.devin.ai/assets/gh-open-in-devin-review-light.svg?v=1\" alt=\"Open in Devin Review\">\n  </picture>\n</a>\n<!-- devin-review-badge-end -->\n",
+   "fix_merged": "2026-04-30T12:10:42Z",
+   "fix_files": [
+    "src/pages/NewInvoice.tsx"
+   ]
+  },
+  {
+   "repo": "hoathienmenh-01/xuantoi",
+   "pr": 127,
+   "fix": 129,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-04-30T06:54:31Z",
+   "code_lines": 93,
+   "other_lines": 70,
+   "total": 299,
+   "merge_sha": "8a2be4a6fe66eea16557a36cc1aad15e36b8e602",
+   "base": "49c2723e5baf4d18149d81238c63244d0c65e8a3",
+   "head": "e80e9028b28d2f19bec655910636a8ae3eb8ff1d",
+   "fix_title": "fix(admin): giftcode revoke handleErr fallback for UNAUTHENTICATED/FORBIDDEN/ADMIN_ONLY (Devin Review #127 follow-up)",
+   "fix_body": "## Summary\n\nFollow-up cho PR #127 (giftcode revoke ConfirmModal) \u2014 s\u1eeda regression Devin Review ph\u00e1t hi\u1ec7n: helper `mapGiftcodeRevokeErrorKey` ch\u1ec9 map ri\u00eang `CODE_NOT_FOUND` / `CODE_REVOKED`. M\u1ecdi code kh\u00e1c (UNAUTHENTICATED khi session h\u1ebft h\u1ea1n, FORBIDDEN khi role b\u1ecb t\u01b0\u1edbc, ADMIN_ONLY khi MOD b\u1ea5m nh\u1ea7m, etc.) \u0111\u1ec1u fall through sang `admin.errors.UNKNOWN` (\"C\u00f3 l\u1ed7i x\u1ea3y ra\") \u2014 admin m\u1ea5t th\u00f4ng tin h\u1eefu \u00edch.\n\nS\u1eeda: n\u1ebfu `mapGiftcodeRevokeErrorKey` tr\u1ea3 v\u1ec1 `admin.errors.UNKNOWN`, g\u1ecdi ti\u1ebfp `handleErr(e)` \u0111\u1ec3 route qua dynamic mapper `t('admin.errors.${code}', '__missing__')` \u2014 match \u0111\u00fang pattern c\u00e1c action admin kh\u00e1c (grant, ban, approve topup, ...).\n\n### V\u00ec sao h\u1eefu \u00edch\n- Kh\u00f4i ph\u1ee5c actionable error message cho admin (v\u00ed d\u1ee5 \"H\u1ebft phi\u00ean, h\u00e3y \u0111\u0103ng nh\u1eadp l\u1ea1i\" cho UNAUTHENTICATED).\n- Gi\u1eef nguy\u00ean 2 mapping \u0111\u1eb7c bi\u1ec7t cho giftcode (`CODE_NOT_FOUND` / `CODE_REVOKED`) \u2014 toast nh\u1eb9, kh\u00f4ng c\u1ea7n fallback.\n- Kh\u00f4ng th\u00eam dependency, kh\u00f4ng th\u00eam i18n key, kh\u00f4ng th\u00eam helper m\u1edbi.\n\n### V\u1ea5n \u0111\u1ec1 gi\u1ea3i quy\u1ebft\nDevin Review tr\u00ean PR #127 (comment ID 3166138114): \"Giftcode revoke error handling regresses: auth/permission errors now display generic UNKNOWN message\". S\u1eeda \u0111\u00fang theo g\u1ee3i \u00fd trong comment.\n\n### R\u1ee7i ro \ud83d\udfe2 th\u1ea5p\n- Ch\u1ec9 s\u1eeda 7 d\u00f2ng trong 1 file (AdminView.vue) \u2014 `confirmGiftcodeRevoke` catch branch.\n- Kh\u00f4ng touch helper `mapGiftcodeRevokeErrorKey` (v\u1eabn \u0111\u00fang cho 2 case \u0111\u1eb7c bi\u1ec7t).\n- `handleErr` \u0111\u00e3 \u0111\u01b0\u1ee3c test qua c\u00e1c action admin kh\u00e1c t\u1eeb tr\u01b0\u1edbc.\n\n### Rollback\nRevert PR.\n\n### Changes\n\n**File s\u1eeda**\n- `apps/web/src/views/AdminView.vue` \u2014 `confirmGiftcodeRevoke` catch branch:\n  ```diff\n    const code = (e as { code?: string }).code;\n    const key = mapGiftcodeRevokeErrorKey(code);\n  -  toast.push({ type: 'error', text: t(key) });\n  +  if (key === 'admin.errors.UNKNOWN') {\n  +    handleErr(e);\n  +  } else {\n  +    toast.push({ type: 'error', text: t(key) });\n  +  }\n  ```\n\n### Tests\n- `pnpm typecheck` \u2705 (3 project)\n- `pnpm lint` \u2705 (max-warnings 0)\n- `pnpm --filter @xuantoi/web test` \u2705 **263/263** (32 file).\n- Helper `mapGiftcodeRevokeErrorKey` v\u1eabn cover b\u1edfi 4 vitest t\u1eeb PR #127 (CODE_NOT_FOUND / CODE_REVOKED / unknown / undefined+empty).\n\n### `AI_HANDOFF_REPORT.md updated`\nS\u1ebd gom v\u00e0o PR audit refresh k\u1ebf ti\u1ebfp.\n\n## Review & Testing Checklist for Human\n\n- [ ] CI green.\n- [ ] M\u1edf admin \u2192 Giftcode tab \u2192 click \"Thu h\u1ed3i\" \u2192 modal hi\u1ec7n.\n- [ ] \u0110\u1ec3 session h\u1ebft h\u1ea1n (xo\u00e1 cookie ho\u1eb7c \u0111\u1ee3i >24h) \u2192 click confirm \u2192 toast hi\u1ec3n th\u1ecb \"H\u1ebft phi\u00ean, h\u00e3y \u0111\u0103ng nh\u1eadp l\u1ea1i\" thay v\u00ec \"C\u00f3 l\u1ed7i x\u1ea3y ra\".\n- [ ] MOD account th\u1eed click confirm (n\u1ebfu c\u00f3) \u2192 toast \"H\u00e0nh \u0111\u1ed9ng n\u00e0y ch\u1ec9 ADMIN m\u1edbi \u0111\u01b0\u1ee3c th\u1ef1c hi\u1ec7n\".\n\n### Notes\n- Stack: base `main` post-#127 merge. Kh\u00f4ng ph\u1ee5 thu\u1ed9c PR kh\u00e1c.\n- Devin Review comment: https://github.com/hoathienmenh-01/xuantoi/pull/127#discussion_r3166138114\n\nLink to Devin session: https://app.devin.ai/sessions/e54654241d1f4be1a35a03d59836536f\nRequested by: @hoathienmenh-01\n<!-- devin-review-badge-begin -->\n\n---\n\n<a href=\"https://app.devin.ai/review/hoathienmenh-01/xuantoi/pull/129\" target=\"_blank\">\n  <picture>\n    <source media=\"(prefe",
+   "fix_merged": "2026-04-30T06:59:24Z",
+   "fix_files": [
+    "apps/web/src/views/AdminView.vue"
+   ]
+  },
+  {
+   "repo": "arborstarjax-bot/soberliving",
+   "pr": 13,
+   "fix": 14,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-04-17T17:40:02Z",
+   "code_lines": 105,
+   "other_lines": 0,
+   "total": 105,
+   "merge_sha": "19f946ec4dcde8c69313ecd4d1cc2cfaeb4dd90d",
+   "base": "8c2250750d8eba79ccc9a803fd00eec6bcf31e54",
+   "head": "7c29a7e4d95c2eeb8943f56b4a1641346efc4915",
+   "fix_title": "fix(intake-review): don't swallow requireRole's NEXT_REDIRECT in getRoomsForHouse",
+   "fix_body": "## Summary\n\nFixes a regression Devin Review flagged on PR #13: the catch-all try/catch I added around `getRoomsForHouse` was also catching the `NEXT_REDIRECT` error that `requireRole(\"admin\")` throws via `next/navigation`'s `redirect()` \u2014 silently swallowing the redirect for unauthenticated or non-admin users.\n\nMove `requireRole()` and `createAdminClient()` above the try block. The try/catch now only wraps the Supabase DB work, which is what actually needed the error-surfacing behavior.\n\nThis may also explain why David's `/residents \u2192 House 2` still shows the scrubbed \"Server Components render\" text post-PR-#13: if his admin session had expired, the attempt to redirect him to `/login` was being caught and converted into my \"Unexpected error: NEXT_REDIRECT...\" string, which Next would then re-wrap as the generic production error.\n\n## Review & Testing Checklist for Human\n\n\ud83d\udfe2 Low risk \u2014 pure bug fix, restores the standard auth redirect pattern used everywhere else in this file.\n\n- [ ] After deploy + hard refresh, retry House 2 on intake review. If the session is valid, you'll now see either a populated dropdown, \"No available beds\u2026\", or the real DB error. If the session is invalid you'll be redirected to `/login` (correct behavior).\n- [ ] While logged in as a non-admin manager, try invoking the same action (e.g. visit a URL that would trigger it) \u2014 should redirect to `/dashboard` cleanly.\n\n### Notes\n\n- Targets `devin/1776361959-polish-v1`.\n- No behavior change on the happy path.\n\nLink to Devin session: https://app.devin.ai/sessions/c4cab83a7ba545cb9e5b3f220ac13e1d\nRequested by: @arborstarjax-bot\n<!-- devin-review-badge-begin -->\n\n---\n\n<a href=\"https://app.devin.ai/review/arborstarjax-bot/soberliving/pull/14\" target=\"_blank\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://static.devin.ai/assets/gh-open-in-devin-review-dark.svg?v=1\">\n    <img src=\"https://static.devin.ai/assets/gh-open-in-devin-review-light.svg?v=1\" alt=\"Open with Devin\">\n  </picture>\n</a>\n<!-- devin-review-badge-end -->\n",
+   "fix_merged": "2026-04-17T17:52:36Z",
+   "fix_files": [
+    "src/app/(dashboard)/intake-review/actions.ts"
+   ]
+  },
+  {
+   "repo": "prathamesh-ops-sudo/securenexus",
+   "pr": 416,
+   "fix": 417,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-03-13T17:59:31Z",
+   "code_lines": 3122,
+   "other_lines": 0,
+   "total": 3122,
+   "merge_sha": "a89e191786ab0a2327813b03b593a2ad26f33881",
+   "base": "75348e8e6b2191364eb403edf8a1c62534622b55",
+   "head": "a92abda8d61828a2734a1dcc1f2eec6a0cb48b7c",
+   "fix_title": "fix: correct Safe count formula + clear completedAt on task status revert (Devin Review #416)",
+   "fix_body": "# fix: correct Safe count formula + clear completedAt on task status revert\n\n## Summary\n\nAddresses 2 bugs identified by Devin Review on PR #416 (Quantum Readiness Assessment):\n\n1. **Safe count formula** (`quantum-readiness.tsx`): The Risk Distribution chart's \"Safe\" count was `totalAssets - vulnerableAssets - lowRiskCount`, but `vulnerableAssets` only counts quantum-vulnerable assets (RSA/ECDSA/ECDH broken by Shor's). Classically-weak algorithms like 3DES or MD5 have `isQuantumVulnerable: false` but still carry critical/medium risk levels \u2014 so they were incorrectly counted as \"Safe\". Fixed to `totalAssets - criticalRiskCount - highRiskCount - mediumRiskCount - lowRiskCount`.\n\n2. **completedAt not cleared on revert** (`quantum-readiness.ts`): When a migration task's status was changed to \"migrated\" or \"verified\", `completedAt` was set. But reverting the status back (e.g. to \"in_progress\") left the stale `completedAt` timestamp in the DB. Added `else if (updates.status) { updates.completedAt = null; }`.\n\n## Review & Testing Checklist for Human\n\n- [ ] Verify the \"Safe\" count now correctly excludes classically-weak algorithms (e.g. add a 3DES asset \u2014 it should NOT appear in the \"Safe\" bucket)\n- [ ] Verify reverting a migration task from \"verified\" \u2192 \"in_progress\" clears the `completedAt` field in the DB\n\n### Notes\n\n- No automated tests cover either code path \u2014 manual verification recommended\n- Both fixes match the suggestions from Devin Review exactly\n\n---\n\nLink to Devin Session: https://app.devin.ai/sessions/3a3986ea2e634738b60723f9edf81e5e\nRequested by: @prathamesh-ops-sudo\n<!-- devin-review-badge-begin -->\n\n---\n\n<a href=\"https://app.devin.ai/review/prathamesh-ops-sudo/securenexus/pull/417\" target=\"_blank\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://static.devin.ai/assets/gh-open-in-devin-review-dark.svg?v=1\">\n    <img src=\"https://static.devin.ai/assets/gh-open-in-devin-review-light.svg?v=1\" alt=\"Open with Devin\">\n  </picture>\n</a>\n<!-- devin-review-badge-end -->\n",
+   "fix_merged": "2026-03-13T18:05:06Z",
+   "fix_files": [
+    "client/src/pages/quantum-readiness.tsx",
+    "server/routes/quantum-readiness.ts"
+   ]
+  }
+ ],
+ "negatives": [
+  {
+   "repo": "Vexorterminal0111/vexor-terminal",
+   "pr": 35,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-05-20T19:29:25Z",
+   "title": "fix(intel): filter null items + add s/d buckets to formatRelative",
+   "code_lines": 11,
+   "total": 11,
+   "merge_sha": "7561c895821ab600398163055c2b5f6efed9404e",
+   "base": "53ebfed22d11490e3e2dd834f6bb66aa2d62ce06",
+   "head": "3c8fef773fc3e56d062ffc800357f57ef8ae9204"
+  },
+  {
+   "repo": "Vexorterminal0111/vexor-terminal",
+   "pr": 31,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-05-20T14:09:26Z",
+   "title": "fix(agents): stable greeting ref + add x-agent to CORS allow-headers",
+   "code_lines": 15,
+   "total": 15,
+   "merge_sha": "ca96bed110e1e305c39276f6a8cdc51a7b0e5e81",
+   "base": "eef87a6417544fffe4be2c77e59ee247202eb19b",
+   "head": "bf3d9c8fa5a3ec348005cc92faf5f11211cb291b"
+  },
+  {
+   "repo": "jotamano/fluxocaixa",
+   "pr": 21,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-04-30T12:23:37Z",
+   "title": "fix(newinvoice): default new invoices to 'pending' instead of 'draft'",
+   "code_lines": 8,
+   "total": 8,
+   "merge_sha": "70e9879b7896b2f6031c1e4818b06830aa17559c",
+   "base": "377b68327bf27b42c74d84fee10eafadeadc47c3",
+   "head": "a255d08a67007fd732546555a384db44908db0a4"
+  },
+  {
+   "repo": "jotamano/fluxocaixa",
+   "pr": 22,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-04-30T12:34:29Z",
+   "title": "feat(invoice-detail): list client subscriptions with shortcuts to edit",
+   "code_lines": 89,
+   "total": 89,
+   "merge_sha": "04f2217e059d555f7b1699324630fd60d54deafa",
+   "base": "70e9879b7896b2f6031c1e4818b06830aa17559c",
+   "head": "8e3ae28bda093f5e4532f74e333ef86eb3a7d80c"
+  },
+  {
+   "repo": "hoathienmenh-01/xuantoi",
+   "pr": 109,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-04-29T19:55:24Z",
+   "title": "feat(web): smart admin economy alerts badge + 60s polling \u2014 wire AdminView nav (session 9g task E.a)",
+   "code_lines": 35,
+   "total": 240,
+   "merge_sha": "58fa69d31f0a6dabf3694c1369f459fe5f912fff",
+   "base": "0a6c6641da4ae08902a28706d206080cd1997a10",
+   "head": "8a58953827de523486f1804dfda19631decd6abe"
+  },
+  {
+   "repo": "hoathienmenh-01/xuantoi",
+   "pr": 70,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-04-29T09:16:31Z",
+   "title": "feat(admin): filter user list by role + banned (G16 \u2014 admin productivity)",
+   "code_lines": 50,
+   "total": 245,
+   "merge_sha": "2654b2849243ed0c7af57427eef399f4a3203e4b",
+   "base": "4b3d938be08d4772b5292964605d86c19417c9fa",
+   "head": "3dc9071e36359564c8f84caa3a6ffc6118f75461"
+  },
+  {
+   "repo": "arborstarjax-bot/soberliving",
+   "pr": 16,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-04-17T18:16:55Z",
+   "title": "feat(chores): edit chore + tasks + room-level exclusions",
+   "code_lines": 695,
+   "total": 757,
+   "merge_sha": "d6619654c01f55005d33e3c3fb982351ce6de84d",
+   "base": "c4e926db66d6a8611cd1ff35e014d8732f993b87",
+   "head": "36aea8fa392226f05a4da723608551d4c8e7a34c"
+  },
+  {
+   "repo": "arborstarjax-bot/soberliving",
+   "pr": 17,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-04-17T18:29:46Z",
+   "title": "feat(residents): edit + resend pending commitment from Residents \u2192 Intake tab",
+   "code_lines": 67,
+   "total": 67,
+   "merge_sha": "d096e88229f884af7eb420ddc0edefe516d5492a",
+   "base": "25ee1ad8810a21b4aab2b2c08d1aa1959389a55b",
+   "head": "b8e779f7ddf29a5f000ea7d9a77075bfd0dac1f6"
+  },
+  {
+   "repo": "prathamesh-ops-sudo/securenexus",
+   "pr": 419,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-03-13T18:44:48Z",
+   "title": "fix: varchar orgId type mismatch + filter resolved alerts from open count (Devin Review #418)",
+   "code_lines": 24,
+   "total": 24,
+   "merge_sha": "623fc5d956894082ad683ad4276bbe7aee474b6b",
+   "base": "36ad61e26b6250436fc210d4f66f98473289b80a",
+   "head": "5c93baafb74c9eccde83a00d4aa0abc82a4321d0"
+  },
+  {
+   "repo": "prathamesh-ops-sudo/securenexus",
+   "pr": 415,
+   "author": "devin-ai-integration[bot]",
+   "merged": "2026-03-13T16:54:49Z",
+   "title": "fix: guard timestamp overwrite on duplicate phishing events (Devin Review #414)",
+   "code_lines": 8,
+   "total": 8,
+   "merge_sha": "75348e8e6b2191364eb403edf8a1c62534622b55",
+   "base": "be50af1bf85082f7b7bffec8679d7016aefd1a40",
+   "head": "e3167029c95f0480e0f174516ea84520e4969814"
+  }
+ ],
+ "excluded": [
+  {
+   "repo": "COG-GTM/otterworks",
+   "pr": 137,
+   "reason": "0 TS/Python code lines changed (prompt/markdown) -> fails TS/Python rule; its 2 negatives dropped too"
+  }
+ ]
+}

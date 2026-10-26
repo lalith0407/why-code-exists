@@ -1,0 +1,95 @@
+diff --git a/litellm/proxy/auth/auth_checks.py b/litellm/proxy/auth/auth_checks.py
+index ced2cf125ce6..41468a9ec05f 100644
+--- a/litellm/proxy/auth/auth_checks.py
++++ b/litellm/proxy/auth/auth_checks.py
+@@ -3017,7 +3017,9 @@ async def can_key_call_resolved_model(
+     )
+ 
+     skip_key_model_check = valid_token.config or (
+-        isinstance(valid_token.models, list) and SpecialModelNames.all_team_models.value in valid_token.models
++        isinstance(valid_token.models, list)
++        and SpecialModelNames.all_team_models.value in valid_token.models
++        and valid_token.team_id is not None
+     )
+     if not skip_key_model_check:
+         await can_key_call_model(
+diff --git a/litellm/proxy/auth/user_api_key_auth.py b/litellm/proxy/auth/user_api_key_auth.py
+index 73f9def822bc..a28c8be9408a 100644
+--- a/litellm/proxy/auth/user_api_key_auth.py
++++ b/litellm/proxy/auth/user_api_key_auth.py
+@@ -2676,7 +2676,11 @@ async def _enforce_key_and_fallback_model_access(
+         model_list = config.get("model_list", [])
+         new_model_list = model_list
+         verbose_proxy_logger.debug(f"\n new llm router model list {new_model_list}")
+-    elif isinstance(valid_token.models, list) and "all-team-models" in valid_token.models:
++    elif (
++        isinstance(valid_token.models, list)
++        and "all-team-models" in valid_token.models
++        and valid_token.team_id is not None
++    ):
+         pass
+     else:
+         model = _get_model_from_request_context(
+diff --git a/tests/test_litellm/proxy/auth/test_auth_checks.py b/tests/test_litellm/proxy/auth/test_auth_checks.py
+index 7e34cdf29bcd..0f6cae28761e 100644
+--- a/tests/test_litellm/proxy/auth/test_auth_checks.py
++++ b/tests/test_litellm/proxy/auth/test_auth_checks.py
+@@ -355,6 +355,58 @@ async def test_can_key_call_model_all_team_models_no_team_id_is_denied():
+     assert exc_info.value.type == ProxyErrorTypes.key_model_access_denied
+ 
+ 
++@pytest.mark.asyncio
++async def test_enforce_key_access_teamless_all_team_models_denied():
++    """_enforce_key_and_fallback_model_access must not skip key-level
++    model checks for a teamless key that carries all-team-models."""
++    from litellm.proxy._types import SpecialModelNames
++    from litellm.proxy.auth.user_api_key_auth import (
++        _enforce_key_and_fallback_model_access,
++    )
++
++    valid_token = UserAPIKeyAuth(
++        api_key="sk-orphan-key",
++        models=[SpecialModelNames.all_team_models.value],
++        team_models=[],
++    )
++
++    with pytest.raises(ProxyException) as exc_info:
++        await _enforce_key_and_fallback_model_access(
++            valid_token=valid_token,
++            request_data={"model": "gpt-4o"},
++            route="/v1/chat/completions",
++            request=None,
++            llm_model_list=None,
++            llm_router=None,
++        )
++
++    assert exc_info.value.type == ProxyErrorTypes.key_model_access_denied
++
++
++@pytest.mark.asyncio
++async def test_can_key_call_resolved_model_teamless_all_team_models_denied():
++    """can_key_call_resolved_model must not skip key-level model checks
++    for a teamless key that carries all-team-models."""
++    from litellm.proxy._types import SpecialModelNames
++    from litellm.proxy.auth.auth_checks import can_key_call_resolved_model
++
++    valid_token = UserAPIKeyAuth(
++        api_key="sk-orphan-key",
++        models=[SpecialModelNames.all_team_models.value],
++        team_models=[],
++    )
++
++    with pytest.raises(ProxyException) as exc_info:
++        await can_key_call_resolved_model(
++            model="gpt-4o",
++            llm_model_list=None,
++            valid_token=valid_token,
++            llm_router=None,
++        )
++
++    assert exc_info.value.type == ProxyErrorTypes.key_model_access_denied
++
++
+ @pytest.mark.asyncio
+ async def test_can_team_access_model_all_team_models_expands_router_models():
+     from litellm import Router

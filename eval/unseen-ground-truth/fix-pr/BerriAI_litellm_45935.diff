@@ -1,0 +1,48 @@
+diff --git a/litellm/decisions/call.py b/litellm/decisions/call.py
+index 757bc5a9b0a7..1ad2f0067364 100644
+--- a/litellm/decisions/call.py
++++ b/litellm/decisions/call.py
+@@ -85,7 +85,7 @@ class DecisionsCall:
+     litellm_params: Mapping[str, object] = field(repr=False)
+ 
+ 
+-def _supported_providers() -> tuple[str, ...]:
++def supported_decisions_providers() -> tuple[str, ...]:
+     return tuple(
+         provider.value
+         for provider in LlmProviders
+@@ -99,7 +99,7 @@ def _provider_config(model: str, custom_llm_provider: str) -> BaseDecisionsConfi
+         None if provider is None else ProviderConfigManager.get_provider_decisions_config(model, provider)
+     )
+     if provider_config is None:
+-        supported: Final = ", ".join(_supported_providers())
++        supported: Final = ", ".join(supported_decisions_providers())
+         raise litellm.BadRequestError(
+             message=f"Unknown Decisions provider '{custom_llm_provider}'. Supported providers: {supported}",
+             model=model,
+diff --git a/litellm/proxy/guardrails/guardrail_endpoints.py b/litellm/proxy/guardrails/guardrail_endpoints.py
+index bfc43c15db5d..32004adca313 100644
+--- a/litellm/proxy/guardrails/guardrail_endpoints.py
++++ b/litellm/proxy/guardrails/guardrail_endpoints.py
+@@ -1396,7 +1396,7 @@ async def get_guardrail_ui_settings():
+     - PII entity categories for UI organization
+     - Content filter settings (patterns and categories)
+     """
+-    from litellm.decisions.main import supported_decisions_providers
++    from litellm.decisions.call import supported_decisions_providers
+     from litellm.proxy.guardrails.guardrail_hooks.litellm_content_filter.patterns import (
+         PATTERN_CATEGORIES,
+         get_available_content_categories,
+diff --git a/tests/test_litellm/proxy/guardrails/guardrail_hooks/test_decision_model.py b/tests/test_litellm/proxy/guardrails/guardrail_hooks/test_decision_model.py
+index 1c2b297f238b..54a73690840c 100644
+--- a/tests/test_litellm/proxy/guardrails/guardrail_hooks/test_decision_model.py
++++ b/tests/test_litellm/proxy/guardrails/guardrail_hooks/test_decision_model.py
+@@ -414,7 +414,7 @@ def test_initialize_rejects_invalid_streaming_scan_settings(mock_mgr, overrides,
+ def test_add_guardrail_settings_returns_decisions_providers():
+     import asyncio
+ 
+-    from litellm.decisions.main import supported_decisions_providers
++    from litellm.decisions.call import supported_decisions_providers
+     from litellm.proxy.guardrails.guardrail_endpoints import get_guardrail_ui_settings
+ 
+     settings: Final = asyncio.run(get_guardrail_ui_settings())

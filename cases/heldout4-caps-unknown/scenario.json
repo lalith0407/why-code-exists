@@ -1,0 +1,19 @@
+{
+  "id": "ta-caps-unknown-ticker",
+  "service": "trading-agent-system",
+  "severity": "critical",
+  "lang": "python",
+  "stubs": [],
+  "setup": "caps_mod = app(\"src/ta/harness/caps.py\")\nfrom ta.config import RiskCaps",
+  "body": "caps = RiskCaps()\nout = caps_mod.enforce_caps({\"ZZZZ\": 0.95}, {}, caps)\ncheck(out.ok and out.weights.get(\"ZZZZ\", 0) > caps.single_core_pct, \"cap enforced\")\nrecord(\"ok\", out.ok); record(\"w\", out.weights); record(\"viol\", out.violations); record(\"cap\", caps.single_core_pct)",
+  "symptom": {
+    "message": "Hard-cap breach: risk.check_caps was asked for a 95% weight in ZZZZ, a ticker with no row in the securities table, and returned ok={{ok}} with weights {{w}} and violations {{viol}}; the single-name cap is {{cap}}.",
+    "frames": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 0,
+        "function": "enforce_caps"
+      }
+    ]
+  }
+}

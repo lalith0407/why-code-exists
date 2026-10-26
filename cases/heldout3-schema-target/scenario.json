@@ -1,0 +1,13 @@
+{
+  "id": "br-schema-qualified-target",
+  "service": "blast-radius",
+  "severity": "error",
+  "lang": "python",
+  "stubs": [],
+  "setup": "models = app(\"blast_radius/models.py\")",
+  "body": "a = models.parse_action(\"ALTER TABLE archive.orders DROP COLUMN legacy_discount\")\nrecord(\"kind\", a.kind)\nrecord(\"table\", a.table)\nrecord(\"target\", a.target)\ncheck(a.table == \"orders\", \"schema kept\")",
+  "symptom": {
+    "message": "The guard investigated and planned 'ALTER TABLE archive.orders DROP COLUMN legacy_discount' as a {{kind}} on table {{table}} (target {{target}}): it gathered the readers of the production orders table and its safe plan's backfill step runs ALTER/UPDATE on orders, not archive.orders.",
+    "frames": [{ "file": "blast_radius/models.py", "line": 0, "function": "parse_action" }]
+  }
+}

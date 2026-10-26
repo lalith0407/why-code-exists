@@ -1,0 +1,12 @@
+{
+  "id": "pulseboard-vote-p2002",
+  "timestamp": "2026-10-24T17:12:09.412Z",
+  "severity": "error",
+  "service": "pulseboard",
+  "message": "PrismaClientKnownRequestError: Invalid `prisma.vote.create()` invocation: Unique constraint failed on the fields: (`feedbackId`,`userId`) (code P2002). Server action toggleVoteAction returned 500; the same user had a second toggleVoteAction request for the same feedback in flight (requests 31 ms apart).",
+  "frames": [
+    { "file": "node_modules/@prisma/client/runtime/library.js", "line": 121, "function": "handleRequestError" },
+    { "file": "lib/actions/feedback.ts", "line": 96, "function": "toggleVoteAction" }
+  ],
+  "context": { "source": "observed by running the agent-written toggleVoteAction twice concurrently against a store that enforces the schema's @@unique([feedbackId, userId])" }
+}

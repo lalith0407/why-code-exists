@@ -1,0 +1,29 @@
+{
+  "id": "ta-irr-missing",
+  "service": "trading-agent-system",
+  "severity": "warning",
+  "lang": "python",
+  "stubs": [],
+  "setup": "import datetime\nmetrics = app(\"src/ta/sim/metrics.py\")",
+  "body": "flows = [(datetime.date(2024, 1, 2), -100000.0), (datetime.date(2024, 1, 12), 106000.0)]\nirr = metrics._xirr(flows)\ncheck(irr is None, \"irr computed\")\nrecord(\"irr\", repr(irr)); record(\"flows\", [(d.isoformat(), v) for d, v in flows])",
+  "symptom": {
+    "message": "Memo renders IRR as n/a: PerformanceReport.irr is {{irr}} for a 10-calendar-day backtest (start equity 100000.00, end equity 106000.00, no contributions). Cash flows passed to the IRR solver: {{flows}}.",
+    "frames": [
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 0,
+        "function": "_xirr"
+      },
+      {
+        "file": "src/ta/sim/metrics.py",
+        "line": 0,
+        "function": "performance"
+      },
+      {
+        "file": "src/ta/memo/render.py",
+        "line": 0,
+        "function": "_row"
+      }
+    ]
+  }
+}

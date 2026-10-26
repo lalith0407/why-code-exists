@@ -1,0 +1,13 @@
+{
+  "id": "br-safe-plan-injection",
+  "service": "blast-radius",
+  "severity": "critical",
+  "lang": "python",
+  "stubs": [],
+  "setup": "models = app(\"blast_radius/models.py\")\nreasoner = app(\"blast_radius/reasoner/base.py\")",
+  "body": "action = models.parse_action('DROP TABLE \"tmp_import\\'; DROP TABLE customers; --\"')\nplan = reasoner.safe_plan(action, [])\nstep1 = plan[0].sql\nrecord(\"kind\", action.kind)\nrecord(\"step1\", step1)\ncheck(\"DROP TABLE customers\" in step1.split(\"--\")[0], \"no injected statement in step 1\")",
+  "symptom": {
+    "message": "Security review: the guard classified an agent's DROP TABLE of a quoted table name as {{kind}} and built a safe plan whose step 1 (signed, run with no conditions) is: {{step1}}. Running that step executes DROP TABLE customers.",
+    "frames": [{ "file": "blast_radius/reasoner/base.py", "line": 0, "function": "safe_plan" }]
+  }
+}

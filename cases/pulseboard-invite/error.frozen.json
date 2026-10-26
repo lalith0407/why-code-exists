@@ -1,0 +1,12 @@
+{
+  "id": "pulseboard-invite-accept",
+  "timestamp": "2026-10-22T23:00:00.000Z",
+  "severity": "critical",
+  "service": "pulseboard",
+  "message": "Security alert: user bob@example.com became ADMIN of workspace 'acme' by accepting an invite that was addressed to alice@example.com",
+  "frames": [
+    { "file": "lib/actions/invites.ts", "line": 139, "function": "acceptInviteForExistingUserAction" },
+    { "file": "app/invite/[token]/page.tsx", "line": 72, "function": "InvitePage" }
+  ],
+  "context": { "source": "observed by pulseboard-repro/repro-invite-mismatch.mjs replaying the agent-written action" }
+}

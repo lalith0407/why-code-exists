@@ -1,0 +1,19 @@
+{
+  "id": "portfolio-selected-work-duplicate-keys",
+  "service": "portfolio",
+  "severity": "warning",
+  "lang": "ts",
+  "stubs": [],
+  "setup": "await dom();\nconst React = await app(\"node_modules/react/index.js\");\nconst { createRoot } = await app(\"node_modules/react-dom/client.js\");\nconst { SelectedWork } = await app(\"src/components/selected-work.tsx\");",
+  "body": "const el = document.createElement(\"div\"); document.body.appendChild(el);\nawait React.act(async () => { createRoot(el).render(React.createElement(SelectedWork)); });\nconst dup = console_errors().filter((m) => /same key/.test(m));\ncheck(dup.length > 0, \"no duplicate-key error\");\nrecord(\"count\", dup.length); record(\"first\", dup[0].replace(/\\s+/g, \" \").slice(0, 240));",
+  "symptom": {
+    "message": "Rendering the Selected work section (SelectedWork, which the home page rendered earlier in the build) in a browser dev build logs {{count}} React errors: {{first}}",
+    "frames": [
+      {
+        "file": "src/components/selected-work.tsx",
+        "line": 0,
+        "function": "SelectedWork"
+      }
+    ]
+  }
+}

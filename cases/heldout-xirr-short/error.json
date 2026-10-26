@@ -1,0 +1,28 @@
+{
+  "id": "ta-irr-missing",
+  "timestamp": "2026-10-25T02:59:44.042Z",
+  "severity": "warning",
+  "service": "trading-agent-system",
+  "message": "Memo renders IRR as n/a: PerformanceReport.irr is None for a 10-calendar-day backtest (start equity 100000.00, end equity 106000.00, no contributions). Cash flows passed to the IRR solver: [[\"2024-01-02\",-100000],[\"2024-01-12\",106000]].",
+  "frames": [
+    {
+      "file": "src/ta/sim/metrics.py",
+      "line": 38,
+      "function": "_xirr"
+    },
+    {
+      "file": "src/ta/sim/metrics.py",
+      "line": 70,
+      "function": "performance"
+    },
+    {
+      "file": "src/ta/memo/render.py",
+      "line": 26,
+      "function": "_row"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout-xirr-short/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "repo"
+  }
+}

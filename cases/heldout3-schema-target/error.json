@@ -1,0 +1,18 @@
+{
+  "id": "br-schema-qualified-target",
+  "timestamp": "2026-10-25T03:52:11.515Z",
+  "severity": "error",
+  "service": "blast-radius",
+  "message": "The guard investigated and planned 'ALTER TABLE archive.orders DROP COLUMN legacy_discount' as a drop_column on table orders (target orders.legacy_discount): it gathered the readers of the production orders table and its safe plan's backfill step runs ALTER/UPDATE on orders, not archive.orders.",
+  "frames": [
+    {
+      "file": "blast_radius/models.py",
+      "line": 160,
+      "function": "parse_action"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout3-schema-target/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "repo"
+  }
+}

@@ -1,0 +1,26 @@
+node_modules/
+dist/
+data/lessons.json
+data/hmem/
+data/meterless/
+data/llm-calls.jsonl
+.env
+*.log
+.cache/
+secrets/
+artifacts/**/app/
+artifacts/**/app-patched/
+artifacts/**/node_modules
+**/.venv/
+**/__pycache__/
+artifacts/**/app-noop-mutant/
+artifacts/**/harness-noop-mutant/
+artifacts/**/app-rival/
+
+# publish safety
+secrets/
+data/
+artifacts/
+scratch/
+.env*
+!.env.example

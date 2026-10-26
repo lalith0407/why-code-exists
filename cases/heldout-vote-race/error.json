@@ -1,0 +1,38 @@
+{
+  "id": "pulseboard-vote-500",
+  "timestamp": "2026-10-25T02:57:57.923Z",
+  "severity": "error",
+  "service": "pulseboard",
+  "message": "PrismaClientKnownRequestError: \nInvalid `prisma.vote.create()` invocation in\nlib/actions/feedback.ts:106:23\n\n  103 if (existing) {\n  104   await prisma.vote.delete({ where: { id: existing.id } });\n  105 } else {\n→ 106   await prisma.vote.create(\nUnique constraint failed on the fields: (`feedbackId`,`userId`)",
+  "frames": [
+    {
+      "file": "node_modules/@prisma/client/src/runtime/RequestHandler.ts",
+      "line": 228,
+      "function": "handleRequestError"
+    },
+    {
+      "file": "node_modules/@prisma/client/src/runtime/RequestHandler.ts",
+      "line": 174,
+      "function": "handleAndLogRequestError"
+    },
+    {
+      "file": "node_modules/@prisma/client/src/runtime/RequestHandler.ts",
+      "line": 143,
+      "function": "request"
+    },
+    {
+      "file": "node_modules/@prisma/client/src/runtime/getPrismaClient.ts",
+      "line": 833,
+      "function": "a"
+    },
+    {
+      "file": "lib/actions/feedback.ts",
+      "line": 106,
+      "function": "toggleVoteAction"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout-vote-race/scenario.json (exception message and stack frames from a real run)",
+    "tree": "transcript_replay"
+  }
+}

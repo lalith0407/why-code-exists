@@ -1,0 +1,9 @@
+{
+  "id": "ta-replay-macro-leapday",
+  "service": "trading-agent-system",
+  "severity": "high",
+  "lang": "python",
+  "stubs": [],
+  "setup": "replay = app(\"src/ta/replay.py\")\nfrom datetime import date",
+  "body": "replay._refresh_macro(None, date(2024, 2, 29), \"2024-02-29T22:00:00Z\")"
+}

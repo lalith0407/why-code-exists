@@ -1,0 +1,19 @@
+{
+  "id": "pulseboard-webhook-url-case",
+  "service": "pulseboard",
+  "severity": "error",
+  "lang": "ts",
+  "stubs": [],
+  "setup": "const { prisma } = await app(\"lib/prisma.ts\");\nconst admin = await prisma.user.create({ data: { email: \"admin@example.com\", name: \"Admin\", passwordHash: \"x\" } });\nconst w = await prisma.workspace.create({ data: { name: \"Acme\", slug: \"acme\", webhookSecret: \"whsec-test\" } });\nawait prisma.membership.create({ data: { userId: admin.id, workspaceId: w.id, role: \"ADMIN\" } });\nset_session({ user: { id: admin.id, email: admin.email, name: admin.name } });\nconst { updateWorkspaceSettingsAction } = await app(\"lib/actions/workspace-settings.ts\");",
+  "body": "const entered = \"https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/\";\nconst fd = new FormData(); fd.set(\"name\", \"Acme\"); fd.set(\"slug\", \"acme\"); fd.set(\"webhookUrl\", entered); fd.set(\"slackSigningSecret\", \"\");\nconst r = await settle(updateWorkspaceSettingsAction(\"acme\", {}, fd));\nconst saved = (await prisma.workspace.findUnique({ where: { id: w.id } })).webhookUrl;\ncheck(saved !== entered, \"url saved unchanged\");\nrecord(\"entered\", entered); record(\"saved\", saved);",
+  "symptom": {
+    "message": "Zapier says our webhook hits 404 'hook not found'. Admin saved the outgoing webhook URL {{entered}} in workspace settings, but the stored URL that deliveries go to is {{saved}}.",
+    "frames": [
+      {
+        "file": "lib/actions/workspace-settings.ts",
+        "line": 0,
+        "function": "updateWorkspaceSettingsAction"
+      }
+    ]
+  }
+}

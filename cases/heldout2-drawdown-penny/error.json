@@ -1,0 +1,18 @@
+{
+  "id": "ta-drawdown-halt-penny",
+  "timestamp": "2026-10-25T03:37:39.406Z",
+  "severity": "error",
+  "service": "trading-agent-system",
+  "message": "Risk breach: drawdown is -30.0% from peak (halt threshold -20%), yet a new buy of FALN at $2.10 (a sub-$5 penny name, which the spec puts in the high-risk sleeve) passed the guard and filled. Guard notes: []",
+  "frames": [
+    {
+      "file": "src/ta/harness/caps.py",
+      "line": 242,
+      "function": "guard_orders"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout2-drawdown-penny/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "repo"
+  }
+}

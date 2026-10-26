@@ -1,0 +1,13 @@
+{
+ "id": "fresh-litellm-41885",
+ "kind": "text_only",
+ "message": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"litellm.BadRequestError: AnthropicException - (400, '{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"invalid_request_error\\\",\\\"message\\\":\\\"context_management: Extra inputs are not permitted\\\"},\\\"request_id\\\":\\\"req_011CfJyU1E6wzVdhtbAvWqVv\\\"}')\\n\\nLiteLLM: model group 'claude-opus-4-8' failed with the error above. No fallback was attempted.\"}}\nHTTP 400",
+ "frames": [],
+ "observed_at": "2026-09-22T18:46:50Z",
+ "source_url": "https://github.com/BerriAI/litellm/pull/42517",
+ "source_note": "Error output verbatim from the 'Before' block of the fix PR; nothing else copied.",
+ "repo": {
+  "url": "https://github.com/BerriAI/litellm",
+  "commit": "4bcdaf3d4bcb54d47052f2e72c0c687c927c429e"
+ }
+}

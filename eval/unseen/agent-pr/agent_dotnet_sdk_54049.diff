@@ -1,0 +1,1238 @@
+diff --git a/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Publish.targets b/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Publish.targets
+index f61a6a5d11c6..184d1fc3ca34 100644
+--- a/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Publish.targets
++++ b/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Publish.targets
+@@ -170,6 +170,9 @@ Copyright (c) .NET Foundation. All rights reserved.
+       Assets="@(_ReferencedProjectPublishStaticWebAssetsUpdateCandidates)"
+       Endpoints="@(_ReferencedProjectPublishStaticWebAssetEndpointsUpdateCandidates)"
+       FingerprintInferenceExpressions="@(StaticWebAssetFingerprintInferenceExpression)"
++      IntermediateOutputPath="$(_StaticWebAssetsIntermediateOutputPath)"
++      ProjectPackageId="$(PackageId)"
++      ProjectBasePath="$(StaticWebAssetBasePath)"
+     >
+       <Output TaskParameter="UpdatedAssets" ItemName="_ReferencedProjectPublishStaticWebAssets" />
+       <Output TaskParameter="UpdatedEndpoints" ItemName="_ReferencedProjectPublishStaticWebAssetEndpoints" />
+diff --git a/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets b/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets
+index aa6a42be84ef..a2ec9f2cf5f7 100644
+--- a/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets
++++ b/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.References.targets
+@@ -133,6 +133,9 @@ Copyright (c) .NET Foundation. All rights reserved.
+         Endpoints="@(_ReferencedProjectBuildStaticWebAssetEndpointsUpdateCandidates)"
+         FingerprintInferenceExpressions="@(StaticWebAssetFingerprintInferenceExpression)"
+         StaticWebAssetGroups="@(StaticWebAssetGroup)"
++        IntermediateOutputPath="$(_StaticWebAssetsIntermediateOutputPath)"
++        ProjectPackageId="$(PackageId)"
++        ProjectBasePath="$(StaticWebAssetBasePath)"
+       >
+         <Output TaskParameter="UpdatedAssets" ItemName="_ResolvedReferencedProjectBuildStaticWebAssets" />
+         <Output TaskParameter="UpdatedEndpoints" ItemName="_ResolvedReferencedProjectBuildStaticWebAssetEndpoints" />
+@@ -184,6 +187,7 @@ Copyright (c) .NET Foundation. All rights reserved.
+         AssetKind="Build"
+         MakeReferencedAssetOriginalItemSpecAbsolute="$(StaticWebAssetMakeReferencedAssetOriginalItemSpecAbsolute)"
+         Source="$(PackageId)"
++        FrameworkPattern="$(StaticWebAssetFrameworkPattern)"
+       >
+         <Output TaskParameter="StaticWebAssets" ItemName="_CachedBuildReferencedStaticWebAsset" />
+         <Output TaskParameter="DiscoveryPatterns" ItemName="_CachedBuildReferencedStaticWebAssetDiscoveryPatterns" />
+diff --git a/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets b/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets
+index 280c1ad571e0..be0818b36e48 100644
+--- a/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets
++++ b/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.targets
+@@ -840,6 +840,7 @@ Copyright (c) .NET Foundation. All rights reserved.
+       <Output TaskParameter="UpdatedAssets" ItemName="_UpdatedPackageAssets" />
+       <Output TaskParameter="OriginalAssets" ItemName="_OriginalPackageAssets" />
+       <Output TaskParameter="RemappedEndpoints" ItemName="_RemappedFrameworkEndpoints" />
++      <Output TaskParameter="OriginalFrameworkEndpoints" ItemName="_OriginalFrameworkEndpoints" />
+     </UpdatePackageStaticWebAssets>
+ 
+     <ItemGroup>
+@@ -857,8 +858,8 @@ Copyright (c) .NET Foundation. All rights reserved.
+       <StaticWebAsset Remove="@(_OriginalPackageAssets)"/>
+       <StaticWebAsset Include="@(_UpdatedPackageAssets)" />
+       <StaticWebAssetEndpoint Include="@(_UpdatedPackageAssetsEndpoint)" />
+-      <!-- Remap endpoints for materialized framework assets -->
+-      <StaticWebAssetEndpoint Remove="@(_RemappedFrameworkEndpoints)" />
++      <!-- Remove original framework endpoints (with old routes) and add remapped ones (with new routes) -->
++      <StaticWebAssetEndpoint Remove="@(_OriginalFrameworkEndpoints)" />
+       <StaticWebAssetEndpoint Include="@(_RemappedFrameworkEndpoints)" />
+     </ItemGroup>
+ 
+diff --git a/src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs b/src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs
+index 0b29e62634f6..b1d053c46d8e 100644
+--- a/src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs
++++ b/src/StaticWebAssetsSdk/Tasks/ComputeReferenceStaticWebAssetItems.cs
+@@ -28,6 +28,13 @@ public class ComputeReferenceStaticWebAssetItems : Task
+ 
+     public bool MakeReferencedAssetOriginalItemSpecAbsolute { get; set; }
+ 
++    /// <summary>
++    /// Semicolon-separated glob patterns (e.g. <c>**/*.js;**/*.wasm</c>).
++    /// Assets whose <c>RelativePath</c> matches any pattern will have their
++    /// <c>SourceType</c> set to <c>Framework</c>.
++    /// </summary>
++    public string FrameworkPattern { get; set; }
++
+     [Output]
+     public ITaskItem[] StaticWebAssets { get; set; }
+ 
+@@ -42,6 +49,10 @@ public override bool Execute()
+ 
+             var resultAssets = new List<StaticWebAsset>(existingAssets.Count);
+             var groupSet = new HashSet<string>(StringComparer.Ordinal);
++
++            var frameworkMatcher = CreateFrameworkMatcher();
++            var matchContext = frameworkMatcher != null ? StaticWebAssetGlobMatcher.CreateMatchContext() : default;
++
+             foreach (var kvp in existingAssets)
+             {
+                 var targetPath = kvp.Key;
+@@ -55,6 +66,7 @@ public override bool Execute()
+                         {
+                             if (ShouldIncludeAssetAsReference(groupedAsset, out var groupReason))
+                             {
++                                ApplyFrameworkPattern(groupedAsset, frameworkMatcher, ref matchContext);
+                                 if (UpdateSourceType && !StaticWebAsset.SourceTypes.IsFramework(groupedAsset.SourceType))
+                                 {
+                                     groupedAsset.SourceType = StaticWebAsset.SourceTypes.Project;
+@@ -78,6 +90,7 @@ public override bool Execute()
+ 
+                 if (ShouldIncludeAssetAsReference(selected, out var reason))
+                 {
++                    ApplyFrameworkPattern(selected, frameworkMatcher, ref matchContext);
+                     if (UpdateSourceType && !StaticWebAsset.SourceTypes.IsFramework(selected.SourceType))
+                     {
+                         selected.SourceType = StaticWebAsset.SourceTypes.Project;
+@@ -123,6 +136,53 @@ public override bool Execute()
+         return !Log.HasLoggedErrors;
+     }
+ 
++    private StaticWebAssetGlobMatcher CreateFrameworkMatcher()
++    {
++        if (string.IsNullOrEmpty(FrameworkPattern))
++        {
++            return null;
++        }
++
++        var patterns = FrameworkPattern
++            .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
++            .Select(s => s.Trim())
++            .Where(s => s.Length > 0)
++            .ToArray();
++
++        if (patterns.Length == 0)
++        {
++            return null;
++        }
++
++        return new StaticWebAssetGlobMatcherBuilder()
++            .AddIncludePatterns(patterns)
++            .Build();
++    }
++
++    private void ApplyFrameworkPattern(
++        StaticWebAsset asset,
++        StaticWebAssetGlobMatcher matcher,
++        ref StaticWebAssetGlobMatcher.MatchContext matchContext)
++    {
++        if (matcher == null || !asset.IsDiscovered())
++        {
++            return;
++        }
++
++        var relativePath = StaticWebAssetPathPattern.PathWithoutTokens(asset.RelativePath);
++        matchContext.SetPathAndReinitialize(relativePath.AsSpan());
++        var match = matcher.Match(matchContext);
++        if (match.IsMatch)
++        {
++            asset.SourceType = StaticWebAsset.SourceTypes.Framework;
++            Log.LogMessage(
++                MessageImportance.Low,
++                "Asset '{0}' with relative path '{1}' matched framework pattern. Updating SourceType to Framework.",
++                asset.Identity,
++                relativePath);
++        }
++    }
++
+     private bool ShouldIncludeAssetAsReference(StaticWebAsset candidate, out string reason)
+     {
+         if (!StaticWebAssetsManifest.ManifestModes.ShouldIncludeAssetAsReference(candidate, ProjectMode))
+diff --git a/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs b/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs
+index c03a4c3796fa..6b42621bbf3a 100644
+--- a/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs
++++ b/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAsset.cs
+@@ -9,6 +9,7 @@
+ using System.Security.Cryptography;
+ using Microsoft.AspNetCore.StaticWebAssets.Tasks.Utils;
+ using Microsoft.Build.Framework;
++using Microsoft.Build.Utilities;
+ 
+ namespace Microsoft.AspNetCore.StaticWebAssets.Tasks;
+ 
+@@ -1136,6 +1137,62 @@ public bool ShouldCopyToPublishDirectory()
+     public bool HasContentRoot(string path) =>
+         string.Equals(ContentRoot, NormalizeContentRootPath(path), StringComparison.Ordinal);
+ 
++    /// <summary>
++    /// Materializes a framework asset by copying it to the consuming project's intermediate directory
++    /// and updating its metadata (Identity, ContentRoot, SourceId, BasePath, SourceType, AssetMode).
++    /// Used by both the P2P and NuGet package paths.
++    /// Returns the old identity and old base path so callers can remap endpoints and related assets.
++    /// </summary>
++    public static (StaticWebAsset Asset, string OldIdentity, string OldBasePath) MaterializeFrameworkAsset(
++        StaticWebAsset asset,
++        string intermediateOutputPath,
++        string projectPackageId,
++        string projectBasePath,
++        TaskLoggingHelper log)
++    {
++        var originalSourceId = asset.SourceId;
++        var oldBasePath = asset.BasePath;
++        var relativePath = asset.RelativePath;
++        var oldIdentity = asset.Identity;
++
++        var fxDir = Path.Combine(intermediateOutputPath, "fx", originalSourceId);
++        var fileSystemRelativePath = asset.ComputePathWithoutTokens(relativePath);
++        var destPath = Path.Combine(fxDir, Normalize(fileSystemRelativePath));
++        destPath = Path.GetFullPath(destPath);
++
++        var sourceFile = asset.Identity;
++        if (!File.Exists(sourceFile))
++        {
++            log.LogError("Source file '{0}' does not exist for framework asset materialization.", sourceFile);
++            return (null, null, null);
++        }
++
++        var destDir = Path.GetDirectoryName(destPath);
++        Directory.CreateDirectory(destDir);
++
++        if (!File.Exists(destPath) || File.GetLastWriteTimeUtc(sourceFile) > File.GetLastWriteTimeUtc(destPath))
++        {
++            File.Copy(sourceFile, destPath, overwrite: true);
++            log.LogMessage(MessageImportance.Low, "Materialized framework asset '{0}' to '{1}'.", sourceFile, destPath);
++        }
++        else
++        {
++            log.LogMessage(MessageImportance.Low, "Framework asset '{0}' already up to date at '{1}'.", sourceFile, destPath);
++        }
++
++        asset.Identity = destPath;
++        asset.OriginalItemSpec = destPath;
++        asset.ContentRoot = NormalizeContentRootPath(fxDir);
++        asset.SourceType = SourceTypes.Discovered;
++        asset.SourceId = projectPackageId;
++        asset.BasePath = projectBasePath;
++        asset.AssetMode = AssetModes.CurrentProject;
++        asset.AssetGroups = "";
++        asset.Normalize();
++
++        return (asset, oldIdentity, oldBasePath);
++    }
++
+     public static string Normalize(string path, bool allowEmpyPath = false)
+     {
+         var normalizedPath = path.Replace('\\', '/').Trim('/');
+diff --git a/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs b/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs
+index 060adf14282b..b2fee114510b 100644
+--- a/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs
++++ b/src/StaticWebAssetsSdk/Tasks/Data/StaticWebAssetEndpoint.cs
+@@ -605,4 +605,68 @@ public static bool RouteHasPathPrefix(
+ 
+         return true;
+     }
++
++    /// <summary>
++    /// Remaps the Route (and label endpoint property) on an endpoint by stripping the old base path
++    /// prefix and prepending the new base path. Used when materializing framework assets to update
++    /// endpoint routes from the library's base path to the consuming project's base path.
++    /// </summary>
++    public static void RemapEndpointRoute(
++        StaticWebAssetEndpoint endpoint,
++        string oldBasePath,
++        string newBasePath,
++        List<PathTokenizer.Segment> routeSegments,
++        List<PathTokenizer.Segment> basePathSegments)
++    {
++        var normalizedOldBase = oldBasePath is null or "/" ? "" : StaticWebAsset.Normalize(oldBasePath);
++
++        if (!string.IsNullOrEmpty(normalizedOldBase) &&
++            RouteHasPathPrefix(endpoint.Route, normalizedOldBase, routeSegments, basePathSegments))
++        {
++            var remaining = endpoint.Route.Length > normalizedOldBase.Length
++                ? endpoint.Route.Substring(normalizedOldBase.Length).TrimStart('/')
++                : "";
++            endpoint.Route = StaticWebAsset.CombineNormalizedPaths("", newBasePath, remaining, '/');
++
++            // Also remap the label endpoint property (used by fingerprinting/HTML asset placeholders).
++            RemapLabelProperty(endpoint, normalizedOldBase, newBasePath, routeSegments, basePathSegments);
++        }
++        else if (string.IsNullOrEmpty(normalizedOldBase))
++        {
++            // Old base path was empty/root — prepend the new base path to the existing route.
++            endpoint.Route = StaticWebAsset.CombineNormalizedPaths("", newBasePath, endpoint.Route, '/');
++
++            for (var j = 0; j < endpoint.EndpointProperties.Length; j++)
++            {
++                ref var property = ref endpoint.EndpointProperties[j];
++                if (string.Equals(property.Name, "label", StringComparison.OrdinalIgnoreCase))
++                {
++                    property.Value = StaticWebAsset.CombineNormalizedPaths("", newBasePath, property.Value, '/');
++                    endpoint.MarkProperiesAsModified();
++                }
++            }
++        }
++    }
++
++    private static void RemapLabelProperty(
++        StaticWebAssetEndpoint endpoint,
++        string normalizedOldBase,
++        string newBasePath,
++        List<PathTokenizer.Segment> routeSegments,
++        List<PathTokenizer.Segment> basePathSegments)
++    {
++        for (var j = 0; j < endpoint.EndpointProperties.Length; j++)
++        {
++            ref var property = ref endpoint.EndpointProperties[j];
++            if (string.Equals(property.Name, "label", StringComparison.OrdinalIgnoreCase) &&
++                RouteHasPathPrefix(property.Value, normalizedOldBase, routeSegments, basePathSegments))
++            {
++                var labelRemaining = property.Value.Length > normalizedOldBase.Length
++                    ? property.Value.Substring(normalizedOldBase.Length).TrimStart('/')
++                    : "";
++                property.Value = StaticWebAsset.CombineNormalizedPaths("", newBasePath, labelRemaining, '/');
++                endpoint.MarkProperiesAsModified();
++            }
++        }
++    }
+ }
+diff --git a/src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs b/src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs
+index a918fd6a8458..5744c57f4592 100644
+--- a/src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs
++++ b/src/StaticWebAssetsSdk/Tasks/UpdateExternallyDefinedStaticWebAssets.cs
+@@ -15,6 +15,8 @@ namespace Microsoft.AspNetCore.StaticWebAssets.Tasks;
+ // For example, the JavaScript Project Tools SDK integrates with the static web asset protocol for SPA applications
+ // but it doesn't support integrity or fingerprinting, which causes issues when we reference the project and we try
+ // to further process the assets.
++// Additionally, this task handles incoming framework assets from P2P references by materializing them
++// (copying files to an intermediate directory and updating metadata) so they become local to the consuming project.
+ public class UpdateExternallyDefinedStaticWebAssets : Task
+ {
+     [Required]
+@@ -27,6 +29,12 @@ public class UpdateExternallyDefinedStaticWebAssets : Task
+ 
+     public ITaskItem[] StaticWebAssetGroups { get; set; }
+ 
++    public string IntermediateOutputPath { get; set; }
++
++    public string ProjectPackageId { get; set; }
++
++    public string ProjectBasePath { get; set; }
++
+     [Output]
+     public ITaskItem[] UpdatedAssets { get; set; }
+ 
+@@ -36,6 +44,9 @@ public class UpdateExternallyDefinedStaticWebAssets : Task
+     [Output]
+     public ITaskItem[] AssetsWithoutEndpoints { get; set; }
+ 
++    [Output]
++    public ITaskItem[] OriginalFrameworkAssets { get; set; }
++
+     public override bool Execute()
+     {
+         var assets = Assets.Select(StaticWebAsset.FromV1TaskItem).ToArray();
+@@ -47,11 +58,41 @@ public override bool Execute()
+ 
+         var fingerprintExpressions = CreateFingerprintExpressions(FingerprintInferenceExpressions);
+ 
++        // Filter by group FIRST so that framework assets tagged with groups that the consuming
++        // project doesn't accept are excluded before materialization.
++        var (filteredAssets, excludedAssetFiles) = StaticWebAsset.FilterByGroup(assets, groupLookup, skipDeferred: true);
++
++        // Rebuild the assets array from filtered results for subsequent processing.
++        // Also build a set to identify which original input items survived filtering.
++        var filteredSet = new HashSet<string>(filteredAssets.Select(a => a.Identity), OSPath.PathComparer);
++
+         var assetsWithoutEndpoints = new List<StaticWebAsset>();
++        var originalFrameworkAssetItems = new List<ITaskItem>();
++        var assetMapping = new Dictionary<string, (string NewIdentity, string OldBasePath)>(OSPath.PathComparer);
+ 
+-        for (var i = 0; i < assets.Length; i++)
++        for (var i = 0; i < filteredAssets.Count; i++)
+         {
+-            var asset = assets[i];
++            var asset = filteredAssets[i];
++
++            // Materialize framework assets from P2P references.
++            if (StaticWebAsset.SourceTypes.IsFramework(asset.SourceType))
++            {
++                // Find the original task item that corresponds to this filtered asset.
++                var originalIndex = Array.FindIndex(assets, a => OSPath.PathComparer.Equals(a.Identity, asset.Identity));
++                if (originalIndex >= 0)
++                {
++                    originalFrameworkAssetItems.Add(Assets[originalIndex]);
++                }
++                var (materialized, oldIdentity, oldBasePath) = StaticWebAsset.MaterializeFrameworkAsset(
++                    asset, IntermediateOutputPath, ProjectPackageId, ProjectBasePath, Log);
++                if (materialized != null)
++                {
++                    filteredAssets[i] = materialized;
++                    assetMapping[oldIdentity] = (materialized.Identity, oldBasePath);
++                }
++                continue;
++            }
++
+             if (!endpointByAsset.TryGetValue(asset.Identity, out var endpoint))
+             {
+                 Log.LogMessage($"Asset {asset.Identity} does not have an associated endpoint defined.");
+@@ -67,18 +108,46 @@ public override bool Execute()
+             }
+         }
+ 
+-        var (filteredAssets, excludedAssetFiles) = StaticWebAsset.FilterByGroup(assets, groupLookup, skipDeferred: true);
++        // Remove alternative assets (e.g., compressed variants) whose primary was materialized as a
++        // framework asset. These alternatives will be regenerated from the materialized primary by the
++        // consuming project's compression step, so keeping the originals would cause conflicts.
++        if (assetMapping.Count > 0)
++        {
++            filteredAssets.RemoveAll(asset =>
++                !string.IsNullOrEmpty(asset.RelatedAsset) &&
++                assetMapping.ContainsKey(asset.RelatedAsset));
++        }
+ 
+         UpdatedAssets = StaticWebAsset.ToTaskItems(filteredAssets);
+ 
+         // Filter endpoints using the shared helper.
+         var endpointGroups = StaticWebAssetEndpointGroup.CreateEndpointGroups(endpoints);
+         var (_, survivingEndpoints) = StaticWebAssetEndpointGroup.ComputeFilteredEndpoints(endpointGroups, excludedAssetFiles);
++
++        // Remap endpoints for materialized framework assets — update AssetFile and Route
++        // to reflect the new materialized path and the consuming project's base path.
++        if (assetMapping.Count > 0)
++        {
++            var routeSegments = new List<PathTokenizer.Segment>();
++            var basePathSegments = new List<PathTokenizer.Segment>();
++
++            foreach (var ep in survivingEndpoints)
++            {
++                if (assetMapping.TryGetValue(ep.AssetFile, out var info))
++                {
++                    ep.AssetFile = info.NewIdentity;
++                    StaticWebAssetEndpoint.RemapEndpointRoute(ep, info.OldBasePath, ProjectBasePath, routeSegments, basePathSegments);
++                }
++            }
++        }
++
+         UpdatedEndpoints = StaticWebAssetEndpoint.ToTaskItems(survivingEndpoints);
+ 
+         AssetsWithoutEndpoints = StaticWebAsset.ToTaskItems(
+             assetsWithoutEndpoints.Where(a => !excludedAssetFiles.Contains(a.Identity)));
+ 
++        OriginalFrameworkAssets = [.. originalFrameworkAssetItems];
++
+         return !Log.HasLoggedErrors;
+     }
+ 
+diff --git a/src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs b/src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs
+index fcac8d28126e..fd09b97cf2d1 100644
+--- a/src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs
++++ b/src/StaticWebAssetsSdk/Tasks/UpdatePackageStaticWebAssets.cs
+@@ -5,7 +5,6 @@
+ 
+ using Microsoft.AspNetCore.StaticWebAssets.Tasks.Utils;
+ using Microsoft.Build.Framework;
+-using Microsoft.Build.Utilities;
+ 
+ namespace Microsoft.AspNetCore.StaticWebAssets.Tasks;
+ 
+@@ -29,6 +28,9 @@ public class UpdatePackageStaticWebAssets : Task
+     [Output]
+     public ITaskItem[] RemappedEndpoints { get; set; }
+ 
++    [Output]
++    public ITaskItem[] OriginalFrameworkEndpoints { get; set; }
++
+     public ITaskItem[] Endpoints { get; set; }
+ 
+     public override bool Execute()
+@@ -37,7 +39,7 @@ public override bool Execute()
+         {
+             var originalAssets = new List<ITaskItem>();
+             var updatedAssets = new List<ITaskItem>();
+-            var assetMapping = new Dictionary<string, string>(OSPath.PathComparer);
++            var assetMapping = new Dictionary<string, (string NewIdentity, string OldBasePath)>(OSPath.PathComparer);
+ 
+             for (var i = 0; i < Assets.Length; i++)
+             {
+@@ -52,11 +54,13 @@ public override bool Execute()
+                 else if (StaticWebAsset.SourceTypes.IsFramework(sourceType))
+                 {
+                     originalAssets.Add(candidate);
+-                    var (transformed, oldPath) = MaterializeFrameworkAsset(candidate);
++                    var asset = StaticWebAsset.FromV1TaskItem(candidate);
++                    var (transformed, oldPath, oldBasePath) = StaticWebAsset.MaterializeFrameworkAsset(
++                        asset, IntermediateOutputPath, ProjectPackageId, ProjectBasePath, Log);
+                     if (transformed != null)
+                     {
+                         updatedAssets.Add(transformed.ToTaskItem());
+-                        assetMapping[oldPath] = transformed.Identity;
++                        assetMapping[oldPath] = (transformed.Identity, oldBasePath);
+                     }
+                 }
+             }
+@@ -77,31 +81,34 @@ public override bool Execute()
+         return !Log.HasLoggedErrors;
+     }
+ 
+-    private void RemapEndpoints(Dictionary<string, string> assetMapping)
++    private void RemapEndpoints(Dictionary<string, (string NewIdentity, string OldBasePath)> assetMapping)
+     {
+-        var remappedEndpoints = new List<ITaskItem>();
++        var remappedEndpoints = new List<StaticWebAssetEndpoint>();
++        var originalEndpointItems = new List<ITaskItem>();
++        var parsedEndpoints = StaticWebAssetEndpoint.FromItemGroup(Endpoints);
+ 
+-        var endpointsByIdentity = new Dictionary<string, List<ITaskItem>>(StringComparer.Ordinal);
+-        foreach (var endpoint in Endpoints)
++        var endpointsByRoute = new Dictionary<string, List<(StaticWebAssetEndpoint Parsed, int OriginalIndex)>>(StringComparer.Ordinal);
++        for (var i = 0; i < parsedEndpoints.Length; i++)
+         {
+-            var identity = endpoint.ItemSpec;
+-            if (!endpointsByIdentity.TryGetValue(identity, out var group))
++            var endpoint = parsedEndpoints[i];
++            if (!endpointsByRoute.TryGetValue(endpoint.Route, out var group))
+             {
+-                group = new List<ITaskItem>();
+-                endpointsByIdentity[identity] = group;
++                group = [];
++                endpointsByRoute[endpoint.Route] = group;
+             }
+-            group.Add(endpoint);
++            group.Add((endpoint, i));
+         }
+ 
+-        foreach (var kvp in endpointsByIdentity)
++        var routeSegments = new List<PathTokenizer.Segment>();
++        var basePathSegments = new List<PathTokenizer.Segment>();
++
++        foreach (var kvp in endpointsByRoute)
+         {
+-            var identity = kvp.Key;
+             var group = kvp.Value;
+             var groupNeedsRemapping = false;
+-            foreach (var endpoint in group)
++            foreach (var (endpoint, _) in group)
+             {
+-                var assetFile = endpoint.GetMetadata("AssetFile");
+-                if (!string.IsNullOrEmpty(assetFile) && assetMapping.ContainsKey(assetFile))
++                if (!string.IsNullOrEmpty(endpoint.AssetFile) && assetMapping.ContainsKey(endpoint.AssetFile))
+                 {
+                     groupNeedsRemapping = true;
+                     break;
+@@ -110,67 +117,28 @@ private void RemapEndpoints(Dictionary<string, string> assetMapping)
+ 
+             if (groupNeedsRemapping)
+             {
+-                foreach (var endpoint in group)
++                foreach (var (endpoint, originalIndex) in group)
+                 {
+-                    var newEndpoint = new TaskItem(endpoint);
+-                    var assetFile = endpoint.GetMetadata("AssetFile");
+-                    if (!string.IsNullOrEmpty(assetFile) && assetMapping.TryGetValue(assetFile, out var newAssetFile))
++                    // Capture the original endpoint task item for removal.
++                    originalEndpointItems.Add(Endpoints[originalIndex]);
++
++                    if (!string.IsNullOrEmpty(endpoint.AssetFile) && assetMapping.TryGetValue(endpoint.AssetFile, out var info))
+                     {
+-                        newEndpoint.SetMetadata("AssetFile", newAssetFile);
+-                        Log.LogMessage(MessageImportance.Low, "Remapped endpoint '{0}' AssetFile from '{1}' to '{2}'.",
+-                            identity, assetFile, newAssetFile);
++                        var oldAssetFile = endpoint.AssetFile;
++                        endpoint.AssetFile = info.NewIdentity;
++
++                        StaticWebAssetEndpoint.RemapEndpointRoute(endpoint, info.OldBasePath, ProjectBasePath, routeSegments, basePathSegments);
++
++                        Log.LogMessage(MessageImportance.Low, "Remapped endpoint route from '{0}' to '{1}', AssetFile from '{2}' to '{3}'.",
++                            kvp.Key, endpoint.Route, oldAssetFile, info.NewIdentity);
+                     }
+-                    remappedEndpoints.Add(newEndpoint);
++                    remappedEndpoints.Add(endpoint);
+                 }
+             }
+         }
+ 
+-        RemappedEndpoints = [.. remappedEndpoints];
+-    }
+-
+-    private (StaticWebAsset, string) MaterializeFrameworkAsset(ITaskItem candidate)
+-    {
+-        var asset = StaticWebAsset.FromV1TaskItem(candidate);
+-
+-        var originalSourceId = asset.SourceId;
+-        var relativePath = asset.RelativePath;
+-        var oldIdentity = asset.Identity;
+-
+-        var fxDir = Path.Combine(IntermediateOutputPath, "fx", originalSourceId);
+-        var fileSystemRelativePath = asset.ComputePathWithoutTokens(relativePath);
+-        var destPath = Path.Combine(fxDir, StaticWebAsset.Normalize(fileSystemRelativePath));
+-        destPath = Path.GetFullPath(destPath);
+-
+-        var sourceFile = asset.Identity;
+-        if (!File.Exists(sourceFile))
+-        {
+-            Log.LogError("Source file '{0}' does not exist for framework asset materialization.", sourceFile);
+-            return (null, null);
+-        }
+-
+-        var destDir = Path.GetDirectoryName(destPath);
+-        Directory.CreateDirectory(destDir);
+-
+-        if (!File.Exists(destPath) || File.GetLastWriteTimeUtc(sourceFile) > File.GetLastWriteTimeUtc(destPath))
+-        {
+-            File.Copy(sourceFile, destPath, overwrite: true);
+-            Log.LogMessage(MessageImportance.Low, "Materialized framework asset '{0}' to '{1}'.", sourceFile, destPath);
+-        }
+-        else
+-        {
+-            Log.LogMessage(MessageImportance.Low, "Framework asset '{0}' already up to date at '{1}'.", sourceFile, destPath);
+-        }
+-
+-        asset.Identity = destPath;
+-        asset.OriginalItemSpec = destPath;
+-        asset.ContentRoot = StaticWebAsset.NormalizeContentRootPath(fxDir);
+-        asset.SourceType = StaticWebAsset.SourceTypes.Discovered;
+-        asset.SourceId = ProjectPackageId;
+-        asset.BasePath = ProjectBasePath;
+-        asset.AssetMode = StaticWebAsset.AssetModes.CurrentProject;
+-        asset.Normalize();
+-
+-        return (asset, oldIdentity);
++        OriginalFrameworkEndpoints = [.. originalEndpointItems];
++        RemappedEndpoints = StaticWebAssetEndpoint.ToTaskItems(remappedEndpoints);
+     }
+ 
+ }
+diff --git a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs
+new file mode 100644
+index 000000000000..03f64c4ec58e
+--- /dev/null
++++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/FrameworkAssetsP2PIntegrationTest.cs
+@@ -0,0 +1,135 @@
++// Licensed to the .NET Foundation under one or more agreements.
++// The .NET Foundation licenses this file to you under the MIT license.
++
++#nullable disable
++
++using System.Xml.Linq;
++using Microsoft.AspNetCore.StaticWebAssets.Tasks;
++
++namespace Microsoft.NET.Sdk.StaticWebAssets.Tests
++{
++    public class FrameworkAssetsP2PIntegrationTest(ITestOutputHelper log) : AspNetSdkTest(log)
++    {
++        [Fact]
++        public void Build_Consumer_MaterializesFrameworkAssetsFromProjectReference()
++        {
++            var intermediateOutputPath = BuildConsumerWithFrameworkPattern();
++            var manifest = LoadBuildManifest(intermediateOutputPath);
++
++            // The JS assets matching the FrameworkPattern should be materialized under fx/
++            var materializedAssets = manifest.Assets
++                .Where(a => a.RelativePath.Contains(".js")
++                    && a.Identity.Contains(Path.Combine("fx", "ClassLibrary")))
++                .ToList();
++
++            materializedAssets.Should().NotBeEmpty(
++                "JS assets matching FrameworkPattern should be materialized under the fx/ directory");
++
++            foreach (var asset in materializedAssets)
++            {
++                // SourceType should be Discovered (changed from Framework during materialization)
++                asset.SourceType.Should().Be("Discovered",
++                    $"materialized framework asset {asset.RelativePath} should have SourceType=Discovered");
++
++                // SourceId should be updated to the consuming project's PackageId
++                asset.SourceId.Should().Be("AppWithP2PReference",
++                    $"materialized framework asset {asset.RelativePath} should have SourceId updated to the consumer");
++
++                // BasePath should be the consumer's base path ("/" for a web app)
++                asset.BasePath.Should().Be("/",
++                    $"materialized framework asset {asset.RelativePath} should have BasePath updated to the consumer");
++
++                // AssetMode should be CurrentProject
++                asset.AssetMode.Should().Be("CurrentProject",
++                    $"materialized framework asset {asset.RelativePath} should have AssetMode=CurrentProject");
++            }
++        }
++
++        [Fact]
++        public void Build_Consumer_NonMatchingAssetsRemainUnchanged()
++        {
++            var intermediateOutputPath = BuildConsumerWithFrameworkPattern();
++            var manifest = LoadBuildManifest(intermediateOutputPath);
++
++            // CSS assets from ClassLibrary should remain as Project type (they don't match **/*.js)
++            var cssAssets = manifest.Assets
++                .Where(a => a.RelativePath.Contains(".css") && a.SourceId == "ClassLibrary")
++                .ToList();
++
++            cssAssets.Should().NotBeEmpty("CSS assets from ClassLibrary should be present");
++            cssAssets.Should().OnlyContain(a => a.SourceType == "Project",
++                "CSS assets not matching FrameworkPattern should remain as Project type");
++        }
++
++        [Fact]
++        public void Build_Consumer_MaterializedFrameworkAssetFilesExistOnDisk()
++        {
++            var intermediateOutputPath = BuildConsumerWithFrameworkPattern();
++
++            var fxDir = Path.Combine(intermediateOutputPath, "staticwebassets", "fx", "ClassLibrary");
++            Directory.Exists(fxDir).Should().BeTrue("the fx/ClassLibrary directory should be created");
++
++            var materializedFiles = Directory.GetFiles(fxDir, "*.js", SearchOption.AllDirectories);
++            materializedFiles.Should().NotBeEmpty("JS framework assets should be copied to the fx/ directory");
++        }
++
++        [Fact]
++        public void Build_Consumer_EndpointsExistForMaterializedFrameworkAssets()
++        {
++            var intermediateOutputPath = BuildConsumerWithFrameworkPattern();
++            var manifest = LoadBuildManifest(intermediateOutputPath);
++
++            var materializedAssets = manifest.Assets
++                .Where(a => a.RelativePath.Contains(".js")
++                    && a.Identity.Contains(Path.Combine("fx", "ClassLibrary")))
++                .ToList();
++
++            materializedAssets.Should().NotBeEmpty();
++
++            // Each materialized asset should have at least one endpoint referencing it
++            foreach (var asset in materializedAssets)
++            {
++                var matchingEndpoints = manifest.Endpoints
++                    ?.Where(e => string.Equals(e.AssetFile, asset.Identity, StringComparison.OrdinalIgnoreCase))
++                    .ToList();
++
++                matchingEndpoints.Should().NotBeNullOrEmpty(
++                    $"materialized framework asset {asset.RelativePath} should have at least one endpoint");
++
++                // Endpoint routes should NOT contain the library's base path — they should
++                // reflect the consumer's base path (which is "/" for a web app).
++                foreach (var ep in matchingEndpoints)
++                {
++                    ep.Route.Should().NotContain("_content/ClassLibrary",
++                        "endpoint route should not retain the library's base path after materialization");
++                }
++            }
++        }
++
++        private string BuildConsumerWithFrameworkPattern()
++        {
++            var projectDirectory = CreateAspNetSdkTestAsset("RazorAppWithP2PReference")
++                .WithProjectChanges((path, document) =>
++                {
++                    if (Path.GetFileName(path) == "ClassLibrary.csproj")
++                    {
++                        // Add FrameworkPattern to mark all .js files as framework assets
++                        var propertyGroup = document.Root.Descendants("TargetFramework").First().Parent;
++                        propertyGroup.Add(
++                            new XElement("StaticWebAssetFrameworkPattern", "**/*.js"));
++                    }
++                });
++
++            var build = CreateBuildCommand(projectDirectory, "AppWithP2PReference");
++            ExecuteCommand(build).Should().Pass();
++
++            return build.GetIntermediateDirectory(DefaultTfm, "Debug").ToString();
++        }
++
++        private static StaticWebAssetsManifest LoadBuildManifest(string intermediateOutputPath)
++        {
++            var path = Path.Combine(intermediateOutputPath, "staticwebassets.build.json");
++            return StaticWebAssetsManifest.FromJsonBytes(File.ReadAllBytes(path));
++        }
++    }
++}
+diff --git a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs
+index 771984bb8d42..cea416a71f0b 100644
+--- a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs
++++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/ComputeReferenceStaticWebAssetItemsTest.cs
+@@ -336,6 +336,101 @@ public void FiltersAssetsFromPackages()
+             task.StaticWebAssets.Should().HaveCount(0);
+         }
+ 
++        [Fact]
++        public void AppliesFrameworkPatternToDiscoveredAssets()
++        {
++            var errorMessages = new List<string>();
++            var buildEngine = new Mock<IBuildEngine>();
++            buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))
++                .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));
++
++            var task = new ComputeReferenceStaticWebAssetItems
++            {
++                BuildEngine = buildEngine.Object,
++                Source = "MyPackage",
++                Assets = new[]
++                {
++                    CreateCandidate(Path.Combine("wwwroot", "framework.js"), "MyPackage", "Discovered", "framework.js", "All", "All"),
++                    CreateCandidate(Path.Combine("wwwroot", "app.css"), "MyPackage", "Discovered", "app.css", "All", "All")
++                },
++                Patterns = new ITaskItem[] { },
++                AssetKind = "Build",
++                ProjectMode = "Default",
++                FrameworkPattern = "**/*.js"
++            };
++
++            // Act
++            var result = task.Execute();
++
++            // Assert
++            result.Should().Be(true);
++            task.StaticWebAssets.Should().HaveCount(2);
++            task.StaticWebAssets[0].GetMetadata("SourceType").Should().Be("Framework");
++            task.StaticWebAssets[1].GetMetadata("SourceType").Should().Be("Project");
++        }
++
++        [Fact]
++        public void FrameworkPatternDoesNotAffectNonDiscoveredAssets()
++        {
++            var errorMessages = new List<string>();
++            var buildEngine = new Mock<IBuildEngine>();
++            buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))
++                .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));
++
++            var task = new ComputeReferenceStaticWebAssetItems
++            {
++                BuildEngine = buildEngine.Object,
++                Source = "MyPackage",
++                Assets = new[] { CreateCandidate(Path.Combine("wwwroot", "candidate.js"), "MyPackage", "Project", "candidate.js", "All", "All") },
++                Patterns = new ITaskItem[] { },
++                AssetKind = "Build",
++                ProjectMode = "Default",
++                UpdateSourceType = false,
++                FrameworkPattern = "**/*.js"
++            };
++
++            // Act
++            var result = task.Execute();
++
++            // Assert
++            result.Should().Be(true);
++            task.StaticWebAssets.Should().HaveCount(1);
++            task.StaticWebAssets[0].GetMetadata("SourceType").Should().Be("Project");
++        }
++
++        [Fact]
++        public void PreservesAssetGroupsOnFrameworkAssets()
++        {
++            var errorMessages = new List<string>();
++            var buildEngine = new Mock<IBuildEngine>();
++            buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))
++                .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));
++
++            var asset = CreateCandidate(Path.Combine("wwwroot", "framework.js"), "MyPackage", "Framework", "framework.js", "All", "All");
++            asset.SetMetadata("AssetGroups", "MyGroup");
++
++            var task = new ComputeReferenceStaticWebAssetItems
++            {
++                BuildEngine = buildEngine.Object,
++                Source = "MyPackage",
++                Assets = new[] { asset },
++                Patterns = new ITaskItem[] { },
++                AssetKind = "Build",
++                ProjectMode = "Default",
++                UpdateSourceType = true
++            };
++
++            // Act
++            var result = task.Execute();
++
++            // Assert — groups are preserved here so FilterByGroup can evaluate them;
++            // clearing happens later during MaterializeFrameworkAsset.
++            result.Should().Be(true);
++            task.StaticWebAssets.Should().HaveCount(1);
++            task.StaticWebAssets[0].GetMetadata("SourceType").Should().Be("Framework");
++            task.StaticWebAssets[0].GetMetadata("AssetGroups").Should().Be("MyGroup");
++        }
++
+         private static ITaskItem CreateCandidate(
+             string itemSpec,
+             string sourceId,
+diff --git a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs
+index 9c2e008f4610..1c64f37d3d00 100644
+--- a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs
++++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdateExternallyDefinedStaticWebAssetsTest.cs
+@@ -254,4 +254,275 @@ public void Execute_InfersFingerprint_ForMatchingAssets()
+         task.UpdatedAssets[0].GetMetadata("Integrity").Should().NotBeNullOrEmpty();
+         task.UpdatedAssets[1].GetMetadata("Integrity").Should().NotBeNullOrEmpty();
+     }
++
++    [Fact]
++    public void Execute_MaterializesFrameworkAssetsFromP2PReferences()
++    {
++        // Arrange
++        var errorMessages = new List<string>();
++        var buildEngine = new Mock<IBuildEngine>();
++        buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))
++            .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));
++
++        var intermediateDir = Path.Combine(AppContext.BaseDirectory, "obj", "fxtest");
++        var sourceDir = Path.Combine(AppContext.BaseDirectory, "fxsource");
++        Directory.CreateDirectory(sourceDir);
++        var sourceFile = Path.Combine(sourceDir, "framework.js");
++        File.WriteAllText(sourceFile, "// framework");
++
++        var asset = new TaskItem(
++            sourceFile,
++            new Dictionary<string, string>
++            {
++                ["RelativePath"] = "framework.js",
++                ["BasePath"] = "_content/SourceLib",
++                ["AssetMode"] = "All",
++                ["AssetKind"] = "Build",
++                ["SourceId"] = "SourceLib",
++                ["CopyToOutputDirectory"] = "PreserveNewest",
++                ["RelatedAsset"] = "",
++                ["ContentRoot"] = sourceDir + Path.DirectorySeparatorChar,
++                ["SourceType"] = "Framework",
++                ["AssetRole"] = "Primary",
++                ["AssetTraitValue"] = "",
++                ["AssetTraitName"] = "",
++                ["OriginalItemSpec"] = sourceFile,
++                ["CopyToPublishDirectory"] = "PreserveNewest"
++            });
++
++        var task = new UpdateExternallyDefinedStaticWebAssets
++        {
++            Assets = new[] { asset },
++            Endpoints = [],
++            BuildEngine = buildEngine.Object,
++            IntermediateOutputPath = intermediateDir,
++            ProjectPackageId = "ConsumerApp",
++            ProjectBasePath = "_content/ConsumerApp"
++        };
++
++        // Act
++        var result = task.Execute();
++
++        // Assert
++        result.Should().BeTrue();
++        task.UpdatedAssets.Should().HaveCount(1);
++        var materialized = task.UpdatedAssets[0];
++        materialized.GetMetadata("SourceType").Should().Be("Discovered");
++        materialized.GetMetadata("SourceId").Should().Be("ConsumerApp");
++        materialized.GetMetadata("BasePath").Should().Be("_content/ConsumerApp");
++        materialized.GetMetadata("AssetMode").Should().Be("CurrentProject");
++        materialized.ItemSpec.Should().Contain(Path.Combine("fx", "SourceLib"));
++        File.Exists(materialized.ItemSpec).Should().BeTrue();
++
++        task.OriginalFrameworkAssets.Should().HaveCount(1);
++        task.OriginalFrameworkAssets[0].GetMetadata("SourceType").Should().Be("Framework");
++    }
++
++    [Fact]
++    public void Execute_RemapsEndpointRoutesForMaterializedFrameworkAssets()
++    {
++        // Arrange
++        var errorMessages = new List<string>();
++        var buildEngine = new Mock<IBuildEngine>();
++        buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))
++            .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));
++
++        var intermediateDir = Path.Combine(AppContext.BaseDirectory, "obj", "fxroute");
++        var sourceDir = Path.Combine(AppContext.BaseDirectory, "fxroutesource");
++        Directory.CreateDirectory(sourceDir);
++        var sourceFile = Path.Combine(sourceDir, "framework.js");
++        File.WriteAllText(sourceFile, "// framework route test");
++
++        var asset = new TaskItem(
++            sourceFile,
++            new Dictionary<string, string>
++            {
++                ["RelativePath"] = "js/framework.js",
++                ["BasePath"] = "_content/SourceLib",
++                ["AssetMode"] = "All",
++                ["AssetKind"] = "Build",
++                ["SourceId"] = "SourceLib",
++                ["CopyToOutputDirectory"] = "PreserveNewest",
++                ["RelatedAsset"] = "",
++                ["ContentRoot"] = sourceDir + Path.DirectorySeparatorChar,
++                ["SourceType"] = "Framework",
++                ["AssetRole"] = "Primary",
++                ["AssetTraitValue"] = "",
++                ["AssetTraitName"] = "",
++                ["OriginalItemSpec"] = sourceFile,
++                ["CopyToPublishDirectory"] = "PreserveNewest"
++            });
++
++        // Endpoint with the old base path baked into the route.
++        var endpoint = new TaskItem(
++            "_content/SourceLib/js/framework.js",
++            new Dictionary<string, string>
++            {
++                ["Route"] = "_content/SourceLib/js/framework.js",
++                ["AssetFile"] = sourceFile,
++                ["Selectors"] = "[]",
++                ["ResponseHeaders"] = "[]",
++                ["EndpointProperties"] = """[{"Name":"label","Value":"_content/SourceLib/js/framework.js"}]"""
++            });
++
++        var task = new UpdateExternallyDefinedStaticWebAssets
++        {
++            Assets = [asset],
++            Endpoints = [endpoint],
++            BuildEngine = buildEngine.Object,
++            IntermediateOutputPath = intermediateDir,
++            ProjectPackageId = "ConsumerApp",
++            ProjectBasePath = "/"
++        };
++
++        // Act
++        var result = task.Execute();
++
++        // Assert
++        result.Should().BeTrue();
++        task.UpdatedEndpoints.Should().HaveCount(1);
++        var updatedEndpoint = task.UpdatedEndpoints[0];
++
++        // Route should have old base path stripped and new base path applied.
++        // "/" base path means just the relative path remains.
++        updatedEndpoint.ItemSpec.Should().Be("js/framework.js",
++            "endpoint route should have old base path '_content/SourceLib' stripped");
++
++        // AssetFile should point to the materialized path.
++        updatedEndpoint.GetMetadata("AssetFile").Should().Contain(Path.Combine("fx", "SourceLib"));
++
++        // Label endpoint property should also be remapped.
++        var endpointProperties = updatedEndpoint.GetMetadata("EndpointProperties");
++        endpointProperties.Should().Contain("js/framework.js");
++        endpointProperties.Should().NotContain("_content/SourceLib");
++    }
++
++    [Fact]
++    public void Execute_RemapsEndpointRoutesToConsumerBasePath()
++    {
++        // Arrange
++        var errorMessages = new List<string>();
++        var buildEngine = new Mock<IBuildEngine>();
++        buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))
++            .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));
++
++        var intermediateDir = Path.Combine(AppContext.BaseDirectory, "obj", "fxroutelib");
++        var sourceDir = Path.Combine(AppContext.BaseDirectory, "fxroutelibsource");
++        Directory.CreateDirectory(sourceDir);
++        var sourceFile = Path.Combine(sourceDir, "lib.js");
++        File.WriteAllText(sourceFile, "// lib route test");
++
++        var asset = new TaskItem(
++            sourceFile,
++            new Dictionary<string, string>
++            {
++                ["RelativePath"] = "js/lib.js",
++                ["BasePath"] = "_content/SourceLib",
++                ["AssetMode"] = "All",
++                ["AssetKind"] = "Build",
++                ["SourceId"] = "SourceLib",
++                ["CopyToOutputDirectory"] = "PreserveNewest",
++                ["RelatedAsset"] = "",
++                ["ContentRoot"] = sourceDir + Path.DirectorySeparatorChar,
++                ["SourceType"] = "Framework",
++                ["AssetRole"] = "Primary",
++                ["AssetTraitValue"] = "",
++                ["AssetTraitName"] = "",
++                ["OriginalItemSpec"] = sourceFile,
++                ["CopyToPublishDirectory"] = "PreserveNewest"
++            });
++
++        var endpoint = new TaskItem(
++            "_content/SourceLib/js/lib.js",
++            new Dictionary<string, string>
++            {
++                ["Route"] = "_content/SourceLib/js/lib.js",
++                ["AssetFile"] = sourceFile,
++                ["Selectors"] = "[]",
++                ["ResponseHeaders"] = "[]",
++                ["EndpointProperties"] = """[{"Name":"label","Value":"_content/SourceLib/js/lib.js"}]"""
++            });
++
++        var task = new UpdateExternallyDefinedStaticWebAssets
++        {
++            Assets = [asset],
++            Endpoints = [endpoint],
++            BuildEngine = buildEngine.Object,
++            IntermediateOutputPath = intermediateDir,
++            ProjectPackageId = "ConsumerLib",
++            ProjectBasePath = "_content/ConsumerLib"
++        };
++
++        // Act
++        var result = task.Execute();
++
++        // Assert
++        result.Should().BeTrue();
++        task.UpdatedEndpoints.Should().HaveCount(1);
++        var updatedEndpoint = task.UpdatedEndpoints[0];
++
++        // Route should have old base path replaced with consumer's base path.
++        updatedEndpoint.ItemSpec.Should().Be("_content/ConsumerLib/js/lib.js",
++            "endpoint route should use consumer's base path");
++
++        // Label should also reflect the new base path.
++        var endpointProperties = updatedEndpoint.GetMetadata("EndpointProperties");
++        endpointProperties.Should().Contain("_content/ConsumerLib/js/lib.js");
++        endpointProperties.Should().NotContain("_content/SourceLib");
++    }
++
++    [Fact]
++    public void Execute_PassesThroughNonFrameworkAssetsUnchanged()
++    {
++        // Arrange
++        var errorMessages = new List<string>();
++        var buildEngine = new Mock<IBuildEngine>();
++        buildEngine.Setup(e => e.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))
++            .Callback<BuildErrorEventArgs>(args => errorMessages.Add(args.Message));
++
++        var sourceDir = Path.Combine(AppContext.BaseDirectory, "normalsource");
++        Directory.CreateDirectory(sourceDir);
++        var sourceFile = Path.Combine(sourceDir, "app.js");
++        File.WriteAllText(sourceFile, "// app");
++
++        var asset = new TaskItem(
++            sourceFile,
++            new Dictionary<string, string>
++            {
++                ["RelativePath"] = "app.js",
++                ["BasePath"] = "",
++                ["AssetMode"] = "All",
++                ["AssetKind"] = "Build",
++                ["SourceId"] = "OtherLib",
++                ["CopyToOutputDirectory"] = "PreserveNewest",
++                ["RelatedAsset"] = "",
++                ["ContentRoot"] = sourceDir + Path.DirectorySeparatorChar,
++                ["SourceType"] = "Discovered",
++                ["AssetRole"] = "Primary",
++                ["AssetTraitValue"] = "",
++                ["AssetTraitName"] = "",
++                ["OriginalItemSpec"] = sourceFile,
++                ["CopyToPublishDirectory"] = "PreserveNewest"
++            });
++
++        var task = new UpdateExternallyDefinedStaticWebAssets
++        {
++            Assets = new[] { asset },
++            Endpoints = [],
++            BuildEngine = buildEngine.Object,
++            IntermediateOutputPath = Path.Combine(AppContext.BaseDirectory, "obj", "normal"),
++            ProjectPackageId = "ConsumerApp",
++            ProjectBasePath = "_content/ConsumerApp"
++        };
++
++        // Act
++        var result = task.Execute();
++
++        // Assert
++        result.Should().BeTrue();
++        task.UpdatedAssets.Should().HaveCount(1);
++        task.UpdatedAssets[0].GetMetadata("SourceType").Should().Be("Discovered");
++        task.UpdatedAssets[0].GetMetadata("SourceId").Should().Be("OtherLib");
++        task.OriginalFrameworkAssets.Should().BeEmpty();
++    }
+ }
+diff --git a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs
+index ad56be557e37..e16ab07c55af 100644
+--- a/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs
++++ b/test/Microsoft.NET.Sdk.StaticWebAssets.Tests/StaticWebAssets/UpdatePackageStaticWebAssetsTest.cs
+@@ -623,4 +623,93 @@ private ITaskItem CreateFrameworkAsset(string filePath, string sourceId, string
+             ["LastWriteTime"] = new DateTimeOffset(new DateTime(1990, 11, 15, 0, 0, 0, 0, DateTimeKind.Utc)).ToString(StaticWebAsset.DateTimeAssetFormat),
+         });
+     }
++
++    private ITaskItem CreateEndpoint(string route, string assetFile, string label = null)
++    {
++        var properties = label != null
++            ? $$"""[{"Name":"label","Value":"{{label}}"}]"""
++            : "[]";
++
++        return new TaskItem(route, new Dictionary<string, string>
++        {
++            ["Route"] = route,
++            ["AssetFile"] = assetFile,
++            ["Selectors"] = "[]",
++            ["ResponseHeaders"] = "[]",
++            ["EndpointProperties"] = properties,
++        });
++    }
++
++    [Fact]
++    public void Execute_FrameworkAssets_RemapsEndpointRoutes_StripOldBasePath()
++    {
++        // Arrange
++        var sourceFile = CreateTempFile("source", "framework.js", "content");
++        var asset = CreateFrameworkAsset(sourceFile, "FxLib", "_content/FxLib", "js/framework.js");
++        var endpoint = CreateEndpoint("_content/FxLib/js/framework.js", sourceFile, "_content/FxLib/js/framework.js");
++
++        var task = new UpdatePackageStaticWebAssets
++        {
++            BuildEngine = _buildEngine.Object,
++            Assets = [asset],
++            Endpoints = [endpoint],
++            IntermediateOutputPath = Path.Combine(_tempDir, "obj"),
++            ProjectPackageId = "ConsumerApp",
++            ProjectBasePath = "/",
++        };
++
++        // Act
++        var result = task.Execute();
++
++        // Assert
++        result.Should().BeTrue();
++        task.RemappedEndpoints.Should().HaveCount(1);
++        var remapped = task.RemappedEndpoints[0];
++
++        // Route should have old base path stripped; "/" means just relative path.
++        remapped.ItemSpec.Should().Be("js/framework.js");
++        remapped.GetMetadata("AssetFile").Should().Contain(Path.Combine("fx", "FxLib"));
++
++        // Label should also be remapped.
++        remapped.GetMetadata("EndpointProperties").Should().Contain("js/framework.js");
++        remapped.GetMetadata("EndpointProperties").Should().NotContain("_content/FxLib");
++
++        // Original endpoints should be output for removal.
++        task.OriginalFrameworkEndpoints.Should().HaveCount(1);
++        task.OriginalFrameworkEndpoints[0].ItemSpec.Should().Be("_content/FxLib/js/framework.js");
++    }
++
++    [Fact]
++    public void Execute_FrameworkAssets_RemapsEndpointRoutes_ToConsumerBasePath()
++    {
++        // Arrange
++        var sourceFile = CreateTempFile("source2", "lib.js", "content");
++        var asset = CreateFrameworkAsset(sourceFile, "FxLib", "_content/FxLib", "js/lib.js");
++        var endpoint = CreateEndpoint("_content/FxLib/js/lib.js", sourceFile, "_content/FxLib/js/lib.js");
++
++        var task = new UpdatePackageStaticWebAssets
++        {
++            BuildEngine = _buildEngine.Object,
++            Assets = [asset],
++            Endpoints = [endpoint],
++            IntermediateOutputPath = Path.Combine(_tempDir, "obj"),
++            ProjectPackageId = "ConsumerLib",
++            ProjectBasePath = "_content/ConsumerLib",
++        };
++
++        // Act
++        var result = task.Execute();
++
++        // Assert
++        result.Should().BeTrue();
++        task.RemappedEndpoints.Should().HaveCount(1);
++        var remapped = task.RemappedEndpoints[0];
++
++        // Route should use consumer's base path.
++        remapped.ItemSpec.Should().Be("_content/ConsumerLib/js/lib.js");
++
++        // Label should also reflect consumer's base path.
++        remapped.GetMetadata("EndpointProperties").Should().Contain("_content/ConsumerLib/js/lib.js");
++        remapped.GetMetadata("EndpointProperties").Should().NotContain("_content/FxLib");
++    }
+ }

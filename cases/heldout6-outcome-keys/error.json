@@ -1,0 +1,18 @@
+{
+  "id": "portfolio-selected-work-duplicate-keys",
+  "timestamp": "2026-10-25T07:24:39.104Z",
+  "severity": "warning",
+  "service": "portfolio",
+  "message": "Rendering the Selected work section (SelectedWork, which the home page rendered earlier in the build) in a browser dev build logs 6 React errors: Encountered two children with the same key, `[Outcome — what changed.]`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is u",
+  "frames": [
+    {
+      "file": "src/components/selected-work.tsx",
+      "line": 8,
+      "function": "SelectedWork"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout6-outcome-keys/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "transcript_replay"
+  }
+}

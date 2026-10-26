@@ -1,0 +1,26 @@
+{
+  "name": "why-code-exists",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Trace a production error to the agent edit that wrote the line, and show what the agent was asked, what it understood, and what actually happened, each cited",
+  "scripts": {
+    "investigate": "tsx src/bin/investigate.ts",
+    "approve": "tsx src/bin/approve.ts",
+    "prevent": "tsx src/bin/prevent.ts",
+    "zetaris:ping": "tsx src/bin/zetaris-ping.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "why": "tsx src/bin/three-piece.ts",
+    "explain-why": "tsx src/bin/explain-why.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "jsdom": "^25.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

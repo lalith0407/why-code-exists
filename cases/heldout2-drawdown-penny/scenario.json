@@ -1,0 +1,19 @@
+{
+  "id": "ta-drawdown-halt-penny",
+  "service": "trading-agent-system",
+  "severity": "error",
+  "lang": "python",
+  "stubs": [],
+  "setup": "import datetime\ncaps_mod = app(\"src/ta/harness/caps.py\")\nportfolio_mod = app(\"src/ta/sim/portfolio.py\")\nfrom ta.config import RiskCaps\nfrom ta.models import OrderIntent",
+  "body": "caps = RiskCaps()\npf = portfolio_mod.Portfolio(cash=7000.0, peak_equity=10000.0)\nmeta = {\"FALN\": caps_mod.NameMeta(ticker=\"FALN\", sleeve=\"core\", sector=\"Tech\", price=2.10)}\norders = [OrderIntent(ticker=\"FALN\", side=\"buy\", notional=400.0, sleeve=\"core\", reason=\"rebalance\")]\nkept, notes = caps_mod.guard_orders(orders, pf, meta, caps, fill_session=30, fill_date=datetime.date(2025, 3, 3), prices={\"FALN\": 2.10}, equity=7000.0)\ncheck(any(o.ticker == \"FALN\" and o.side == \"buy\" for o in kept), \"buy was halted\")\nrecord(\"drawdown\", \"-30.0%\"); record(\"price\", \"2.10\"); record(\"notes\", notes)",
+  "symptom": {
+    "message": "Risk breach: drawdown is {{drawdown}} from peak (halt threshold -20%), yet a new buy of FALN at ${{price}} (a sub-$5 penny name, which the spec puts in the high-risk sleeve) passed the guard and filled. Guard notes: {{notes}}",
+    "frames": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 0,
+        "function": "guard_orders"
+      }
+    ]
+  }
+}

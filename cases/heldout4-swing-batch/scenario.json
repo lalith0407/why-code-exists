@@ -1,0 +1,19 @@
+{
+  "id": "ta-swing-cap-batch",
+  "service": "trading-agent-system",
+  "severity": "error",
+  "lang": "python",
+  "stubs": [],
+  "setup": "import datetime\ncaps_mod = app(\"src/ta/harness/caps.py\")\nportfolio_mod = app(\"src/ta/sim/portfolio.py\")\nfrom ta.config import RiskCaps\nfrom ta.models import OrderIntent",
+  "body": "caps = RiskCaps()\npf = portfolio_mod.Portfolio(cash=1000.0, peak_equity=10000.0)\npf.swing_exits = [datetime.date(2026, 1, 5)] * (caps.swing_trades_per_quarter - 1)\nfor t in (\"AAA\", \"BBB\", \"CCC\"):\n    pf.positions[t] = portfolio_mod.Lot(qty=10.0, cost=1000.0, entry_session=0)\norders = [OrderIntent(ticker=t, side=\"sell\", notional=1000.0, sleeve=\"core\", reason=\"rebalance\") for t in (\"AAA\", \"BBB\", \"CCC\")]\nkept, notes = caps_mod.guard_orders(orders, pf, {}, caps, fill_session=caps.min_hold_sessions + 1, fill_date=datetime.date(2026, 2, 2), prices={\"AAA\": 100.0, \"BBB\": 100.0, \"CCC\": 100.0}, equity=10000.0)\ntotal = len(pf.swing_exits) + len(kept)\ncheck(total > caps.swing_trades_per_quarter, \"swing cap held\")\nrecord(\"cap\", caps.swing_trades_per_quarter); record(\"prior\", len(pf.swing_exits)); record(\"kept\", len(kept)); record(\"total\", total); record(\"notes\", notes)",
+  "symptom": {
+    "message": "Rule breach: the quarter's swing-trade cap is {{cap}}, {{prior}} swing exit(s) were already used, and the guard let {{kept}} full exits of positions held under the swing-hold period through in a single session, so the quarter ends with {{total}} swing trades. Guard notes: {{notes}}",
+    "frames": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 0,
+        "function": "guard_orders"
+      }
+    ]
+  }
+}

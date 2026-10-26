@@ -1,0 +1,18 @@
+{
+  "id": "ta-swing-cap-batch",
+  "timestamp": "2026-10-25T04:09:41.143Z",
+  "severity": "error",
+  "service": "trading-agent-system",
+  "message": "Rule breach: the quarter's swing-trade cap is 2, 1 swing exit(s) were already used, and the guard let 3 full exits of positions held under the swing-hold period through in a single session, so the quarter ends with 4 swing trades. Guard notes: []",
+  "frames": [
+    {
+      "file": "src/ta/harness/caps.py",
+      "line": 242,
+      "function": "guard_orders"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout4-swing-batch/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "repo"
+  }
+}

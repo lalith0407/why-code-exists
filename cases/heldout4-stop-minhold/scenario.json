@@ -1,0 +1,19 @@
+{
+  "id": "ta-stop-loss-blocked",
+  "service": "trading-agent-system",
+  "severity": "critical",
+  "lang": "python",
+  "stubs": [],
+  "setup": "import datetime\ncaps_mod = app(\"src/ta/harness/caps.py\")\nportfolio_mod = app(\"src/ta/sim/portfolio.py\")\nfrom ta.config import RiskCaps\nfrom ta.models import OrderIntent",
+  "body": "caps = RiskCaps()\npf = portfolio_mod.Portfolio(cash=0.0, peak_equity=10000.0)\npf.positions[\"AAA\"] = portfolio_mod.Lot(qty=10.0, cost=1000.0, entry_session=10)\norders = [OrderIntent(ticker=\"AAA\", side=\"sell\", notional=700.0, sleeve=\"core\", reason=\"stop\")]\nkept, notes = caps_mod.guard_orders(orders, pf, {}, caps, fill_session=12, fill_date=datetime.date(2026, 2, 2), prices={\"AAA\": 70.0}, equity=9700.0)\ncheck(not kept, \"stop sell went through\")\nrecord(\"loss\", \"-30%\"); record(\"notes\", notes)",
+  "symptom": {
+    "message": "Stop-loss did not execute: AAA is down {{loss}} from average cost and the order builder emitted a full stop-loss sell (reason 'stop'), but the order never filled; the guard dropped it. Guard notes: {{notes}}",
+    "frames": [
+      {
+        "file": "src/ta/harness/caps.py",
+        "line": 0,
+        "function": "guard_orders"
+      }
+    ]
+  }
+}

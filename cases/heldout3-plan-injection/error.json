@@ -1,0 +1,18 @@
+{
+  "id": "br-safe-plan-injection",
+  "timestamp": "2026-10-25T03:51:59.852Z",
+  "severity": "critical",
+  "service": "blast-radius",
+  "message": "Security review: the guard classified an agent's DROP TABLE of a quoted table name as drop_table and built a safe plan whose step 1 (signed, run with no conditions) is: DELETE FROM _deprecations WHERE target = 'tmp_import'; DROP TABLE customers; --'; INSERT INTO _deprecations VALUES('tmp_import'; DROP TABLE customers; --', 1792900319, 'via blast-radius'). Running that step executes DROP TABLE customers.",
+  "frames": [
+    {
+      "file": "blast_radius/reasoner/base.py",
+      "line": 20,
+      "function": "safe_plan"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout3-plan-injection/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "repo"
+  }
+}

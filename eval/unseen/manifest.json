@@ -1,0 +1,90 @@
+[
+ {
+  "case": "u01",
+  "repo": "BerriAI/litellm",
+  "agent": "Devin",
+  "agent_pr": "https://github.com/BerriAI/litellm/pull/44720",
+  "agent_pr_author": "devin-ai-integration[bot]",
+  "agent_merge_sha": "c2c0bb583ef7c125e4eb851a55bc80b790d372e6",
+  "fix_pr": "https://github.com/BerriAI/litellm/pull/45034",
+  "fix_base_sha": "498a3e1a67de8be268ed0d2990a1eaf8671ba87f",
+  "fix_base_ref": "main"
+ },
+ {
+  "case": "u02",
+  "repo": "BerriAI/litellm",
+  "agent": "Devin",
+  "agent_pr": "https://github.com/BerriAI/litellm/pull/44295",
+  "agent_pr_author": "devin-ai-integration[bot]",
+  "agent_merge_sha": "ca1994e403aa0a04daf18a39a0d6bd8b229cfa90",
+  "fix_pr": "https://github.com/BerriAI/litellm/pull/44344",
+  "fix_base_sha": "a76ba8c01e48846e5d6b294bed5c06fcf7b9a04b",
+  "fix_base_ref": "main"
+ },
+ {
+  "case": "u03",
+  "repo": "BerriAI/litellm",
+  "agent": "Devin",
+  "agent_pr": "https://github.com/BerriAI/litellm/pull/45906",
+  "agent_pr_author": "devin-ai-integration[bot]",
+  "agent_merge_sha": "5ce2833371227127c471030f25cbe4696e78f91d",
+  "fix_pr": "https://github.com/BerriAI/litellm/pull/45935",
+  "fix_base_sha": "0939a839e9350c64b803f574c9e32d2f3b78b640",
+  "fix_base_ref": "stable/1.104.x"
+ },
+ {
+  "case": "u04",
+  "repo": "BerriAI/litellm",
+  "agent": "Devin",
+  "agent_pr": "https://github.com/BerriAI/litellm/pull/32022",
+  "agent_pr_author": "devin-ai-integration[bot]",
+  "agent_merge_sha": "dfbbda4f199ff4cbe49c6f5924c856661953681b",
+  "fix_pr": "https://github.com/BerriAI/litellm/pull/32032",
+  "fix_base_sha": "aca2428d3c96fc7a15d3b7a91ddc19a23cdbfeb0",
+  "fix_base_ref": "litellm_internal_staging"
+ },
+ {
+  "case": "u05",
+  "repo": "dotnet/efcore",
+  "agent": "Copilot coding agent",
+  "agent_pr": "https://github.com/dotnet/efcore/pull/38581",
+  "agent_pr_author": "Copilot",
+  "agent_merge_sha": "fb2b999e9b6acc578cff47edec132044618b6028",
+  "fix_pr": "https://github.com/dotnet/efcore/pull/38924",
+  "fix_base_sha": "0b367634b48c9b7936bf5c8cbd3ad77ffdcc0956",
+  "fix_base_ref": "release/11.0"
+ },
+ {
+  "case": "u06",
+  "repo": "microsoft/vscode",
+  "agent": "Copilot coding agent",
+  "agent_pr": "https://github.com/microsoft/vscode/pull/330629",
+  "agent_pr_author": "Copilot",
+  "agent_merge_sha": "b1346ce4abdd5236d61db2d6ff2a3e44df8e9ab3",
+  "fix_pr": "https://github.com/microsoft/vscode/pull/343670",
+  "fix_base_sha": "29ea7eff53b734b32a63b028843da1035c750b80",
+  "fix_base_ref": "main"
+ },
+ {
+  "case": "u07",
+  "repo": "dotnet/sdk",
+  "agent": "Copilot coding agent",
+  "agent_pr": "https://github.com/dotnet/sdk/pull/54049",
+  "agent_pr_author": "Copilot",
+  "agent_merge_sha": "7a4d7faf8545e31f5d8020d67ebf173308b6c011",
+  "fix_pr": "https://github.com/dotnet/sdk/pull/54649",
+  "fix_base_sha": "5a158a83acbe946fb5725e1686c683ea30ccace6",
+  "fix_base_ref": "main"
+ },
+ {
+  "case": "u08",
+  "repo": "diondavid1998/StreamScout",
+  "agent": "Copilot coding agent",
+  "agent_pr": "https://github.com/diondavid1998/StreamScout/pull/14",
+  "agent_pr_author": "Copilot",
+  "agent_merge_sha": "88b9607c422b3e3b20595db36133fa2bc51364fe",
+  "fix_pr": "https://github.com/diondavid1998/StreamScout/pull/15",
+  "fix_base_sha": "88b9607c422b3e3b20595db36133fa2bc51364fe",
+  "fix_base_ref": "main"
+ }
+]

@@ -1,0 +1,18 @@
+{
+  "id": "pulseboard-invite-accept",
+  "timestamp": "2026-10-25T02:59:36.528Z",
+  "severity": "critical",
+  "service": "pulseboard",
+  "message": "Security alert: user bob@example.com became ADMIN of workspace 'acme' by accepting an invite that was addressed to carol@example.com",
+  "frames": [
+    {
+      "file": "lib/actions/invites.ts",
+      "line": 128,
+      "function": "acceptInviteForExistingUserAction"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/pulseboard-invite/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "transcript_replay"
+  }
+}

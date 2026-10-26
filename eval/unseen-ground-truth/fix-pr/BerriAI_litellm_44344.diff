@@ -1,0 +1,1546 @@
+diff --git a/litellm/completion_extras/litellm_responses_transformation/transformation.py b/litellm/completion_extras/litellm_responses_transformation/transformation.py
+index 93d79bb3ac81..7697ac622d0a 100644
+--- a/litellm/completion_extras/litellm_responses_transformation/transformation.py
++++ b/litellm/completion_extras/litellm_responses_transformation/transformation.py
+@@ -187,7 +187,7 @@ def _reasoning_items_from_output_items(output_items: Sequence[object]) -> tuple[
+ 
+ 
+ def _as_chat_reasoning_items(
+-    reasoning_items: Sequence[_BuiltReasoningItem | ChatCompletionReasoningItem],
++    reasoning_items: Sequence[_BuiltReasoningItem],
+ ) -> list[ChatCompletionReasoningItem] | None:
+     if not reasoning_items:
+         return None
+@@ -788,32 +788,7 @@ def _convert_response_output_to_choices(
+             else:
+                 pass  # don't fail request if item in list is not supported
+ 
+-        if accumulated_tool_calls and choices:
+-            last_choice: Final = choices[-1]
+-            last_reasoning_content: Final = getattr(last_choice.message, "reasoning_content", None)
+-            last_reasoning_items: Final = getattr(last_choice.message, "reasoning_items", None)
+-            merged_reasoning_content: Final = (
+-                " ".join(value for value in (last_reasoning_content, reasoning_content) if value) or None
+-            )
+-            merged_reasoning_items: Final = _as_chat_reasoning_items(
+-                (
+-                    *(last_reasoning_items or ()),
+-                    *(() if pending_reasoning_item is None else (pending_reasoning_item,)),
+-                )
+-            )
+-            merged_message: Final = Message(
+-                role=last_choice.message.role,
+-                content=last_choice.message.content,
+-                annotations=getattr(last_choice.message, "annotations", None),
+-                tool_calls=accumulated_tool_calls,
+-                reasoning_content=merged_reasoning_content,
+-                reasoning_items=merged_reasoning_items,
+-            )
+-            return [
+-                *choices[:-1],
+-                Choices(message=merged_message, finish_reason="tool_calls", index=last_choice.index),
+-            ]
+-
++        # If we accumulated tool calls, create a single choice with all of them
+         if accumulated_tool_calls:
+             msg = Message(
+                 content=None,
+diff --git a/litellm/main.py b/litellm/main.py
+index 2dd7f8d688f3..a818213b8613 100644
+--- a/litellm/main.py
++++ b/litellm/main.py
+@@ -1124,11 +1124,14 @@ def responses_api_bridge_check(
+     # ``reasoningSummary`` in ``extra_body``) must be bridged; Chat Completions rejects
+     # those keys.
+     #
+-    # - gpt-5.4+: FUNCTION tools with active explicit reasoning_effort still bridge from
+-    #   gpt-5.4. gpt-5.4 and gpt-5.5 default to "none" and serve tools on Chat Completions;
+-    #   unset effort bridges only from gpt-5.6 on (measured live 2026-10-02).
+-    # - Custom (grammar) tools are served natively by Chat Completions with reasoning on,
+-    #   so custom-only requests stay on chat and keep their native custom tool_call response shape.
++    # - gpt-5.4+: FUNCTION tools with reasoning active must be bridged. OpenAI enables
++    #   reasoning by default for these models (unset reasoning_effort means medium
++    #   server-side), and Chat Completions rejects function tools whenever reasoning is
++    #   on ("Function tools with reasoning_effort are not supported ... use
++    #   /v1/responses or set reasoning_effort to 'none'"), so only an explicit
++    #   ``"none"`` keeps the request chat-servable. Custom (grammar) tools are served
++    #   natively by Chat Completions with reasoning on, so custom-only requests stay on
++    #   chat and keep their native custom tool_call response shape.
+     # - The UNSET-effort arm only fires against endpoints known to enforce that
+     #   constraint (any api.openai.com host, or Azure OpenAI where api_base is
+     #   always set): chat-only OpenAI-compatible backends registered under the openai
+@@ -1174,10 +1177,7 @@ def responses_api_bridge_check(
+             if on_foundry_openai_endpoint
+             else (
+                 OpenAIGPT5Config.is_model_gpt_5_4_plus_model(model)
+-                and (
+-                    reasoning_effort is not None
+-                    or (on_constraint_enforcing_endpoint and OpenAIGPT5Config.is_model_gpt_5_6_plus_model(model))
+-                )
++                and (reasoning_effort is not None or on_constraint_enforcing_endpoint)
+             )
+         )
+     )
+diff --git a/tests/integration/providers/test_openai_chat_wire.py b/tests/integration/providers/test_openai_chat_wire.py
+index bd2d85c974f1..24d7d83e5190 100644
+--- a/tests/integration/providers/test_openai_chat_wire.py
++++ b/tests/integration/providers/test_openai_chat_wire.py
+@@ -1,6 +1,5 @@
+ import json
+ import uuid
+-from itertools import chain
+ from typing import Final
+ 
+ import pytest
+@@ -9,7 +8,6 @@
+ from pydantic import JsonValue, TypeAdapter
+ 
+ _BACKEND: Final = "gpt-5.4-mini"
+-_GPT_6_MODELS: Final = ("gpt-6-astra", "gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol")
+ _API_KEY: Final = "synthetic-openai-key"
+ _PROMPT: Final = "Summarize this conversation in one sentence."
+ _JSON_OBJECT: Final = TypeAdapter(dict[str, JsonValue])
+@@ -28,38 +26,6 @@ def _completion(identity: str, content: str) -> bytes:
+     ).encode()
+ 
+ 
+-def _tool_completion(model_name: str) -> bytes:
+-    return json.dumps(
+-        {
+-            "id": "chatcmpl-weather",
+-            "object": "chat.completion",
+-            "created": 1,
+-            "model": model_name,
+-            "choices": [
+-                {
+-                    "index": 0,
+-                    "message": {
+-                        "role": "assistant",
+-                        "content": "Let me check the weather.",
+-                        "tool_calls": [
+-                            {
+-                                "id": "call_1",
+-                                "type": "function",
+-                                "function": {
+-                                    "name": "get_weather",
+-                                    "arguments": '{"city":"Paris"}',
+-                                },
+-                            }
+-                        ],
+-                    },
+-                    "finish_reason": "tool_calls",
+-                }
+-            ],
+-            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+-        }
+-    ).encode()
+-
+-
+ @pytest.mark.covers("providers.openai_chat_wire.tool_choice_without_tools_is_dropped_before_the_wire")
+ def test_openai_chat_tool_choice_without_tools_is_not_forwarded(gateway: Gateway) -> None:
+     identity: Final = f"openai-toolless-{uuid.uuid4().hex}"
+@@ -98,583 +64,3 @@ def respond(request: Request) -> Reply:
+             }
+         ]
+         assert [(request.method, request.target) for request in wire.drain()] == [("POST", "/chat/completions")]
+-
+-
+-@pytest.mark.parametrize("model_name", _GPT_6_MODELS, ids=_GPT_6_MODELS)
+-def test_azure_gpt_6_function_tool_with_reasoning_effort_none_stays_on_chat(gateway: Gateway, model_name: str) -> None:
+-    identity: Final = f"azure-{model_name}-{uuid.uuid4().hex}"
+-    upstream_target: Final = f"/openai/deployments/{model_name}/chat/completions?api-version=2025-04-01-preview"
+-
+-    def respond(request: Request) -> Reply:
+-        assert request.method == "POST"
+-        assert request.target == upstream_target
+-        body: Final = _JSON_OBJECT.validate_json(request.body)
+-        assert body["model"] == model_name
+-        assert body["messages"] == [{"role": "user", "content": f"What is the weather in Paris? {identity}"}]
+-        assert body["tools"] == [
+-            {
+-                "type": "function",
+-                "function": {
+-                    "name": "get_weather",
+-                    "description": "Get the weather for a city.",
+-                    "parameters": {
+-                        "type": "object",
+-                        "properties": {"city": {"type": "string"}},
+-                        "required": ["city"],
+-                    },
+-                },
+-            }
+-        ]
+-        assert body["reasoning_effort"] == "none"
+-        return Reply(body=_tool_completion(model_name))
+-
+-    with wire_server(respond) as wire, gateway.scenario() as scenario:
+-        model: Final = scenario.model(
+-            model=f"azure/{model_name}",
+-            api_base=wire.url,
+-            api_key=_API_KEY,
+-            api_version="2025-04-01-preview",
+-        )
+-        response: Final = gateway.request(
+-            "POST",
+-            "/v1/chat/completions",
+-            {
+-                "model": model,
+-                "messages": [{"role": "user", "content": f"What is the weather in Paris? {identity}"}],
+-                "tools": [
+-                    {
+-                        "type": "function",
+-                        "function": {
+-                            "name": "get_weather",
+-                            "description": "Get the weather for a city.",
+-                            "parameters": {
+-                                "type": "object",
+-                                "properties": {"city": {"type": "string"}},
+-                                "required": ["city"],
+-                            },
+-                        },
+-                    }
+-                ],
+-                "reasoning_effort": "none",
+-                "cache": {"no-cache": True},
+-            },
+-        )
+-        assert response.status_code == 200, response.text
+-        payload: Final = _JSON_OBJECT.validate_json(response.content)
+-        assert payload["choices"] == [
+-            {
+-                "finish_reason": "tool_calls",
+-                "index": 0,
+-                "message": {
+-                    "role": "assistant",
+-                    "content": "Let me check the weather.",
+-                    "tool_calls": [
+-                        {
+-                            "id": "call_1",
+-                            "type": "function",
+-                            "function": {
+-                                "name": "get_weather",
+-                                "arguments": '{"city":"Paris"}',
+-                            },
+-                        }
+-                    ],
+-                    "provider_specific_fields": {"refusal": None},
+-                },
+-                "provider_specific_fields": {},
+-            }
+-        ]
+-        assert [(request.method, request.target) for request in wire.drain()] == [("POST", upstream_target)]
+-
+-
+-@pytest.mark.parametrize("model_name", _GPT_6_MODELS, ids=_GPT_6_MODELS)
+-def test_azure_gpt_6_function_tool_without_reasoning_effort_bridges_to_responses(
+-    gateway: Gateway, model_name: str
+-) -> None:
+-    identity: Final = f"azure-{model_name}-{uuid.uuid4().hex}"
+-    upstream_target: Final = "/openai/responses?api-version=2025-04-01-preview"
+-
+-    def respond(request: Request) -> Reply:
+-        assert request.method == "POST"
+-        assert request.target == upstream_target
+-        body: Final = _JSON_OBJECT.validate_json(request.body)
+-        assert body["model"] == model_name
+-        assert body["tools"] == [
+-            {
+-                "type": "function",
+-                "name": "get_weather",
+-                "description": "Get the weather for a city.",
+-                "strict": None,
+-                "parameters": {
+-                    "type": "object",
+-                    "properties": {"city": {"type": "string"}},
+-                    "required": ["city"],
+-                },
+-            }
+-        ]
+-        return Reply(
+-            body=json.dumps(
+-                {
+-                    "id": "resp_weather",
+-                    "object": "response",
+-                    "created_at": 1789788253,
+-                    "status": "completed",
+-                    "model": model_name,
+-                    "output": [
+-                        {
+-                            "type": "message",
+-                            "id": "msg_weather",
+-                            "status": "completed",
+-                            "role": "assistant",
+-                            "content": [
+-                                {
+-                                    "type": "output_text",
+-                                    "text": "Let me check the weather.",
+-                                    "annotations": [],
+-                                }
+-                            ],
+-                        },
+-                        {
+-                            "type": "function_call",
+-                            "id": "fc_1",
+-                            "call_id": "call_1",
+-                            "name": "get_weather",
+-                            "arguments": '{"city":"Paris"}',
+-                            "status": "completed",
+-                        },
+-                    ],
+-                    "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+-                }
+-            ).encode()
+-        )
+-
+-    with wire_server(respond) as wire, gateway.scenario() as scenario:
+-        model: Final = scenario.model(
+-            model=f"azure/{model_name}",
+-            api_base=wire.url,
+-            api_key=_API_KEY,
+-            api_version="2025-04-01-preview",
+-        )
+-        response: Final = gateway.request(
+-            "POST",
+-            "/v1/chat/completions",
+-            {
+-                "model": model,
+-                "messages": [{"role": "user", "content": f"What is the weather in Paris? {identity}"}],
+-                "tools": [
+-                    {
+-                        "type": "function",
+-                        "function": {
+-                            "name": "get_weather",
+-                            "description": "Get the weather for a city.",
+-                            "parameters": {
+-                                "type": "object",
+-                                "properties": {"city": {"type": "string"}},
+-                                "required": ["city"],
+-                            },
+-                        },
+-                    }
+-                ],
+-                "cache": {"no-cache": True},
+-            },
+-        )
+-        assert response.status_code == 200, response.text
+-        body: Final = response.json()
+-        assert body["choices"] == [
+-            {
+-                "finish_reason": "tool_calls",
+-                "index": 0,
+-                "message": {
+-                    "role": "assistant",
+-                    "content": "Let me check the weather.",
+-                    "tool_calls": [
+-                        {
+-                            "id": "fc_1",
+-                            "type": "function",
+-                            "function": {
+-                                "name": "get_weather",
+-                                "arguments": '{"city":"Paris"}',
+-                            },
+-                            "index": 0,
+-                        }
+-                    ],
+-                },
+-            }
+-        ], response.text
+-        assert [(request.method, request.target) for request in wire.drain()] == [("POST", upstream_target)]
+-
+-
+-@pytest.mark.parametrize("model_name", _GPT_6_MODELS, ids=_GPT_6_MODELS)
+-def test_openai_custom_base_gpt_6_function_tool_without_reasoning_effort_stays_on_chat(
+-    gateway: Gateway, model_name: str
+-) -> None:
+-    identity: Final = f"openai-{model_name}-{uuid.uuid4().hex}"
+-
+-    def respond(request: Request) -> Reply:
+-        assert request.method == "POST"
+-        assert request.target == "/chat/completions"
+-        body: Final = _JSON_OBJECT.validate_json(request.body)
+-        assert body["model"] == model_name
+-        assert body["messages"] == [{"role": "user", "content": f"What is the weather in Paris? {identity}"}]
+-        assert body["tools"] == [
+-            {
+-                "type": "function",
+-                "function": {
+-                    "name": "get_weather",
+-                    "description": "Get the weather for a city.",
+-                    "parameters": {
+-                        "type": "object",
+-                        "properties": {"city": {"type": "string"}},
+-                        "required": ["city"],
+-                    },
+-                },
+-            }
+-        ]
+-        return Reply(body=_tool_completion(model_name))
+-
+-    with wire_server(respond) as wire, gateway.scenario() as scenario:
+-        model: Final = scenario.model(model=f"openai/{model_name}", api_base=wire.url, api_key=_API_KEY)
+-        response: Final = gateway.request(
+-            "POST",
+-            "/v1/chat/completions",
+-            {
+-                "model": model,
+-                "messages": [{"role": "user", "content": f"What is the weather in Paris? {identity}"}],
+-                "tools": [
+-                    {
+-                        "type": "function",
+-                        "function": {
+-                            "name": "get_weather",
+-                            "description": "Get the weather for a city.",
+-                            "parameters": {
+-                                "type": "object",
+-                                "properties": {"city": {"type": "string"}},
+-                                "required": ["city"],
+-                            },
+-                        },
+-                    }
+-                ],
+-                "cache": {"no-cache": True},
+-            },
+-        )
+-        assert response.status_code == 200, response.text
+-        body: Final = _JSON_OBJECT.validate_json(response.content)
+-        assert body["choices"] == [
+-            {
+-                "finish_reason": "tool_calls",
+-                "index": 0,
+-                "message": {
+-                    "role": "assistant",
+-                    "content": "Let me check the weather.",
+-                    "tool_calls": [
+-                        {
+-                            "id": "call_1",
+-                            "type": "function",
+-                            "function": {
+-                                "name": "get_weather",
+-                                "arguments": '{"city":"Paris"}',
+-                            },
+-                        }
+-                    ],
+-                    "provider_specific_fields": {"refusal": None},
+-                },
+-                "provider_specific_fields": {},
+-            }
+-        ], response.text
+-        assert [(request.method, request.target) for request in wire.drain()] == [("POST", "/chat/completions")]
+-
+-
+-def test_openai_custom_base_gpt_6_function_tool_with_low_effort_bridges_to_responses(gateway: Gateway) -> None:
+-    identity: Final = f"openai-gpt-6-sol-{uuid.uuid4().hex}"
+-
+-    def respond(request: Request) -> Reply:
+-        assert request.method == "POST"
+-        assert request.target == "/responses"
+-        body: Final = _JSON_OBJECT.validate_json(request.body)
+-        assert body["model"] == "gpt-6-sol"
+-        assert body["reasoning"]["effort"] == "low"
+-        assert body["tools"] == [
+-            {
+-                "type": "function",
+-                "name": "get_weather",
+-                "description": "Get the weather for a city.",
+-                "strict": None,
+-                "parameters": {
+-                    "type": "object",
+-                    "properties": {"city": {"type": "string"}},
+-                    "required": ["city"],
+-                },
+-            }
+-        ]
+-        return Reply(
+-            body=json.dumps(
+-                {
+-                    "id": "resp_weather",
+-                    "object": "response",
+-                    "created_at": 1789788253,
+-                    "status": "completed",
+-                    "model": "gpt-6-sol",
+-                    "output": [
+-                        {
+-                            "type": "message",
+-                            "id": "msg_weather",
+-                            "status": "completed",
+-                            "role": "assistant",
+-                            "content": [
+-                                {
+-                                    "type": "output_text",
+-                                    "text": "Let me check the weather.",
+-                                    "annotations": [],
+-                                }
+-                            ],
+-                        },
+-                        {
+-                            "type": "function_call",
+-                            "id": "fc_1",
+-                            "call_id": "call_1",
+-                            "name": "get_weather",
+-                            "arguments": '{"city":"Paris"}',
+-                            "status": "completed",
+-                        },
+-                    ],
+-                    "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+-                }
+-            ).encode()
+-        )
+-
+-    with wire_server(respond) as wire, gateway.scenario() as scenario:
+-        model: Final = scenario.model(model="openai/gpt-6-sol", api_base=wire.url, api_key=_API_KEY)
+-        response: Final = gateway.request(
+-            "POST",
+-            "/v1/chat/completions",
+-            {
+-                "model": model,
+-                "messages": [{"role": "user", "content": f"What is the weather in Paris? {identity}"}],
+-                "reasoning_effort": "low",
+-                "tools": [
+-                    {
+-                        "type": "function",
+-                        "function": {
+-                            "name": "get_weather",
+-                            "description": "Get the weather for a city.",
+-                            "parameters": {
+-                                "type": "object",
+-                                "properties": {"city": {"type": "string"}},
+-                                "required": ["city"],
+-                            },
+-                        },
+-                    }
+-                ],
+-                "cache": {"no-cache": True},
+-            },
+-        )
+-        assert response.status_code == 200, response.text
+-        body: Final = response.json()
+-        assert body["choices"] == [
+-            {
+-                "finish_reason": "tool_calls",
+-                "index": 0,
+-                "message": {
+-                    "role": "assistant",
+-                    "content": "Let me check the weather.",
+-                    "tool_calls": [
+-                        {
+-                            "id": "fc_1",
+-                            "type": "function",
+-                            "function": {
+-                                "name": "get_weather",
+-                                "arguments": '{"city":"Paris"}',
+-                            },
+-                            "index": 0,
+-                        }
+-                    ],
+-                },
+-            }
+-        ], response.text
+-        assert [(request.method, request.target) for request in wire.drain()] == [("POST", "/responses")]
+-
+-
+-def test_azure_gpt_6_bridged_stream_returns_text_and_tool_call_on_one_choice(gateway: Gateway) -> None:
+-    identity: Final = f"azure-gpt-6-sol-stream-{uuid.uuid4().hex}"
+-    expected_text: Final = "Let me check the weather."
+-    events: Final = (
+-        {
+-            "type": "response.created",
+-            "response": {
+-                "id": "resp_weather",
+-                "object": "response",
+-                "created_at": 1,
+-                "status": "in_progress",
+-                "model": "gpt-6-sol",
+-            },
+-        },
+-        {
+-            "type": "response.output_item.added",
+-            "output_index": 0,
+-            "item": {
+-                "id": "msg_weather",
+-                "type": "message",
+-                "status": "in_progress",
+-                "role": "assistant",
+-                "content": [],
+-            },
+-        },
+-        {
+-            "type": "response.output_text.delta",
+-            "item_id": "msg_weather",
+-            "output_index": 0,
+-            "content_index": 0,
+-            "delta": "Let me check ",
+-        },
+-        {
+-            "type": "response.output_text.delta",
+-            "item_id": "msg_weather",
+-            "output_index": 0,
+-            "content_index": 0,
+-            "delta": "the weather.",
+-        },
+-        {
+-            "type": "response.output_item.done",
+-            "output_index": 0,
+-            "item": {
+-                "id": "msg_weather",
+-                "type": "message",
+-                "status": "completed",
+-                "role": "assistant",
+-                "content": [{"type": "output_text", "text": expected_text, "annotations": []}],
+-            },
+-        },
+-        {
+-            "type": "response.output_item.added",
+-            "output_index": 1,
+-            "item": {
+-                "id": "fc_1",
+-                "type": "function_call",
+-                "status": "in_progress",
+-                "call_id": "call_1",
+-                "name": "get_weather",
+-                "arguments": "",
+-            },
+-        },
+-        {
+-            "type": "response.function_call_arguments.delta",
+-            "item_id": "fc_1",
+-            "output_index": 1,
+-            "delta": '{"city":',
+-        },
+-        {
+-            "type": "response.function_call_arguments.delta",
+-            "item_id": "fc_1",
+-            "output_index": 1,
+-            "delta": '"Paris"}',
+-        },
+-        {
+-            "type": "response.output_item.done",
+-            "output_index": 1,
+-            "item": {
+-                "id": "fc_1",
+-                "type": "function_call",
+-                "status": "completed",
+-                "call_id": "call_1",
+-                "name": "get_weather",
+-                "arguments": '{"city":"Paris"}',
+-            },
+-        },
+-        {
+-            "type": "response.completed",
+-            "response": {
+-                "id": "resp_weather",
+-                "object": "response",
+-                "created_at": 1,
+-                "status": "completed",
+-                "model": "gpt-6-sol",
+-                "output": [
+-                    {
+-                        "id": "msg_weather",
+-                        "type": "message",
+-                        "status": "completed",
+-                        "role": "assistant",
+-                        "content": [{"type": "output_text", "text": expected_text, "annotations": []}],
+-                    },
+-                    {
+-                        "id": "fc_1",
+-                        "type": "function_call",
+-                        "status": "completed",
+-                        "call_id": "call_1",
+-                        "name": "get_weather",
+-                        "arguments": '{"city":"Paris"}',
+-                    },
+-                ],
+-                "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+-            },
+-        },
+-    )
+-    stream_chunks: Final = tuple(f"data: {json.dumps(event)}\n\n".encode() for event in events)
+-
+-    def respond(request: Request) -> Reply:
+-        assert request.method == "POST"
+-        assert request.target == "/openai/responses?api-version=2025-04-01-preview"
+-        body: Final = _JSON_OBJECT.validate_json(request.body)
+-        assert body["model"] == "gpt-6-sol"
+-        return Reply(content_type="text/event-stream", chunks=stream_chunks)
+-
+-    with wire_server(respond) as wire, gateway.scenario() as scenario:
+-        model: Final = scenario.model(
+-            model="azure/gpt-6-sol",
+-            api_base=wire.url,
+-            api_key=_API_KEY,
+-            api_version="2025-04-01-preview",
+-        )
+-        with gateway.client.stream(
+-            "POST",
+-            "/v1/chat/completions",
+-            headers={"Authorization": f"Bearer {gateway.key}"},
+-            json={
+-                "model": model,
+-                "messages": [{"role": "user", "content": f"What is the weather in Paris? {identity}"}],
+-                "tools": [
+-                    {
+-                        "type": "function",
+-                        "function": {
+-                            "name": "get_weather",
+-                            "description": "Get the weather for a city.",
+-                            "parameters": {
+-                                "type": "object",
+-                                "properties": {"city": {"type": "string"}},
+-                                "required": ["city"],
+-                            },
+-                        },
+-                    }
+-                ],
+-                "stream": True,
+-                "cache": {"no-cache": True},
+-            },
+-        ) as response:
+-            response_body: Final = response.read()
+-            assert response.status_code == 200, response.text
+-            chunks: Final = tuple(
+-                _JSON_OBJECT.validate_json(line.removeprefix("data: "))
+-                for line in response_body.decode().splitlines()
+-                if line.startswith("data: ") and line != "data: [DONE]"
+-            )
+-            choices: Final = tuple(chain.from_iterable(chunk["choices"] for chunk in chunks))
+-            assert choices, response.text
+-            assert all(choice["index"] == 0 for choice in choices), response.text
+-            assert "".join(str(choice["delta"].get("content") or "") for choice in choices) == expected_text, (
+-                response.text
+-            )
+-            tool_call_chunks: Final = tuple(
+-                chain.from_iterable(choice["delta"].get("tool_calls", []) for choice in choices)
+-            )
+-            assert (
+-                "".join(str(tool_call["function"].get("name") or "") for tool_call in tool_call_chunks) == "get_weather"
+-            ), response.text
+-            assert (
+-                "".join(str(tool_call["function"].get("arguments") or "") for tool_call in tool_call_chunks)
+-                == '{"city":"Paris"}'
+-            ), response.text
+-            assert tuple(
+-                choice.get("finish_reason") for choice in choices if choice.get("finish_reason") is not None
+-            ) == ("tool_calls",), response.text
+-        assert [(request.method, request.target) for request in wire.drain()] == [
+-            ("POST", "/openai/responses?api-version=2025-04-01-preview")
+-        ]
+diff --git a/tests/integration/providers/test_responses_bridge_incomplete.py b/tests/integration/providers/test_responses_bridge_incomplete.py
+index 5d3877c954e5..2252f1634e06 100644
+--- a/tests/integration/providers/test_responses_bridge_incomplete.py
++++ b/tests/integration/providers/test_responses_bridge_incomplete.py
+@@ -194,381 +194,3 @@ def respond(request: Request) -> Reply:
+         assert len(tuple(request for request in wire.drain() if request.method == "POST")) == 1
+         assert body["content"] == [{"type": "text", "text": "ok"}], response.text
+         assert body["usage"]["input_tokens"] == 9 and body["usage"]["output_tokens"] == 1, response.text
+-
+-
+-def test_chat_over_responses_deployment_merges_message_and_function_call(gateway: Gateway) -> None:
+-    identity: Final = "responses-bridge-" + uuid.uuid4().hex
+-
+-    def respond(request: Request) -> Reply:
+-        if request.method == "GET" and request.target == "/v1/models":
+-            return Reply(body=b'{"object":"list","data":[]}')
+-        assert request.method == "POST" and request.target == "/responses", request.target
+-        return Reply(
+-            body=json.dumps(
+-                {
+-                    "id": "resp_weather",
+-                    "object": "response",
+-                    "created_at": 1789788253,
+-                    "status": "completed",
+-                    "model": "gpt-6-sol",
+-                    "output": [
+-                        {
+-                            "type": "message",
+-                            "id": "msg_weather",
+-                            "status": "completed",
+-                            "role": "assistant",
+-                            "content": [
+-                                {
+-                                    "type": "output_text",
+-                                    "text": "Let me check the weather.",
+-                                    "annotations": [],
+-                                }
+-                            ],
+-                        },
+-                        {
+-                            "type": "function_call",
+-                            "id": "fc_1",
+-                            "call_id": "call_1",
+-                            "name": "get_weather",
+-                            "arguments": '{"city":"Paris"}',
+-                            "status": "completed",
+-                        },
+-                    ],
+-                    "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+-                }
+-            ).encode()
+-        )
+-
+-    with wire_server(respond) as wire, gateway.scenario() as scenario:
+-        model: Final = scenario.model(
+-            model="openai/responses/gpt-6-sol", api_base=wire.url, api_key="synthetic-openai-key"
+-        )
+-        response: Final = gateway.request(
+-            "POST",
+-            "/v1/chat/completions",
+-            {
+-                "model": model,
+-                "messages": [{"role": "user", "content": f"What is the weather in Paris? {identity}"}],
+-                "tools": [
+-                    {
+-                        "type": "function",
+-                        "function": {
+-                            "name": "get_weather",
+-                            "description": "Get the weather for a city.",
+-                            "parameters": {
+-                                "type": "object",
+-                                "properties": {"city": {"type": "string"}},
+-                                "required": ["city"],
+-                            },
+-                        },
+-                    }
+-                ],
+-                "cache": {"no-cache": True},
+-            },
+-        )
+-        assert response.status_code == 200, response.text
+-        body: Final = response.json()
+-        assert body["choices"] == [
+-            {
+-                "finish_reason": "tool_calls",
+-                "index": 0,
+-                "message": {
+-                    "role": "assistant",
+-                    "content": "Let me check the weather.",
+-                    "tool_calls": [
+-                        {
+-                            "id": "fc_1",
+-                            "type": "function",
+-                            "function": {
+-                                "name": "get_weather",
+-                                "arguments": '{"city":"Paris"}',
+-                            },
+-                            "index": 0,
+-                        }
+-                    ],
+-                },
+-            }
+-        ], response.text
+-        assert [(request.method, request.target) for request in wire.drain()] == [("POST", "/responses")]
+-
+-
+-def test_chat_over_responses_deployment_keeps_reasoning_with_merged_tool_call(gateway: Gateway) -> None:
+-    identity: Final = "responses-bridge-reasoning-" + uuid.uuid4().hex
+-
+-    def respond(request: Request) -> Reply:
+-        if request.method == "GET" and request.target == "/v1/models":
+-            return Reply(body=b'{"object":"list","data":[]}')
+-        assert request.method == "POST" and request.target == "/responses", request.target
+-        return Reply(
+-            body=json.dumps(
+-                {
+-                    "id": "resp_weather_reasoning",
+-                    "object": "response",
+-                    "created_at": 1789788253,
+-                    "status": "completed",
+-                    "model": "gpt-6-sol",
+-                    "output": [
+-                        {
+-                            "type": "message",
+-                            "id": "msg_weather_reasoning",
+-                            "status": "completed",
+-                            "role": "assistant",
+-                            "content": [
+-                                {
+-                                    "type": "output_text",
+-                                    "text": "Let me check the weather.",
+-                                    "annotations": [],
+-                                }
+-                            ],
+-                        },
+-                        {
+-                            "type": "reasoning",
+-                            "id": "rs_weather",
+-                            "summary": [{"type": "summary_text", "text": "Checking the forecast."}],
+-                        },
+-                        {
+-                            "type": "function_call",
+-                            "id": "fc_1",
+-                            "call_id": "call_1",
+-                            "name": "get_weather",
+-                            "arguments": '{"city":"Paris"}',
+-                            "status": "completed",
+-                        },
+-                    ],
+-                    "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+-                }
+-            ).encode()
+-        )
+-
+-    with wire_server(respond) as wire, gateway.scenario() as scenario:
+-        model: Final = scenario.model(
+-            model="openai/responses/gpt-6-sol", api_base=wire.url, api_key="synthetic-openai-key"
+-        )
+-        response: Final = gateway.request(
+-            "POST",
+-            "/v1/chat/completions",
+-            {
+-                "model": model,
+-                "messages": [{"role": "user", "content": f"What is the weather in Paris? {identity}"}],
+-                "tools": [
+-                    {
+-                        "type": "function",
+-                        "function": {
+-                            "name": "get_weather",
+-                            "description": "Get the weather for a city.",
+-                            "parameters": {
+-                                "type": "object",
+-                                "properties": {"city": {"type": "string"}},
+-                                "required": ["city"],
+-                            },
+-                        },
+-                    }
+-                ],
+-                "cache": {"no-cache": True},
+-            },
+-        )
+-        assert response.status_code == 200, response.text
+-        body: Final = response.json()
+-        assert body["choices"] == [
+-            {
+-                "finish_reason": "tool_calls",
+-                "index": 0,
+-                "message": {
+-                    "role": "assistant",
+-                    "content": "Let me check the weather.",
+-                    "reasoning_content": "Checking the forecast.",
+-                    "reasoning_items": [
+-                        {
+-                            "type": "reasoning",
+-                            "id": "rs_weather",
+-                            "summary": [{"type": "summary_text", "text": "Checking the forecast."}],
+-                        }
+-                    ],
+-                    "tool_calls": [
+-                        {
+-                            "id": "fc_1",
+-                            "type": "function",
+-                            "function": {
+-                                "name": "get_weather",
+-                                "arguments": '{"city":"Paris"}',
+-                            },
+-                            "index": 0,
+-                        }
+-                    ],
+-                },
+-            }
+-        ], response.text
+-        assert [(request.method, request.target) for request in wire.drain()] == [("POST", "/responses")]
+-
+-
+-def test_chat_over_responses_deployment_returns_tool_call_only_reply_as_one_choice(gateway: Gateway) -> None:
+-    identity: Final = "responses-bridge-tool-only-" + uuid.uuid4().hex
+-
+-    def respond(request: Request) -> Reply:
+-        if request.method == "GET" and request.target == "/v1/models":
+-            return Reply(body=b'{"object":"list","data":[]}')
+-        assert request.method == "POST" and request.target == "/responses", request.target
+-        return Reply(
+-            body=json.dumps(
+-                {
+-                    "id": "resp_weather_tool_only",
+-                    "object": "response",
+-                    "created_at": 1789788253,
+-                    "status": "completed",
+-                    "model": "gpt-6-sol",
+-                    "output": [
+-                        {
+-                            "type": "function_call",
+-                            "id": "fc_1",
+-                            "call_id": "call_1",
+-                            "name": "get_weather",
+-                            "arguments": '{"city":"Paris"}',
+-                            "status": "completed",
+-                        }
+-                    ],
+-                    "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+-                }
+-            ).encode()
+-        )
+-
+-    with wire_server(respond) as wire, gateway.scenario() as scenario:
+-        model: Final = scenario.model(
+-            model="openai/responses/gpt-6-sol", api_base=wire.url, api_key="synthetic-openai-key"
+-        )
+-        response: Final = gateway.request(
+-            "POST",
+-            "/v1/chat/completions",
+-            {
+-                "model": model,
+-                "messages": [{"role": "user", "content": f"What is the weather in Paris? {identity}"}],
+-                "tools": [
+-                    {
+-                        "type": "function",
+-                        "function": {
+-                            "name": "get_weather",
+-                            "description": "Get the weather for a city.",
+-                            "parameters": {
+-                                "type": "object",
+-                                "properties": {"city": {"type": "string"}},
+-                                "required": ["city"],
+-                            },
+-                        },
+-                    }
+-                ],
+-                "cache": {"no-cache": True},
+-            },
+-        )
+-        assert response.status_code == 200, response.text
+-        body: Final = response.json()
+-        assert body["choices"] == [
+-            {
+-                "finish_reason": "tool_calls",
+-                "index": 0,
+-                "message": {
+-                    "role": "assistant",
+-                    "content": None,
+-                    "tool_calls": [
+-                        {
+-                            "id": "fc_1",
+-                            "type": "function",
+-                            "function": {
+-                                "name": "get_weather",
+-                                "arguments": '{"city":"Paris"}',
+-                            },
+-                            "index": 0,
+-                        }
+-                    ],
+-                },
+-            }
+-        ], response.text
+-        assert [(request.method, request.target) for request in wire.drain()] == [("POST", "/responses")]
+-
+-
+-def test_chat_over_responses_deployment_merges_function_call_followed_by_message(gateway: Gateway) -> None:
+-    identity: Final = "responses-bridge-tool-then-message-" + uuid.uuid4().hex
+-
+-    def respond(request: Request) -> Reply:
+-        if request.method == "GET" and request.target == "/v1/models":
+-            return Reply(body=b'{"object":"list","data":[]}')
+-        assert request.method == "POST" and request.target == "/responses", request.target
+-        return Reply(
+-            body=json.dumps(
+-                {
+-                    "id": "resp_weather_tool_then_message",
+-                    "object": "response",
+-                    "created_at": 1789788253,
+-                    "status": "completed",
+-                    "model": "gpt-6-sol",
+-                    "output": [
+-                        {
+-                            "type": "function_call",
+-                            "id": "fc_1",
+-                            "call_id": "call_1",
+-                            "name": "get_weather",
+-                            "arguments": '{"city":"Paris"}',
+-                            "status": "completed",
+-                        },
+-                        {
+-                            "type": "message",
+-                            "id": "msg_after_tool",
+-                            "status": "completed",
+-                            "role": "assistant",
+-                            "content": [{"type": "output_text", "text": "After the tool.", "annotations": []}],
+-                        },
+-                    ],
+-                    "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+-                }
+-            ).encode()
+-        )
+-
+-    with wire_server(respond) as wire, gateway.scenario() as scenario:
+-        model: Final = scenario.model(
+-            model="openai/responses/gpt-6-sol", api_base=wire.url, api_key="synthetic-openai-key"
+-        )
+-        response: Final = gateway.request(
+-            "POST",
+-            "/v1/chat/completions",
+-            {
+-                "model": model,
+-                "messages": [{"role": "user", "content": f"What is the weather in Paris? {identity}"}],
+-                "tools": [
+-                    {
+-                        "type": "function",
+-                        "function": {
+-                            "name": "get_weather",
+-                            "description": "Get the weather for a city.",
+-                            "parameters": {
+-                                "type": "object",
+-                                "properties": {"city": {"type": "string"}},
+-                                "required": ["city"],
+-                            },
+-                        },
+-                    }
+-                ],
+-                "cache": {"no-cache": True},
+-            },
+-        )
+-        assert response.status_code == 200, response.text
+-        body: Final = response.json()
+-        assert body["choices"] == [
+-            {
+-                "finish_reason": "tool_calls",
+-                "index": 0,
+-                "message": {
+-                    "role": "assistant",
+-                    "content": "After the tool.",
+-                    "tool_calls": [
+-                        {
+-                            "id": "fc_1",
+-                            "type": "function",
+-                            "function": {
+-                                "name": "get_weather",
+-                                "arguments": '{"city":"Paris"}',
+-                            },
+-                            "index": 0,
+-                        }
+-                    ],
+-                },
+-            }
+-        ], response.text
+-        assert [(request.method, request.target) for request in wire.drain()] == [("POST", "/responses")]
+diff --git a/tests/unit/completion_extras/litellm_responses_transformation/test_completion_extras_litellm_responses_transformation_transformation.py b/tests/unit/completion_extras/litellm_responses_transformation/test_completion_extras_litellm_responses_transformation_transformation.py
+index 25a3220792ff..60a6c96564c0 100644
+--- a/tests/unit/completion_extras/litellm_responses_transformation/test_completion_extras_litellm_responses_transformation_transformation.py
++++ b/tests/unit/completion_extras/litellm_responses_transformation/test_completion_extras_litellm_responses_transformation_transformation.py
+@@ -7,15 +7,6 @@
+ 
+ import httpx
+ import pytest
+-from openai.types.responses import (
+-    ResponseFunctionToolCall,
+-    ResponseOutputMessage,
+-    ResponseOutputText,
+-)
+-from openai.types.responses.response_reasoning_item import (
+-    ResponseReasoningItem,
+-    Summary,
+-)
+ 
+ import litellm
+ from litellm.completion_extras.litellm_responses_transformation.transformation import (
+@@ -3316,148 +3307,6 @@ def test_convert_response_output_generic_pydantic_message_item():
+     assert choices[0].finish_reason == "stop"
+ 
+ 
+-def test_convert_response_output_merges_message_reasoning_and_function_call() -> None:
+-    message: Final = ResponseOutputMessage(
+-        id="msg_weather",
+-        content=[
+-            ResponseOutputText(
+-                annotations=[
+-                    {
+-                        "type": "url_citation",
+-                        "start_index": 0,
+-                        "end_index": 5,
+-                        "title": "Forecast",
+-                        "url": "https://example.com/forecast",
+-                    }
+-                ],
+-                text="Sunny.",
+-                type="output_text",
+-                logprobs=[],
+-            )
+-        ],
+-        role="assistant",
+-        status="completed",
+-        type="message",
+-    )
+-    reasoning: Final = ResponseReasoningItem(
+-        id="rs_before",
+-        summary=[Summary(type="summary_text", text="Checking the forecast.")],
+-        type="reasoning",
+-        content=None,
+-        encrypted_content=None,
+-        status=None,
+-    )
+-    pending_reasoning: Final = ResponseReasoningItem(
+-        id="rs_after",
+-        summary=[Summary(type="summary_text", text="The location is Paris.")],
+-        type="reasoning",
+-        content=None,
+-        encrypted_content=None,
+-        status=None,
+-    )
+-    function_call: Final = ResponseFunctionToolCall(
+-        id="fc_1",
+-        type="function_call",
+-        status="completed",
+-        arguments='{"city":"Paris"}',
+-        call_id="call_1",
+-        name="get_weather",
+-    )
+-
+-    message_and_call: Final = LiteLLMResponsesTransformationHandler._convert_response_output_to_choices(
+-        (message, function_call)
+-    )
+-    assert len(message_and_call) == 1
+-    assert message_and_call[0].index == 0
+-    assert message_and_call[0].finish_reason == "tool_calls"
+-    assert message_and_call[0].message.role == "assistant"
+-    assert message_and_call[0].message.content == "Sunny."
+-    assert message_and_call[0].message.annotations == [
+-        {
+-            "type": "url_citation",
+-            "start_index": 0,
+-            "end_index": 5,
+-            "title": "Forecast",
+-            "url": "https://example.com/forecast",
+-        }
+-    ]
+-    function_calls: Final = message_and_call[0].message.tool_calls
+-    assert function_calls is not None
+-    assert len(function_calls) == 1
+-    assert function_calls[0].function.name == "get_weather"
+-    assert function_calls[0].function.arguments == '{"city":"Paris"}'
+-
+-    reasoning_before_message: Final = LiteLLMResponsesTransformationHandler._convert_response_output_to_choices(
+-        (reasoning, message, function_call)
+-    )
+-    assert len(reasoning_before_message) == 1
+-    assert reasoning_before_message[0].message.reasoning_content == "Checking the forecast."
+-    reasoning_before_items: Final = reasoning_before_message[0].message.reasoning_items
+-    assert reasoning_before_items is not None
+-    assert reasoning_before_items[0]["id"] == "rs_before"
+-
+-    reasoning_after_message: Final = LiteLLMResponsesTransformationHandler._convert_response_output_to_choices(
+-        (message, pending_reasoning, function_call)
+-    )
+-    assert len(reasoning_after_message) == 1
+-    assert reasoning_after_message[0].message.reasoning_content == "The location is Paris."
+-    reasoning_after_items: Final = reasoning_after_message[0].message.reasoning_items
+-    assert reasoning_after_items is not None
+-    assert reasoning_after_items[0]["id"] == "rs_after"
+-
+-    merged_reasoning: Final = LiteLLMResponsesTransformationHandler._convert_response_output_to_choices(
+-        (reasoning, message, pending_reasoning, function_call)
+-    )
+-    assert len(merged_reasoning) == 1
+-    assert merged_reasoning[0].message.reasoning_content == "Checking the forecast. The location is Paris."
+-    merged_reasoning_items: Final = merged_reasoning[0].message.reasoning_items
+-    assert merged_reasoning_items is not None
+-    assert [item["id"] for item in merged_reasoning_items] == ["rs_before", "rs_after"]
+-
+-    tool_only: Final = LiteLLMResponsesTransformationHandler._convert_response_output_to_choices((function_call,))
+-    assert len(tool_only) == 1
+-    assert tool_only[0].index == 0
+-    assert tool_only[0].finish_reason == "tool_calls"
+-    assert tool_only[0].message.content is None
+-    assert tool_only[0].message.tool_calls is not None
+-    assert len(tool_only[0].message.tool_calls) == 1
+-
+-    message_only: Final = LiteLLMResponsesTransformationHandler._convert_response_output_to_choices((message,))
+-    assert len(message_only) == 1
+-    assert message_only[0].index == 0
+-    assert message_only[0].finish_reason == "stop"
+-    assert message_only[0].message.content == "Sunny."
+-    assert message_only[0].message.tool_calls is None
+-
+-
+-def test_convert_response_output_merges_raw_dict_message_and_function_call() -> None:
+-    handler: Final = LiteLLMResponsesTransformationHandler()
+-    raw_message: Final = {
+-        "type": "message",
+-        "role": "assistant",
+-        "content": [{"type": "output_text", "text": "Let me check.", "annotations": []}],
+-    }
+-    raw_function_call: Final = {
+-        "type": "function_call",
+-        "id": "fc_1",
+-        "call_id": "call_1",
+-        "name": "get_weather",
+-        "arguments": '{"city":"Paris"}',
+-    }
+-    choices: Final = LiteLLMResponsesTransformationHandler._convert_response_output_to_choices(
+-        (raw_message, raw_function_call),
+-        handle_raw_dict_callback=handler._handle_raw_dict_response_item,
+-    )
+-
+-    assert len(choices) == 1
+-    assert choices[0].index == 0
+-    assert choices[0].finish_reason == "tool_calls"
+-    assert choices[0].message.role == "assistant"
+-    assert choices[0].message.content == "Let me check."
+-    assert choices[0].message.tool_calls is not None
+-    assert len(choices[0].message.tool_calls) == 1
+-
+-
+ def test_convert_tools_to_responses_format_flattens_nested_custom_tool():
+     from litellm.completion_extras.litellm_responses_transformation.transformation import (
+         LiteLLMResponsesTransformationHandler,
+diff --git a/tests/unit/proxy/guardrails/test_deferred_guardrail_logging.py b/tests/unit/proxy/guardrails/test_deferred_guardrail_logging.py
+index 128d89a31306..6295469c0666 100644
+--- a/tests/unit/proxy/guardrails/test_deferred_guardrail_logging.py
++++ b/tests/unit/proxy/guardrails/test_deferred_guardrail_logging.py
+@@ -322,10 +322,9 @@ async def test_deferred_slot_keeps_the_innermost_wrapper_result():
+ async def test_deferred_anthropic_messages_bridged_to_the_responses_api_logs_the_provider_usage(
+     respx_mock: respx.MockRouter, monkeypatch: pytest.MonkeyPatch
+ ):
+-    """/v1/messages on an Azure gpt-5.4+ deployment with explicit reasoning effort and
+-    function tools runs three nested wrappers: anthropic_messages, the chat adapter's
+-    acompletion, and the Responses bridge acompletion hands the call to, which retags the
+-    call as ``responses``. With logging
++    """/v1/messages on an Azure gpt-5.4+ deployment with function tools runs three nested
++    wrappers: anthropic_messages, the chat adapter's acompletion, and the Responses bridge
++    acompletion hands the call to, which retags the call as ``responses``. With logging
+     deferred for a post-call guardrail the stored closure must carry the innermost provider
+     response: logging the Anthropic-shaped reply under Responses semantics books this
+     7,336-token prompt as 3 tokens, since Anthropic's input_tokens excludes the cache hit."""
+@@ -375,7 +374,6 @@ async def test_deferred_anthropic_messages_bridged_to_the_responses_api_logs_the
+ 
+     response: Final = await litellm.anthropic_messages(
+         model="azure/gpt-5.4-nano",
+-        reasoning_effort="low",
+         messages=[{"role": "user", "content": "hi"}],
+         max_tokens=16,
+         tools=[
+diff --git a/tests/unit/test_main.py b/tests/unit/test_main.py
+index 59c907d60c6f..ffb17a17e3e3 100644
+--- a/tests/unit/test_main.py
++++ b/tests/unit/test_main.py
+@@ -894,39 +894,6 @@ def test_responses_api_bridge_check_gpt_5_4_tools_plus_reasoning_routes_to_respo
+     assert model_info.get("mode") == "responses"
+ 
+ 
+-@pytest.mark.parametrize(
+-    ("custom_llm_provider", "model_name"),
+-    [
+-        pytest.param("openai", "gpt-5.4", id="openai-gpt-5.4"),
+-        pytest.param("openai", "gpt-5.4-mini", id="openai-gpt-5.4-mini"),
+-        pytest.param("openai", "gpt-5.5", id="openai-gpt-5.5"),
+-        pytest.param("azure", "gpt-5.4", id="azure-gpt-5.4"),
+-        pytest.param("azure", "gpt-5.4-mini", id="azure-gpt-5.4-mini"),
+-        pytest.param("azure", "gpt-5.5", id="azure-gpt-5.5"),
+-    ],
+-)
+-def test_responses_api_bridge_check_gpt_5_4_and_5_5_tools_with_explicit_low_effort_routes_to_responses(
+-    monkeypatch: pytest.MonkeyPatch,
+-    custom_llm_provider: str,
+-    model_name: str,
+-) -> None:
+-    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+-    monkeypatch.delenv("OPENAI_API_BASE", raising=False)
+-    monkeypatch.setattr(litellm, "api_base", None)
+-
+-    with patch("litellm.main._get_model_info_helper") as mock_get_model_info:
+-        mock_get_model_info.return_value = {"max_tokens": 128000}
+-        model_info, model = litellm_main.responses_api_bridge_check(
+-            model=model_name,
+-            custom_llm_provider=custom_llm_provider,
+-            tools=[{"type": "function", "function": {"name": "get_capital"}}],
+-            reasoning_effort="low",
+-        )
+-
+-    assert model == model_name
+-    assert model_info.get("mode") == "responses"
+-
+-
+ def test_responses_api_bridge_check_gpt_6_astra_tools_with_default_reasoning_routes_to_responses():
+     from litellm.main import responses_api_bridge_check
+ 
+@@ -974,37 +941,46 @@ def test_responses_api_bridge_check_azure_gpt_5_4_tools_plus_reasoning_routes_to
+     assert model_info.get("mode") == "responses"
+ 
+ 
+-@pytest.mark.parametrize(
+-    ("custom_llm_provider", "model_name"),
+-    [
+-        pytest.param("openai", "gpt-5.4", id="openai-gpt-5.4"),
+-        pytest.param("openai", "gpt-5.4-mini", id="openai-gpt-5.4-mini"),
+-        pytest.param("openai", "gpt-5.5", id="openai-gpt-5.5"),
+-        pytest.param("azure", "gpt-5.4", id="azure-gpt-5.4"),
+-        pytest.param("azure", "gpt-5.4-mini", id="azure-gpt-5.4-mini"),
+-        pytest.param("azure", "gpt-5.5", id="azure-gpt-5.5"),
+-    ],
+-)
+-def test_responses_api_bridge_check_gpt_5_4_and_5_5_tools_without_effort_stay_chat(
+-    monkeypatch: pytest.MonkeyPatch,
+-    custom_llm_provider: str,
+-    model_name: str,
+-) -> None:
+-    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+-    monkeypatch.delenv("OPENAI_API_BASE", raising=False)
+-    monkeypatch.setattr(litellm, "api_base", None)
++def test_responses_api_bridge_check_azure_gpt_5_4_tools_with_default_reasoning_routes_to_responses():
++    """
++    Azure gpt-5.4 with tools and UNSET reasoning_effort must bridge: OpenAI enables
++    reasoning by default for gpt-5.4+, and Chat Completions rejects function tools
++    whenever reasoning is on.
++    """
++    from litellm.main import responses_api_bridge_check
+ 
+     with patch("litellm.main._get_model_info_helper") as mock_get_model_info:
+         mock_get_model_info.return_value = {"max_tokens": 128000}
+-        model_info, model = litellm_main.responses_api_bridge_check(
+-            model=model_name,
+-            custom_llm_provider=custom_llm_provider,
++        model_info, model = responses_api_bridge_check(
++            model="gpt-5.4",
++            custom_llm_provider="azure",
+             tools=[{"type": "function", "function": {"name": "get_capital"}}],
+             reasoning_effort=None,
+         )
+ 
+-    assert model == model_name
+-    assert model_info.get("mode") != "responses"
++    assert model == "gpt-5.4"
++    assert model_info.get("mode") == "responses"
++
++
++def test_responses_api_bridge_check_gpt_5_4_tools_with_default_reasoning_routes_to_responses():
++    """
++    gpt-5.4 with tools and UNSET reasoning_effort must bridge: OpenAI enables reasoning
++    by default for gpt-5.4+, and Chat Completions rejects function tools whenever
++    reasoning is on ("use /v1/responses or set reasoning_effort to 'none'").
++    """
++    from litellm.main import responses_api_bridge_check
++
++    with patch("litellm.main._get_model_info_helper") as mock_get_model_info:
++        mock_get_model_info.return_value = {"max_tokens": 128000}
++        model_info, model = responses_api_bridge_check(
++            model="gpt-5.4",
++            custom_llm_provider="openai",
++            tools=[{"type": "function", "function": {"name": "get_capital"}}],
++            reasoning_effort=None,
++        )
++
++    assert model == "gpt-5.4"
++    assert model_info.get("mode") == "responses"
+ 
+ 
+ @pytest.mark.parametrize("region", ("us", "eu"))
+@@ -1078,36 +1054,23 @@ def test_responses_api_bridge_check_gpt_5_6_tools_with_default_reasoning_routes_
+     assert model_info.get("mode") == expected_mode
+ 
+ 
+-@pytest.mark.parametrize(
+-    ("custom_llm_provider", "model_name"),
+-    [
+-        pytest.param("openai", "gpt-5.4", id="openai-gpt-5.4"),
+-        pytest.param("openai", "gpt-5.5", id="openai-gpt-5.5"),
+-        pytest.param("openai", "gpt-5.6", id="openai-gpt-5.6"),
+-        pytest.param("azure", "gpt-5.4", id="azure-gpt-5.4"),
+-        pytest.param("azure", "gpt-5.5", id="azure-gpt-5.5"),
+-        pytest.param("azure", "gpt-5.6", id="azure-gpt-5.6"),
+-    ],
+-)
+-def test_responses_api_bridge_check_gpt_5_4_through_5_6_tools_with_reasoning_none_stay_chat(
+-    monkeypatch: pytest.MonkeyPatch,
+-    custom_llm_provider: str,
+-    model_name: str,
+-) -> None:
+-    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+-    monkeypatch.delenv("OPENAI_API_BASE", raising=False)
+-    monkeypatch.setattr(litellm, "api_base", None)
++def test_responses_api_bridge_check_gpt_5_4_tools_with_reasoning_none_stays_chat():
++    """
++    Explicit reasoning_effort "none" is OpenAI's documented escape hatch that keeps
++    function tools servable on Chat Completions; the bridge must not fire.
++    """
++    from litellm.main import responses_api_bridge_check
+ 
+     with patch("litellm.main._get_model_info_helper") as mock_get_model_info:
+         mock_get_model_info.return_value = {"max_tokens": 128000}
+-        model_info, model = litellm_main.responses_api_bridge_check(
+-            model=model_name,
+-            custom_llm_provider=custom_llm_provider,
++        model_info, model = responses_api_bridge_check(
++            model="gpt-5.4",
++            custom_llm_provider="openai",
+             tools=[{"type": "function", "function": {"name": "get_capital"}}],
+             reasoning_effort="none",
+         )
+ 
+-    assert model == model_name
++    assert model == "gpt-5.4"
+     assert model_info.get("mode") != "responses"
+ 
+ 
+@@ -1270,7 +1233,7 @@ def test_responses_api_bridge_check_dict_effort_none_with_summary_routes_to_resp
+ def test_responses_api_bridge_check_blank_api_base_is_default_openai(blank_api_base):
+     """
+     A blank api_base (None, empty, or whitespace) resolves to the default OpenAI
+-    endpoint downstream, which enforces the reasoning+tools constraint, so gpt-5.6+
++    endpoint downstream, which enforces the reasoning+tools constraint, so gpt-5.4+
+     function-tool requests with unset reasoning_effort must still auto-bridge.
+     """
+     from litellm.main import responses_api_bridge_check
+@@ -1289,33 +1252,25 @@ def test_responses_api_bridge_check_blank_api_base_is_default_openai(blank_api_b
+     assert model_info.get("mode") == "responses"
+ 
+ 
+-@pytest.mark.parametrize(
+-    "model_name",
+-    [
+-        pytest.param("gpt-5.4", id="gpt-5.4"),
+-        pytest.param("gpt-5.5", id="gpt-5.5"),
+-        pytest.param("gpt-5.6", id="gpt-5.6"),
+-    ],
+-)
+-def test_responses_api_bridge_check_custom_api_base_with_unset_effort_stays_chat(
+-    monkeypatch: pytest.MonkeyPatch,
+-    model_name: str,
+-) -> None:
+-    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+-    monkeypatch.delenv("OPENAI_API_BASE", raising=False)
+-    monkeypatch.setattr(litellm, "api_base", None)
++def test_responses_api_bridge_check_custom_api_base_with_unset_effort_stays_chat():
++    """
++    Chat-only OpenAI-compatible backends registered under the openai provider with a
++    custom api_base and gpt-5.4+ model names serve tools-without-reasoning fine and
++    have no /responses route; the unset-effort arm must not reroute them.
++    """
++    from litellm.main import responses_api_bridge_check
+ 
+     with patch("litellm.main._get_model_info_helper") as mock_get_model_info:
+         mock_get_model_info.return_value = {"max_tokens": 128000}
+-        model_info, model = litellm_main.responses_api_bridge_check(
+-            model=model_name,
++        model_info, model = responses_api_bridge_check(
++            model="gpt-5.6",
+             custom_llm_provider="openai",
+             tools=[{"type": "function", "function": {"name": "get_capital"}}],
+             reasoning_effort=None,
+             api_base="http://vllm.internal:8000/v1",
+         )
+ 
+-    assert model == model_name
++    assert model == "gpt-5.6"
+     assert model_info.get("mode") != "responses"
+ 
+ 
+@@ -1465,21 +1420,21 @@ def test_responses_api_bridge_check_custom_api_base_with_explicit_effort_still_r
+     assert model_info.get("mode") == "responses"
+ 
+ 
+-def test_responses_api_bridge_check_azure_gpt_5_6_with_api_base_and_unset_effort_routes():
++def test_responses_api_bridge_check_azure_with_api_base_and_unset_effort_routes():
+     """Azure OpenAI always sets api_base and does enforce the constraint; keep bridging."""
+     from litellm.main import responses_api_bridge_check
+ 
+     with patch("litellm.main._get_model_info_helper") as mock_get_model_info:
+         mock_get_model_info.return_value = {"max_tokens": 128000}
+         model_info, model = responses_api_bridge_check(
+-            model="gpt-5.6",
++            model="gpt-5.4",
+             custom_llm_provider="azure",
+             tools=[{"type": "function", "function": {"name": "get_capital"}}],
+             reasoning_effort=None,
+             api_base="https://myresource.openai.azure.com",
+         )
+ 
+-    assert model == "gpt-5.6"
++    assert model == "gpt-5.4"
+     assert model_info.get("mode") == "responses"
+ 
+ 

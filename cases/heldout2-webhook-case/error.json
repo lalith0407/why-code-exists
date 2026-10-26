@@ -1,0 +1,18 @@
+{
+  "id": "pulseboard-webhook-url-case",
+  "timestamp": "2026-10-25T03:37:42.571Z",
+  "severity": "error",
+  "service": "pulseboard",
+  "message": "Zapier says our webhook hits 404 'hook not found'. Admin saved the outgoing webhook URL https://hooks.zapier.com/hooks/catch/1234567/AbCdEfG/ in workspace settings, but the stored URL that deliveries go to is https://hooks.zapier.com/hooks/catch/1234567/abcdefg/.",
+  "frames": [
+    {
+      "file": "lib/actions/workspace-settings.ts",
+      "line": 12,
+      "function": "updateWorkspaceSettingsAction"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout2-webhook-case/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "transcript_replay"
+  }
+}

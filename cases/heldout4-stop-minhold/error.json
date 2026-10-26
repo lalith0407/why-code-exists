@@ -1,0 +1,18 @@
+{
+  "id": "ta-stop-loss-blocked",
+  "timestamp": "2026-10-25T04:09:42.111Z",
+  "severity": "critical",
+  "service": "trading-agent-system",
+  "message": "Stop-loss did not execute: AAA is down -30% from average cost and the order builder emitted a full stop-loss sell (reason 'stop'), but the order never filled; the guard dropped it. Guard notes: [\"min hold blocked sell of AAA\"]",
+  "frames": [
+    {
+      "file": "src/ta/harness/caps.py",
+      "line": 242,
+      "function": "guard_orders"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout4-stop-minhold/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "repo"
+  }
+}

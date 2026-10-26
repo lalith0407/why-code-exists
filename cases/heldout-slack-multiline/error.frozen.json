@@ -1,0 +1,11 @@
+{
+  "id": "pulseboard-slack-dropped-command",
+  "timestamp": "2026-10-24T16:40:02.000Z",
+  "severity": "warning",
+  "service": "pulseboard",
+  "message": "Support ticket: a Slack message beginning \"/pulse feedback\" did not create feedback. Slack event log row shows the event arrived (200) with createdFeedbackId = null and text \"/pulse feedback Export is slow\\nIt takes 2 minutes for 10k rows\". Single-line \"/pulse feedback ...\" messages from the same channel do create feedback.",
+  "frames": [
+    { "file": "app/api/slack/events/[slug]/route.ts", "line": 74, "function": "POST" }
+  ],
+  "context": { "source": "observed by running the agent-written parser on the logged text (returns null for the two-line message, an object for the one-line one)" }
+}

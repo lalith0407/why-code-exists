@@ -1,0 +1,18 @@
+{
+  "id": "br-sqlite-retype-drops-unique",
+  "timestamp": "2026-10-25T03:52:10.514Z",
+  "severity": "error",
+  "service": "blast-radius",
+  "message": "After the guard ran a signed 'ALTER TABLE customers ALTER COLUMN tier SET DATA TYPE BIGINT' on the SQLite backend, customers lost its unique index on email (indexes now: []); a second row with the same email was accepted (2 rows for ana@example.com).",
+  "frames": [
+    {
+      "file": "world/db.py",
+      "line": 101,
+      "function": "_sqlite_script"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout3-retype-unique/scenario.json (symptom report: values recorded from a real run; frames named by the reporter)",
+    "tree": "repo"
+  }
+}

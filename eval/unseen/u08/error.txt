@@ -1,0 +1,1 @@
+Bug report: after the latest change to the catalog screen, the catalog content no longer renders: the list area is empty. The docked tab bar is also still not pinned to the bottom of the screen.

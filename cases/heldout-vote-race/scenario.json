@@ -1,0 +1,30 @@
+{
+  "id": "pulseboard-vote-500",
+  "service": "pulseboard",
+  "severity": "error",
+  "lang": "ts",
+  "setup": "const { prisma } = await app(\"lib/prisma.ts\");\nconst u = await prisma.user.create({ data: { email: \"voter@example.com\", name: \"Voter\", passwordHash: \"x\" } });\nconst w = await prisma.workspace.create({ data: { name: \"Acme\", slug: \"acme\", webhookSecret: \"x\" } });\nawait prisma.membership.create({ data: { userId: u.id, workspaceId: w.id } });\nconst f = await prisma.feedback.create({ data: { title: \"Dark mode\", body: \"please\", workspaceId: w.id, authorId: u.id } });\nglobalThis.__session = { user: { id: u.id } };\nconst { toggleVoteAction } = await app(\"lib/actions/feedback.ts\");",
+  "stubs": [
+    {
+      "module": "next/cache",
+      "code": "export function revalidatePath(){}",
+      "why": "Next.js request-scoped cache API; no request context outside the server"
+    },
+    {
+      "module": "next/navigation",
+      "code": "export function notFound(){ throw new Error('NEXT_NOT_FOUND') }\nexport function redirect(u){ throw new Error('NEXT_REDIRECT ' + u) }",
+      "why": "Next.js navigation throws control-flow errors handled by the framework"
+    },
+    {
+      "module": "next-auth",
+      "code": "export default function NextAuth(){ return { auth: async () => globalThis.__session, handlers: {}, signIn: async () => {}, signOut: async () => {} } }",
+      "why": "session provider: the signed-in user comes from the request cookie"
+    },
+    {
+      "module": "next-auth/providers/credentials",
+      "code": "export default function Credentials(o){ return o }",
+      "why": "auth provider config object"
+    }
+  ],
+  "body": "// user double-clicks the upvote button: two server-action requests in flight\nawait Promise.all([toggleVoteAction(\"acme\", f.id), toggleVoteAction(\"acme\", f.id)]);"
+}

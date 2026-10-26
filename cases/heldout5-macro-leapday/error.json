@@ -1,0 +1,33 @@
+{
+  "id": "ta-replay-macro-leapday",
+  "timestamp": "2026-10-25T05:27:15.741Z",
+  "severity": "high",
+  "service": "trading-agent-system",
+  "message": "ValueError: day is out of range for month",
+  "frames": [
+    {
+      "file": "src/ta/replay.py",
+      "line": 322,
+      "function": "_refresh_macro"
+    },
+    {
+      "file": "/usr/lib/python3.13/asyncio/base_events.py",
+      "line": 725,
+      "function": "run_until_complete"
+    },
+    {
+      "file": "/usr/lib/python3.13/asyncio/runners.py",
+      "line": 118,
+      "function": "run"
+    },
+    {
+      "file": "/usr/lib/python3.13/asyncio/runners.py",
+      "line": 195,
+      "function": "run"
+    }
+  ],
+  "context": {
+    "captured_by": "src/bin/capture-error.ts --scenario cases/heldout5-macro-leapday/scenario.json (exception message and stack frames from a real run)",
+    "tree": "repo"
+  }
+}
